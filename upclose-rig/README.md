@@ -133,6 +133,29 @@ python -m upclose_rig obd-serve --port 35000 --dtc P0301                        
 
 With a real adapter, the same query path works: `obd-snapshot --obd-port COM7 --provenance live`.
 
+## Tiger Data (time-series store)
+
+Pod samples and anomaly verdicts can also be stored as time series in a
+Tiger Cloud (Timescale) database, separate from the UpClose inspection
+database, so a run can be queried per second (vibration RMS, sound level,
+anomaly score).
+
+```bash
+export TIGER_DATABASE_URL="<connection string>"   # PowerShell: $env:TIGER_DATABASE_URL = "..."
+python -m upclose_rig tiger-init
+python -m upclose_rig simulate --seconds 30 --out recordings/sim.upr
+python -m upclose_rig tiger-push recordings/sim.upr --provenance synthetic
+python -m upclose_rig tiger-summary sim
+```
+
+`tiger-push` takes `--verdict` (an anomaly verdict JSON) and `--run-id`
+(default: the recording file name). Simulator recordings must use provenance
+`synthetic`, the default; only board recordings from a real engine may use
+`real`. The connection string is read from the environment only and never
+appears in arguments, logs, or error messages. The schema lives in
+`sql/tiger_schema.sql`: `pod_runs`, the `pod_samples` hypertable,
+`pod_verdicts`, and a per-second `pod_samples_1s` rollup.
+
 ## Reference
 
 ### Commands
@@ -145,6 +168,7 @@ With a real adapter, the same query path works: `obd-snapshot --obd-port COM7 --
 | `bundle`, `post` | Build or send a `rig_telemetry` body (`--verdict` embeds the model verdict) |
 | `obd-snapshot`, `obd-serve` | Query or serve the emulated OBD adapter |
 | `anomaly-fit`, `anomaly-score`, `anomaly-eval` | Fit, score, or regenerate the evaluation report |
+| `tiger-init`, `tiger-push`, `tiger-summary` | Store a run in Tiger Data and query its per-second rollup |
 
 ### Pod → host line protocol (`upclose-pod v1`, 250000 baud)
 

@@ -244,6 +244,40 @@ def cmd_live(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_tiger_init(a: argparse.Namespace) -> int:
+    from . import tiger
+
+    n = tiger.init()
+    print(f"tiger store ready ({n} statements applied)", file=sys.stderr)
+    return 0
+
+
+def cmd_tiger_push(a: argparse.Namespace) -> int:
+    from . import tiger
+
+    res = tiger.push(a.recording, a.verdict, a.provenance, run_id=a.run_id, notes=a.notes)
+    extra = f", verdict {res['verdict_state']}" if "verdict_state" in res else ""
+    print(f"pushed {a.recording} as run {res['run_id']}: {res['samples']} samples{extra}", file=sys.stderr)
+    return 0
+
+
+def cmd_tiger_summary(a: argparse.Namespace) -> int:
+    from . import tiger
+
+    s = tiger.summarize(a.run_id)
+    run = s["run"]
+    print(f"run {run['run_id']} source={run['source']} provenance={run['provenance']} started={run['started_at']}")
+    v = s["verdict"]
+    print(f"verdict: {v['state']} score={v['score']}" if v else "verdict: none")
+    print(f"buckets: {s['n_buckets']} (1 s)")
+    for b in s["buckets"]:
+        rms = f"{b['accel_rms']:.1f}" if b["accel_rms"] is not None else "-"
+        smean = f"{b['sound_mean']:.0f}" if b["sound_mean"] is not None else "-"
+        smax = f"{b['sound_max']}" if b["sound_max"] is not None else "-"
+        print(f"{b['bucket']} accel_n={b['n_accel']} accel_rms={rms} sound_mean={smean} sound_max={smax}")
+    return 0
+
+
 # --- parser ---------------------------------------------------------------
 
 def _add_obd_state_args(p: argparse.ArgumentParser) -> None:
@@ -352,6 +386,21 @@ def build_parser() -> argparse.ArgumentParser:
     ae = sub.add_parser("anomaly-eval", help="regenerate the synthetic evaluation report")
     ae.add_argument("--out", default="eval/anomaly_report.md")
     ae.set_defaults(fn=cmd_anomaly_eval)
+
+    ti = sub.add_parser("tiger-init", help="create the Tiger Data hypertables and rollups")
+    ti.set_defaults(fn=cmd_tiger_init)
+
+    tp = sub.add_parser("tiger-push", help="push a .upr recording to the Tiger Data store")
+    tp.add_argument("recording")
+    tp.add_argument("--verdict", help="anomaly verdict JSON to store alongside the run")
+    tp.add_argument("--provenance", choices=("synthetic", "real"), default="synthetic")
+    tp.add_argument("--run-id", help="run id (default: recording file name)")
+    tp.add_argument("--notes", default="")
+    tp.set_defaults(fn=cmd_tiger_push)
+
+    ts = sub.add_parser("tiger-summary", help="summarize a run from the per-second rollups")
+    ts.add_argument("run_id")
+    ts.set_defaults(fn=cmd_tiger_summary)
     return p
 
 

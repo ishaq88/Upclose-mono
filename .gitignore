@@ -1,0 +1,4 @@
+# Local-only team workspace and agent instructions
+.team/
+/AGENTS.md
+/CLAUDE.md

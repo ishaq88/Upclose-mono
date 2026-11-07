@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "upclose-rig"
+version = "0.1.0"
+description = "UpClose capture-rig plugin: Grove sensor pod bridge, simulators, emulated OBD"
+requires-python = ">=3.12"
+dependencies = [
+  "pyserial>=3.5",
+  "obd>=0.7.3",
+  "ELM327-emulator>=4.0.0",
+  "pydantic>=2.6",
+  "httpx>=0.27",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

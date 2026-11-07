@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+*.upr
+recordings/
+elm.log
+.env
+!tests/fixtures/*.upr

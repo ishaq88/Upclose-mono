@@ -33,6 +33,18 @@ export type FreeReport = Schemas['FreeReport'];
 export type ReportStatus = Schemas['ReportStatus'];
 export type ShareEnableResponse = Schemas['ShareEnableResponse'];
 export type ProblemCode = Schemas['Problem']['code'];
+export type SourceKind = 'rig_telemetry' | 'obd_snapshot' | 'engine_audio';
+export type SourceProvenance = Schemas['SourceRecord']['provenance'];
+/** One evidence source attached to an inspection, as listed by GET /sessions/{id}/sources (no raw samples). */
+export interface CaptureSource {
+  source_id: string;
+  kind: SourceKind;
+  provenance: SourceProvenance;
+  device: string;
+  captured_at: string;
+  data_sha256: string;
+  summary: { state: 'assessed' | 'not_assessed'; flag_count?: number } & Record<string, unknown>;
+}
 
 export type ApiErrorCode = ProblemCode | 'NETWORK' | 'UNKNOWN';
 
@@ -111,6 +123,8 @@ export interface Api {
   /** Owner-only approved evidence frame as a data URL (token never enters the URL). */
   getFrameDataUrl(path: string, signal?: AbortSignal): Promise<string>;
   deleteMedia(sessionId: string): Promise<void>;
+  /** Owner-only. Evidence sources attached by capture kits. A 404 (an API without the route) means none yet. */
+  listSources(sessionId: string): Promise<CaptureSource[]>;
 }
 
 interface RequestOptions {
@@ -190,6 +204,15 @@ export function createApi(options: ApiOptions): Api {
       });
     },
     deleteMedia: async (id) => { await request('POST', `/sessions/${id}/delete-media`, { body: {} }); },
+    listSources: async (id) => {
+      try {
+        const result = await request<{ sources: CaptureSource[] }>('GET', `/sessions/${id}/sources`);
+        return result.sources;
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return [];
+        throw error;
+      }
+    },
     getReport: (slug) => request('GET', `/reports/${encodeURIComponent(slug)}`),
     updateLabel: (id, label) => request('PUT', `/sessions/${id}/label`, { body: { label } }),
     enableShare: (slug) => request('POST', `/reports/${encodeURIComponent(slug)}/share`, { body: {} }),

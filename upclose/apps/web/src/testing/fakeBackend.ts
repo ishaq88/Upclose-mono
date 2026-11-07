@@ -3,7 +3,7 @@
  * It enforces the documented rules that matter to the client: bearer auth, <=10 URLs per request, URL refresh
  * rate limit, expiring presigned URLs (403), exact piece sizes at completion, and Retry-After on 429.
  */
-import type { Part1Verdict, PartSummary, ReportProgress, VideoUploadResponse, CreateVideoUploadRequest } from '../api/client';
+import type { CaptureSource, Part1Verdict, PartSummary, ReportProgress, VideoUploadResponse, CreateVideoUploadRequest } from '../api/client';
 
 const CHUNK = 8 * 1024 * 1024;
 const ZONES = ['driver_side', 'passenger_side', 'front_rear_body', 'tires', 'dash_electrical', 'engine_bay', 'underbody', 'interior'] as const;
@@ -87,6 +87,9 @@ export class FakeBackend {
   report: ReportProgress | null = null;
   /** Scripted answers for the next progress reads (consumed first), e.g. 429 with Retry-After. */
   progressScript: Array<{ status: number; retryAfter?: string }> = [];
+  /** Sources served by GET /sessions/{id}/sources; `sourcesStatus` 404 mimics an API without the route. */
+  sources: CaptureSource[] = [];
+  sourcesStatus: 200 | 404 = 200;
   checkoutUrl = 'https://checkout.test/c/cs_test_123';
   private sequence = 0;
   private readonly issued = new Map<string, { uploadId: string; part: number; expiresAt: number; revoked: boolean }>();
@@ -151,6 +154,7 @@ export class FakeBackend {
     let m: RegExpExecArray | null;
     if ((m = /^\/sessions\/([^/]+)$/.exec(path)) && method === 'GET') return this.getSession(m[1]);
     if ((m = /^\/sessions\/([^/]+)\/delete-media$/.exec(path)) && method === 'POST') return json(202, { state: 'deleting' });
+    if (/^\/sessions\/([^/]+)\/sources$/.test(path) && method === 'GET') return this.sourcesStatus === 404 ? problem(404, 'NOT_FOUND') : json(200, { sources: this.sources });
     if ((m = /^\/sessions\/([^/]+)\/progress$/.exec(path)) && method === 'GET') return this.getProgress(m[1]);
     if ((m = /^\/reports\/([^/]+)\/checkout$/.exec(path)) && method === 'POST') return this.checkout(m[1], body);
     if ((m = /^\/sessions\/([^/]+)\/video$/.exec(path))) {

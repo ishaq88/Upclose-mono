@@ -12,6 +12,9 @@ import { useUploads } from '../upload/useUploads';
 import { ErrorNotice, PartCard, STATE_LABEL, zoneStateLabel } from './PartCard';
 import { Part1Slot } from './FreeVerdictCard';
 import { ProgressPanel } from './ProgressPanel';
+import { CaptureKits, MissingKitsNotice } from './CaptureKits';
+import { kitRows, missingKits } from '../capture/kits';
+import { useCaptureSources } from '../capture/useCaptureSources';
 import '../capture/capture.css';
 
 interface Props {
@@ -104,6 +107,10 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
   const capturing = session?.state === 'capturing';
   const serverUploading = parts.some((part) => part.state === 'uploading');
   const uploadActive = uploads.anyActive || serverUploading || sourceUpload.blocksFinish;
+  const sources = useCaptureSources(api, sessionId, capturing && !unauthorized);
+  const phoneVideoAttached = sourceUpload.source?.state === 'accepted' || parts.some((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed');
+  const kits = kitRows(phoneVideoAttached, sources);
+  const unattached = missingKits(kits);
   const canFinish = capturing && !uploadActive && !finishing;
   const notFilmed = parts.filter((part) => part.state === 'pending');
   const skipped = parts.filter((part) => part.state === 'skipped');
@@ -194,6 +201,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
                 <ClockIcon />
                 <span><b>Keep this tab open.</b> <span className="muted">Reloading is fine, but closing the tab may lose access to this session and its uploads, with no recovery from another device. An interrupted upload continues only if you select the same video file again; a clip recorded in the page cannot be recovered after a reload.</span></span>
               </div>
+              <CaptureKits rows={kits} sessionId={sessionId} ownerToken={ownerToken} capturing={capturing && !confirmDelete} />
               <SaveInspection sessionId={sessionId} ownerToken={ownerToken} />
 
               <Part1Slot part1={parts.find((part) => part.part_no === 1)} verdict={progress?.free_verdict} />
@@ -208,6 +216,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
                     {confirmFinish ? (
                       <div className="notice stack">
                         <p>Finish capture? This freezes your selection.{notFilmed.length > 0 ? ` ${notFilmed.length} zone${notFilmed.length === 1 ? '' : 's'} not yet filmed will be marked skipped.` : ''}</p>
+                        <MissingKitsNotice rows={unattached} />
                         <div className="cap-actions">
                           <button type="button" className="btn btn-dark" disabled={!canFinish} onClick={() => { void finalize(); }}>Yes, finish</button>
                           <button type="button" className="btn btn-ghost" onClick={() => setConfirmFinish(false)}>Keep filming</button>

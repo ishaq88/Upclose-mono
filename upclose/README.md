@@ -12,9 +12,10 @@ The public site is the static landing page and a sample report. The inspection a
 
 1. **Capture.** Record guided clips for eight areas of the car — driver side, passenger side, front and rear body, tires, dashboard, engine bay, underbody, and interior — or upload one continuous video (up to 3 minutes and 200 MiB). In a single video you can optionally mark sections so findings keep their original timestamps, and any uncovered areas can be filmed afterwards as guided follow-ups.
 2. **Upload.** Clips are uploaded directly to private object storage. Processing runs in the background and progress is shown in the browser.
-3. **Assess.** The backend normalizes the media, identifies the vehicle first, and only then looks for damage on the vehicle-masked media. Candidate findings are verified and deduplicated before anything is shown.
-4. **Score.** A deterministic scoring engine turns verified findings into a condition score that accounts for coverage: areas that were not filmed, were too blurry, or could not be assessed are reported as uncovered rather than treated as clean.
-5. **Report.** You get a private report (HTML and JSON) where every displayed finding links back to its persisted evidence — the frame and location it came from. A free preview shows the headline result; the full evidence report is unlocked with a payment.
+3. **Attach capture kits (optional).** Before you finish, other capture kits can add their own evidence to the inspection: engine vibration and temperature from the sensor pod, the engine-anomaly verdict, and an OBD snapshot. The capture screen shows which kits are attached.
+4. **Assess.** The backend normalizes the media, identifies the vehicle first, and only then looks for damage on the vehicle-masked media. Candidate findings are verified and deduplicated before anything is shown.
+5. **Score.** A deterministic scoring engine turns verified findings into a condition score that accounts for coverage: areas that were not filmed, were too blurry, or could not be assessed are reported as uncovered rather than treated as clean.
+6. **Report.** You get a private report (HTML and JSON) where every displayed finding links back to its persisted evidence — the frame and location it came from. Capture-kit evidence appears as **Additional checks**. A free preview shows the headline result; the full evidence report is unlocked with a payment.
 
 ## Key features
 
@@ -24,6 +25,7 @@ The public site is the static landing page and a sample report. The inspection a
 - **Coverage-aware deterministic scoring:** the same inputs always produce the same score. Missing, failed, or unsupported coverage lowers completeness instead of inflating the result.
 - **Evidence-linked reports:** every finding in the paid report points to its source evidence. Free previews cannot access paid evidence through the page, the API, image routes, or caches.
 - **Private by default:** reports are owner-only and public sharing is disabled. Deleting an inspection immediately revokes access, and stored media is then purged and verified gone.
+- **Capture-kit evidence:** sensor-pod telemetry, engine-anomaly verdicts and OBD snapshots are validated, summarised deterministically and frozen into the report as Additional checks. They never change the condition score, and a kit that wasn't used reads "Not checked", never as a pass. The free preview shows only whether each check ran and how many flags it raised. See [the capture kits](../upclose-rig/README.md) and [the evidence-source format](../docs/evidence-sources.md).
 - **Optional accounts:** dealers and frequent sellers can create an email/password account to claim inspections and revisit earlier reports. The anonymous one-off flow works without an account.
 - **Test-mode payments:** report unlock uses Stripe in test mode. Payment status is confirmed from verified provider state — simply returning to the site in the browser grants nothing.
 

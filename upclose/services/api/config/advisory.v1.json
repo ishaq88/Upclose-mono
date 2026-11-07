@@ -1,0 +1,8 @@
+{
+  "version": "advisory-v1",
+  "max_items_per_list": 5,
+  "max_item_chars": 240,
+  "max_summary_chars": 600,
+  "timeout_seconds": 30.0,
+  "max_attempts": 2
+}

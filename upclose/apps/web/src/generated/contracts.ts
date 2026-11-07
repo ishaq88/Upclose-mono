@@ -4,6 +4,17 @@ export type paths = Record<string, never>;
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AccelData */
+        AccelData: {
+            /** Rate Hz */
+            rate_hz: number;
+            /** X Mg */
+            x_mg: number[];
+            /** Y Mg */
+            y_mg: number[];
+            /** Z Mg */
+            z_mg: number[];
+        };
         /** AccountSessionsResponse */
         AccountSessionsResponse: {
             /** Sessions */
@@ -418,6 +429,16 @@ export interface components {
              */
             state: "deleting" | "deleted";
         };
+        /** DtcEntry */
+        DtcEntry: {
+            /** Code */
+            code: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "stored" | "pending" | "permanent";
+        };
         /** EmptyRequest */
         EmptyRequest: Record<string, never>;
         /** EvidenceRef */
@@ -573,6 +594,11 @@ export interface components {
         };
         /** FreeReport */
         FreeReport: {
+            /**
+             * Additional Checks
+             * @default []
+             */
+            additional_checks: components["schemas"]["FreeSourceCheck"][];
             /** Coverage */
             coverage: components["schemas"]["PublicCoverage"][];
             /** Findings */
@@ -603,6 +629,37 @@ export interface components {
              */
             vehicle_label: string | null;
         };
+        /**
+         * FreeSourceCheck
+         * @description Free scope: only whether a kind was checked and how many flags it raised. No values.
+         */
+        FreeSourceCheck: {
+            /** Checked */
+            checked: boolean;
+            /**
+             * Flag Count
+             * @default 0
+             */
+            flag_count: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rig_telemetry" | "obd_snapshot";
+        };
+        /** IrregularWindow */
+        IrregularWindow: {
+            /** Rms Mg */
+            rms_mg: number;
+            /**
+             * Status
+             * @default unverified
+             * @constant
+             */
+            status: "unverified";
+            /** T Ms */
+            t_ms: number;
+        };
         /** LockedZoneSummary */
         LockedZoneSummary: {
             /** Finding Count */
@@ -628,6 +685,150 @@ export interface components {
             finding_ids: string[];
             /** Text */
             text: string;
+        };
+        /** ObdSnapshotData */
+        ObdSnapshotData: {
+            /**
+             * Distance Since Codes Cleared Km
+             * @default null
+             */
+            distance_since_codes_cleared_km: number | null;
+            /**
+             * Dtcs
+             * @default []
+             */
+            dtcs: components["schemas"]["DtcEntry"][];
+            /** Mil On */
+            mil_on: boolean;
+            /**
+             * Pids
+             * @default {}
+             */
+            pids: {
+                [key: string]: number;
+            };
+            /**
+             * Readiness
+             * @default {}
+             */
+            readiness: {
+                [key: string]: "complete" | "incomplete" | "unsupported";
+            };
+            /**
+             * Vin
+             * @default null
+             */
+            vin: string | null;
+            /**
+             * Warmups Since Codes Cleared
+             * @default null
+             */
+            warmups_since_codes_cleared: number | null;
+        };
+        /** ObdSnapshotSource */
+        ObdSnapshotSource: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            data: components["schemas"]["ObdSnapshotData"];
+            /** Device */
+            device: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "obd_snapshot";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+        };
+        /** ObdSummary */
+        ObdSummary: {
+            /**
+             * Codes Recently Cleared
+             * @default null
+             */
+            codes_recently_cleared: boolean | null;
+            /**
+             * Cold Start
+             * @default null
+             */
+            cold_start: boolean | null;
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Coolant C
+             * @default null
+             */
+            coolant_c: number | null;
+            /**
+             * Distance Since Codes Cleared Km
+             * @default null
+             */
+            distance_since_codes_cleared_km: number | null;
+            /**
+             * Dtcs
+             * @default []
+             */
+            dtcs: components["schemas"]["DtcEntry"][];
+            /**
+             * Flag Count
+             * @default 0
+             */
+            flag_count: number;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+            /**
+             * Incomplete Monitors
+             * @default []
+             */
+            incomplete_monitors: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "obd_snapshot";
+            /** Mil On */
+            mil_on: boolean;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * State
+             * @default assessed
+             * @enum {string}
+             */
+            state: "assessed" | "not_assessed";
+            /**
+             * Uncalibrated Note
+             * @default Values are uncalibrated estimates, not measurements.
+             * @constant
+             */
+            uncalibrated_note: "Values are uncalibrated estimates, not measurements.";
+            /**
+             * Vin
+             * @default null
+             */
+            vin: string | null;
+            /**
+             * Warmups Since Codes Cleared
+             * @default null
+             */
+            warmups_since_codes_cleared: number | null;
         };
         /** PaidFinding */
         PaidFinding: {
@@ -671,6 +872,11 @@ export interface components {
         /** PaidReport */
         PaidReport: {
             /**
+             * Additional Checks
+             * @default []
+             */
+            additional_checks: components["schemas"]["PaidSourceCheck"][];
+            /**
              * Candidates
              * @default []
              */
@@ -709,6 +915,18 @@ export interface components {
              * @default null
              */
             vehicle_label: string | null;
+        };
+        /** PaidSourceCheck */
+        PaidSourceCheck: {
+            /** Checked */
+            checked: boolean;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rig_telemetry" | "obd_snapshot";
+            /** @default null */
+            source: components["schemas"]["SourceRecord"] | null;
         };
         /**
          * Part1Verdict
@@ -957,6 +1175,112 @@ export interface components {
              */
             state: "building" | "failed";
         };
+        /** RigTelemetryData */
+        RigTelemetryData: {
+            accel: components["schemas"]["AccelData"];
+            /**
+             * Cylinders
+             * @default 4
+             */
+            cylinders: number;
+            /** @default null */
+            sound: components["schemas"]["SoundData"] | null;
+            /**
+             * Temperature
+             * @default []
+             */
+            temperature: components["schemas"]["TemperatureReading"][];
+        };
+        /** RigTelemetrySource */
+        RigTelemetrySource: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            data: components["schemas"]["RigTelemetryData"];
+            /** Device */
+            device: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "rig_telemetry";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+        };
+        /** RigTelemetrySummary */
+        RigTelemetrySummary: {
+            /** Config Hash */
+            config_hash: string;
+            /** Cylinders */
+            cylinders: number;
+            /**
+             * Dominant Hz
+             * @default null
+             */
+            dominant_hz: number | null;
+            /** Duration S */
+            duration_s: number;
+            /**
+             * Flag Count
+             * @default 0
+             */
+            flag_count: number;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+            /**
+             * Irregular Windows
+             * @default []
+             */
+            irregular_windows: components["schemas"]["IrregularWindow"][];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "rig_telemetry";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Roughness
+             * @default null
+             */
+            roughness: number | null;
+            /**
+             * Rpm Estimate
+             * @default null
+             */
+            rpm_estimate: number | null;
+            /** Sample Count */
+            sample_count: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "assessed" | "not_assessed";
+            /** @default null */
+            temperature: components["schemas"]["TemperatureSummary"] | null;
+            /**
+             * Uncalibrated Note
+             * @default Values are uncalibrated estimates, not measurements.
+             * @constant
+             */
+            uncalibrated_note: "Values are uncalibrated estimates, not measurements.";
+        };
         /** ScoreResult */
         ScoreResult: {
             /** Config Hash */
@@ -1063,11 +1387,78 @@ export interface components {
              */
             state: "skipped";
         };
+        /** SoundData */
+        SoundData: {
+            /** Level */
+            level: number[];
+            /** Rate Hz */
+            rate_hz: number;
+        };
+        /**
+         * SourceRecord
+         * @description One frozen source: summary plus the hash binding it to the raw row. Manifest and paid report.
+         */
+        SourceRecord: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Data Sha256 */
+            data_sha256: string;
+            /** Device */
+            device: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rig_telemetry" | "obd_snapshot";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /** Summary */
+            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"];
+        };
+        /** SourceResponse */
+        SourceResponse: {
+            /** Data Sha256 */
+            data_sha256: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rig_telemetry" | "obd_snapshot";
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Summary */
+            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"];
+        };
         /**
          * Subzone
          * @enum {string}
          */
         Subzone: "rocker" | "door" | "fender" | "quarter_panel" | "hood" | "roof" | "trunk" | "bumper" | "windshield" | "tire" | "engine_bay" | "underbody" | "interior" | "dash";
+        /** TemperatureReading */
+        TemperatureReading: {
+            /** Celsius */
+            celsius: number;
+            /** T Ms */
+            t_ms: number;
+        };
+        /** TemperatureSummary */
+        TemperatureSummary: {
+            /** Engine Warm At Start */
+            engine_warm_at_start: boolean;
+            /** Rise C */
+            rise_c: number | null;
+            /** Start C */
+            start_c: number;
+        };
         /** UpdateListingRequest */
         UpdateListingRequest: {
             /** Listing Text */

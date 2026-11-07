@@ -28,6 +28,9 @@ from .reports import (
     FreeFinding, FreeReport, LockedZoneSummary, PaidFinding, PaidReport, Part1Verdict, PublicCoverage,
     PublicFinding, PublicClaim, ReportStatus, ShareDisableResponse, ShareEnableResponse,
 )
+from .sources import (
+    FreeSourceCheck, ObdSnapshotSource, PaidSourceCheck, RigTelemetrySource, SourceListItem, SourceListResponse, SourceRecord, SourceResponse,
+)
 from .scoring import RepairEstimate, RepairSummary, ScoreResult, ScoringInput, ZoneScore
 
 # Only explicit imported contract types are exported; no second enum registry.

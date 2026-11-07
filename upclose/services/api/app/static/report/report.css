@@ -39,6 +39,8 @@ th{background:#eceff2}
 .tag{display:inline-block;border:1px solid #a40e26;color:#a40e26;padding:0 .4rem;margin:.1rem .2rem .1rem 0;font-size:.85rem;font-weight:600}
 .evidence-img{display:block;max-width:100%;height:auto;margin:.5rem 0;border:1px solid #8b95a0}
 .withheld{border:1px dashed #4a5560;padding:.8rem;margin:.5rem 0;text-align:center;color:#4a5560;background:#f4f6f8}
+.badge{display:inline-block;border:1px solid #4a5560;color:#1b1f23;background:#eceff2;padding:0 .4rem;margin-left:.3rem;font-size:.8rem;font-weight:600;vertical-align:middle}
+.check{margin:.6rem 0}
 .locked{border:1px dashed #4a5560;padding:.5rem .8rem;margin:.4rem 0;background:#f4f6f8}
 .lock-tag{font-weight:700}
 .verdict-supported{font-weight:700}

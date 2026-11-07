@@ -1,6 +1,58 @@
 {
   "components": {
     "schemas": {
+      "AccelData": {
+        "additionalProperties": false,
+        "properties": {
+          "rate_hz": {
+            "maximum": 1000,
+            "minimum": 50,
+            "title": "Rate Hz",
+            "type": "number"
+          },
+          "x_mg": {
+            "items": {
+              "maximum": 16000,
+              "minimum": -16000,
+              "type": "integer"
+            },
+            "maxItems": 240000,
+            "minItems": 1,
+            "title": "X Mg",
+            "type": "array"
+          },
+          "y_mg": {
+            "items": {
+              "maximum": 16000,
+              "minimum": -16000,
+              "type": "integer"
+            },
+            "maxItems": 240000,
+            "minItems": 1,
+            "title": "Y Mg",
+            "type": "array"
+          },
+          "z_mg": {
+            "items": {
+              "maximum": 16000,
+              "minimum": -16000,
+              "type": "integer"
+            },
+            "maxItems": 240000,
+            "minItems": 1,
+            "title": "Z Mg",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rate_hz",
+          "x_mg",
+          "y_mg",
+          "z_mg"
+        ],
+        "title": "AccelData",
+        "type": "object"
+      },
       "AccountSessionSummary": {
         "additionalProperties": false,
         "description": "Free-safe account listing row: no findings, costs, evidence, or tokens.",
@@ -930,6 +982,31 @@
         "title": "DeleteMediaResponse",
         "type": "object"
       },
+      "DtcEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^[PCBU][0-3][0-9A-F]{3}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "stored",
+              "pending",
+              "permanent"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status"
+        ],
+        "title": "DtcEntry",
+        "type": "object"
+      },
       "EmptyRequest": {
         "additionalProperties": false,
         "properties": {},
@@ -1324,6 +1401,14 @@
       "FreeReport": {
         "additionalProperties": false,
         "properties": {
+          "additional_checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/FreeSourceCheck"
+            },
+            "title": "Additional Checks",
+            "type": "array"
+          },
           "coverage": {
             "items": {
               "$ref": "#/components/schemas/PublicCoverage"
@@ -1409,6 +1494,63 @@
         "title": "FreeReport",
         "type": "object"
       },
+      "FreeSourceCheck": {
+        "additionalProperties": false,
+        "description": "Free scope: only whether a kind was checked and how many flags it raised. No values.",
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "boolean"
+          },
+          "flag_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Flag Count",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "rig_telemetry",
+              "obd_snapshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "checked"
+        ],
+        "title": "FreeSourceCheck",
+        "type": "object"
+      },
+      "IrregularWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "rms_mg": {
+            "minimum": 0,
+            "title": "Rms Mg",
+            "type": "number"
+          },
+          "status": {
+            "const": "unverified",
+            "default": "unverified",
+            "title": "Status",
+            "type": "string"
+          },
+          "t_ms": {
+            "minimum": 0,
+            "title": "T Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "t_ms",
+          "rms_mg"
+        ],
+        "title": "IrregularWindow",
+        "type": "object"
+      },
       "LockedZoneSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1480,6 +1622,304 @@
           "finding_ids"
         ],
         "title": "NarratedStatement",
+        "type": "object"
+      },
+      "ObdSnapshotData": {
+        "additionalProperties": false,
+        "properties": {
+          "distance_since_codes_cleared_km": {
+            "anyOf": [
+              {
+                "maximum": 65535,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distance Since Codes Cleared Km"
+          },
+          "dtcs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DtcEntry"
+            },
+            "maxItems": 64,
+            "title": "Dtcs",
+            "type": "array"
+          },
+          "mil_on": {
+            "title": "Mil On",
+            "type": "boolean"
+          },
+          "pids": {
+            "default": {},
+            "maxProperties": 32,
+            "patternProperties": {
+              "^[a-z_]{1,32}$": {
+                "type": "number"
+              }
+            },
+            "title": "Pids",
+            "type": "object"
+          },
+          "readiness": {
+            "default": {},
+            "maxProperties": 16,
+            "patternProperties": {
+              "^[a-z_]{1,32}$": {
+                "enum": [
+                  "complete",
+                  "incomplete",
+                  "unsupported"
+                ],
+                "type": "string"
+              }
+            },
+            "title": "Readiness",
+            "type": "object"
+          },
+          "vin": {
+            "anyOf": [
+              {
+                "pattern": "^[A-HJ-NPR-Z0-9]{17}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vin"
+          },
+          "warmups_since_codes_cleared": {
+            "anyOf": [
+              {
+                "maximum": 255,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Warmups Since Codes Cleared"
+          }
+        },
+        "required": [
+          "mil_on"
+        ],
+        "title": "ObdSnapshotData",
+        "type": "object"
+      },
+      "ObdSnapshotSource": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ObdSnapshotData"
+          },
+          "device": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+            "title": "Device",
+            "type": "string"
+          },
+          "kind": {
+            "const": "obd_snapshot",
+            "title": "Kind",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "synthetic",
+              "cached",
+              "live"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provenance",
+          "device",
+          "captured_at",
+          "kind",
+          "data"
+        ],
+        "title": "ObdSnapshotSource",
+        "type": "object"
+      },
+      "ObdSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "codes_recently_cleared": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Codes Recently Cleared"
+          },
+          "cold_start": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cold Start"
+          },
+          "config_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "coolant_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Coolant C"
+          },
+          "distance_since_codes_cleared_km": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Distance Since Codes Cleared Km"
+          },
+          "dtcs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/DtcEntry"
+            },
+            "title": "Dtcs",
+            "type": "array"
+          },
+          "flag_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Flag Count",
+            "type": "integer"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "incomplete_monitors": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Incomplete Monitors",
+            "type": "array"
+          },
+          "kind": {
+            "const": "obd_snapshot",
+            "default": "obd_snapshot",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mil_on": {
+            "title": "Mil On",
+            "type": "boolean"
+          },
+          "provenance": {
+            "enum": [
+              "synthetic",
+              "cached",
+              "live"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "state": {
+            "default": "assessed",
+            "enum": [
+              "assessed",
+              "not_assessed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "uncalibrated_note": {
+            "const": "Values are uncalibrated estimates, not measurements.",
+            "default": "Values are uncalibrated estimates, not measurements.",
+            "title": "Uncalibrated Note",
+            "type": "string"
+          },
+          "vin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vin"
+          },
+          "warmups_since_codes_cleared": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Warmups Since Codes Cleared"
+          }
+        },
+        "required": [
+          "config_hash",
+          "provenance",
+          "mil_on"
+        ],
+        "title": "ObdSummary",
         "type": "object"
       },
       "PaidFinding": {
@@ -1607,6 +2047,14 @@
       "PaidReport": {
         "additionalProperties": false,
         "properties": {
+          "additional_checks": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/PaidSourceCheck"
+            },
+            "title": "Additional Checks",
+            "type": "array"
+          },
           "candidates": {
             "default": [],
             "items": {
@@ -1709,6 +2157,40 @@
           "narration"
         ],
         "title": "PaidReport",
+        "type": "object"
+      },
+      "PaidSourceCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "checked": {
+            "title": "Checked",
+            "type": "boolean"
+          },
+          "kind": {
+            "enum": [
+              "rig_telemetry",
+              "obd_snapshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SourceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "kind",
+          "checked"
+        ],
+        "title": "PaidSourceCheck",
         "type": "object"
       },
       "Part1Verdict": {
@@ -2435,6 +2917,237 @@
         "title": "ReportStatus",
         "type": "object"
       },
+      "RigTelemetryData": {
+        "additionalProperties": false,
+        "properties": {
+          "accel": {
+            "$ref": "#/components/schemas/AccelData"
+          },
+          "cylinders": {
+            "default": 4,
+            "maximum": 16,
+            "minimum": 1,
+            "title": "Cylinders",
+            "type": "integer"
+          },
+          "sound": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SoundData"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "temperature": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/TemperatureReading"
+            },
+            "maxItems": 600,
+            "title": "Temperature",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accel"
+        ],
+        "title": "RigTelemetryData",
+        "type": "object"
+      },
+      "RigTelemetrySource": {
+        "additionalProperties": false,
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/RigTelemetryData"
+          },
+          "device": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+            "title": "Device",
+            "type": "string"
+          },
+          "kind": {
+            "const": "rig_telemetry",
+            "title": "Kind",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "synthetic",
+              "cached",
+              "live"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provenance",
+          "device",
+          "captured_at",
+          "kind",
+          "data"
+        ],
+        "title": "RigTelemetrySource",
+        "type": "object"
+      },
+      "RigTelemetrySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "config_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "cylinders": {
+            "maximum": 16,
+            "minimum": 1,
+            "title": "Cylinders",
+            "type": "integer"
+          },
+          "dominant_hz": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Dominant Hz"
+          },
+          "duration_s": {
+            "minimum": 0,
+            "title": "Duration S",
+            "type": "number"
+          },
+          "flag_count": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Flag Count",
+            "type": "integer"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "irregular_windows": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/IrregularWindow"
+            },
+            "maxItems": 20,
+            "title": "Irregular Windows",
+            "type": "array"
+          },
+          "kind": {
+            "const": "rig_telemetry",
+            "default": "rig_telemetry",
+            "title": "Kind",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "synthetic",
+              "cached",
+              "live"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "roughness": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Roughness"
+          },
+          "rpm_estimate": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rpm Estimate"
+          },
+          "sample_count": {
+            "minimum": 0,
+            "title": "Sample Count",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "assessed",
+              "not_assessed"
+            ],
+            "title": "State",
+            "type": "string"
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TemperatureSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "uncalibrated_note": {
+            "const": "Values are uncalibrated estimates, not measurements.",
+            "default": "Values are uncalibrated estimates, not measurements.",
+            "title": "Uncalibrated Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "config_hash",
+          "provenance",
+          "state",
+          "sample_count",
+          "duration_s",
+          "cylinders"
+        ],
+        "title": "RigTelemetrySummary",
+        "type": "object"
+      },
       "ScoreResult": {
         "additionalProperties": false,
         "properties": {
@@ -2661,6 +3374,149 @@
         "title": "SkipPartResponse",
         "type": "object"
       },
+      "SoundData": {
+        "additionalProperties": false,
+        "properties": {
+          "level": {
+            "items": {
+              "maximum": 1023,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "maxItems": 240000,
+            "minItems": 1,
+            "title": "Level",
+            "type": "array"
+          },
+          "rate_hz": {
+            "maximum": 1000,
+            "minimum": 1,
+            "title": "Rate Hz",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate_hz",
+          "level"
+        ],
+        "title": "SoundData",
+        "type": "object"
+      },
+      "SourceRecord": {
+        "additionalProperties": false,
+        "description": "One frozen source: summary plus the hash binding it to the raw row. Manifest and paid report.",
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "data_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Data Sha256",
+            "type": "string"
+          },
+          "device": {
+            "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+            "title": "Device",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "rig_telemetry",
+              "obd_snapshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "provenance": {
+            "enum": [
+              "synthetic",
+              "cached",
+              "live"
+            ],
+            "title": "Provenance",
+            "type": "string"
+          },
+          "summary": {
+            "discriminator": {
+              "mapping": {
+                "obd_snapshot": "#/components/schemas/ObdSummary",
+                "rig_telemetry": "#/components/schemas/RigTelemetrySummary"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RigTelemetrySummary"
+              },
+              {
+                "$ref": "#/components/schemas/ObdSummary"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "kind",
+          "provenance",
+          "device",
+          "captured_at",
+          "data_sha256",
+          "summary"
+        ],
+        "title": "SourceRecord",
+        "type": "object"
+      },
+      "SourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "data_sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Data Sha256",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "rig_telemetry",
+              "obd_snapshot"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_id": {
+            "format": "uuid",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "summary": {
+            "discriminator": {
+              "mapping": {
+                "obd_snapshot": "#/components/schemas/ObdSummary",
+                "rig_telemetry": "#/components/schemas/RigTelemetrySummary"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/RigTelemetrySummary"
+              },
+              {
+                "$ref": "#/components/schemas/ObdSummary"
+              }
+            ],
+            "title": "Summary"
+          }
+        },
+        "required": [
+          "source_id",
+          "kind",
+          "data_sha256",
+          "summary"
+        ],
+        "title": "SourceResponse",
+        "type": "object"
+      },
       "Subzone": {
         "enum": [
           "rocker",
@@ -2680,6 +3536,59 @@
         ],
         "title": "Subzone",
         "type": "string"
+      },
+      "TemperatureReading": {
+        "additionalProperties": false,
+        "properties": {
+          "celsius": {
+            "maximum": 150,
+            "minimum": -40,
+            "title": "Celsius",
+            "type": "number"
+          },
+          "t_ms": {
+            "minimum": 0,
+            "title": "T Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "t_ms",
+          "celsius"
+        ],
+        "title": "TemperatureReading",
+        "type": "object"
+      },
+      "TemperatureSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "engine_warm_at_start": {
+            "title": "Engine Warm At Start",
+            "type": "boolean"
+          },
+          "rise_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rise C"
+          },
+          "start_c": {
+            "title": "Start C",
+            "type": "number"
+          }
+        },
+        "required": [
+          "start_c",
+          "rise_c",
+          "engine_warm_at_start"
+        ],
+        "title": "TemperatureSummary",
+        "type": "object"
       },
       "UpdateListingRequest": {
         "additionalProperties": false,

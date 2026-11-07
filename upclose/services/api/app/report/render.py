@@ -23,6 +23,7 @@ from markupsafe import Markup
 
 from app.contracts.enums import PART_ZONES, ComponentId, CoverageState, ReportState, Zone
 from app.contracts.reports import FreeReport, PaidReport, PublicFinding, ReportStatus
+from app.contracts.sources import FreeSourceCheck, ObdSummary, PaidSourceCheck, RigTelemetrySummary, SourceRecord
 from app.domain.dedup import INTERNAL_FLAGS
 
 from .anchors import ANCHOR_VERSION, VIEW_HEIGHT, VIEW_LABELS, VIEW_WIDTH, VIEWS, anchor_for
@@ -232,6 +233,88 @@ def _state_notice(state: ReportState) -> str | None:
     return None
 
 
+_SOURCE_LABELS = {"rig_telemetry": "Vibration and temperature (capture rig)",
+                  "obd_snapshot": "Engine computer (OBD) snapshot"}
+_PROVENANCE_BADGES = {"synthetic": "Simulated bench data", "cached": "Replayed recording", "live": "Live"}
+_FLAG_LABELS = {"irregular_vibration": "Irregular vibration", "rough_vibration": "Rough vibration",
+                "mil_on": "Check-engine light on", "trouble_codes": "Trouble codes present",
+                "codes_recently_cleared": "Codes may have been recently cleared"}
+
+
+def _yes_no(value: bool | None) -> str:
+    return "Not available" if value is None else "Yes" if value else "No"
+
+
+def _flag_text(flags: Sequence[str]) -> str:
+    return ", ".join(_FLAG_LABELS.get(flag, _words(flag).capitalize()) for flag in flags) or "None"
+
+
+def _free_check_rows(checks: Sequence[FreeSourceCheck]) -> list[dict[str, str]]:
+    return [{"label": _SOURCE_LABELS[row.kind],
+             "status": "Checked" if row.checked else "Not checked",
+             "flags": (f"{row.flag_count} flag{'s' if row.flag_count != 1 else ''} raised" if row.checked else "\u2014")}
+            for row in checks]
+
+
+def _rig_details(summary: RigTelemetrySummary) -> tuple[list[tuple[str, str]], list[str]]:
+    rows: list[tuple[str, str]] = [("Samples", f"{summary.sample_count} over {summary.duration_s:g} s")]
+    windows: list[str] = []
+    if summary.state == "assessed":
+        rows.append(("Dominant vibration frequency", f"{summary.dominant_hz:g} Hz"))
+        rows.append(("Engine speed (estimate)",
+                     f"about {summary.rpm_estimate} rpm, assuming {summary.cylinders} cylinders"))
+        if summary.roughness is not None:
+            rows.append(("Roughness (variation of short-window vibration)", f"{summary.roughness:.2f}"))
+        windows = [f"{source_time_label(row.t_ms)}: vibration level {row.rms_mg:g} mg, unverified"
+                   for row in summary.irregular_windows]
+    if summary.temperature is not None:
+        rows.append(("Temperature at start", f"{summary.temperature.start_c:g} \u00b0C "
+                     f"({'warm' if summary.temperature.engine_warm_at_start else 'cold'} start)"))
+        if summary.temperature.rise_c is not None:
+            rows.append(("Temperature rise", f"{summary.temperature.rise_c:+g} \u00b0C"))
+    rows.append(("Flags", _flag_text(summary.flags)))
+    return rows, windows
+
+
+def _obd_details(summary: ObdSummary) -> tuple[list[tuple[str, str]], list[str]]:
+    rows: list[tuple[str, str]] = [("Check-engine light", "On" if summary.mil_on else "Off"),
+        ("Trouble codes", ", ".join(f"{row.code} ({row.status})" for row in summary.dtcs) or "None reported"),
+        ("Monitors not yet complete", ", ".join(_words(name) for name in summary.incomplete_monitors) or "None"),
+        ("Codes recently cleared", _yes_no(summary.codes_recently_cleared))]
+    if summary.distance_since_codes_cleared_km is not None:
+        rows.append(("Distance since codes cleared", f"{summary.distance_since_codes_cleared_km} km"))
+    if summary.warmups_since_codes_cleared is not None:
+        rows.append(("Warm-ups since codes cleared", str(summary.warmups_since_codes_cleared)))
+    if summary.cold_start is not None:
+        rows.append(("Cold start", f"{_yes_no(summary.cold_start)} (coolant {summary.coolant_c:g} \u00b0C)"))
+    if summary.vin:
+        rows.append(("VIN", summary.vin))
+    rows.append(("Flags", _flag_text(summary.flags)))
+    return rows, []
+
+
+def _paid_check_rows(checks: Sequence[PaidSourceCheck]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for check in checks:
+        record: SourceRecord | None = check.source
+        row: dict[str, object] = {"label": _SOURCE_LABELS[check.kind], "badge": None, "device": None,
+                                  "status": "Not checked",
+                                  "reason": "No data was attached for this check; it is not a pass.",
+                                  "details": [], "windows": []}
+        if record is not None:
+            summary = record.summary
+            row["badge"] = _PROVENANCE_BADGES[record.provenance]
+            row["device"] = record.device
+            if summary.state == "assessed":
+                row["status"], row["reason"] = "Checked", None
+            else:
+                row["reason"] = f"{summary.reason or 'Data was insufficient.'} This is not a pass."
+            row["details"], row["windows"] = (_rig_details(summary) if isinstance(summary, RigTelemetrySummary)
+                                              else _obd_details(summary))
+        rows.append(row)
+    return rows
+
+
 def _common_context(report: FreeReport | PaidReport, provenance_label: str | None) -> dict[str, object]:
     return {
         "css": Markup(_CSS),
@@ -282,6 +365,7 @@ def _free_context(report: FreeReport, evidence_url: EvidenceUrl | None, unlock_h
         "no_findings_text": no_findings,
         "locked_rows": locked_rows,
         "unlock_href": unlock_href,
+        "check_rows": _free_check_rows(report.additional_checks),
     })
     return context
 
@@ -386,6 +470,7 @@ def _paid_context(report: PaidReport, evidence_url: EvidenceUrl | None) -> dict[
             "refs": _refs(claim.finding_ids, numbers),
         } for claim in sorted(report.claims, key=lambda row: row.claim_index)],
         "repairs": _repairs_context(report, numbers),
+        "check_rows": _paid_check_rows(report.additional_checks),
         "narration_rows": [{"text": row.text, "refs": _refs(row.finding_ids, numbers)} for row in report.narration],
     })
     if report.scores.headline is None and assessed >= 3:

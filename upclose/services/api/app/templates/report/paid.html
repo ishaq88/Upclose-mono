@@ -98,6 +98,39 @@
 <p class="note">{{ repairs.label }}. Table version {{ repairs.table_version }}.</p>
 </section>
 
+{%- if check_rows %}
+<section aria-labelledby="extra-h">
+<h2 id="extra-h">Additional checks</h2>
+<p class="note">Additional checks do not change the score. Values are uncalibrated estimates, not measurements.</p>
+{%- for row in check_rows %}
+<article class="card check">
+<h3>{{ row.label }}{% if row.badge %} <span class="badge">{{ row.badge }}</span>{% endif %}</h3>
+<p><strong>{{ row.status }}</strong>{% if row.device %} \· Source device {{ row.device }}{% endif %}</p>
+{%- if row.reason %}
+<p>{{ row.reason }}</p>
+{%- endif %}
+{%- if row.details %}
+<table>
+<tbody>
+{%- for label, value in row.details %}
+<tr><th scope="row">{{ label }}</th><td>{{ value }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{%- if row.windows %}
+<p>Irregular vibration windows (unverified):</p>
+<ul>
+{%- for window in row.windows %}
+<li>{{ window }}</li>
+{%- endfor %}
+</ul>
+{%- endif %}
+</article>
+{%- endfor %}
+</section>
+{%- endif %}
+
 <section aria-labelledby="narr-h">
 <h2 id="narr-h">Summary</h2>
 {%- if narration_rows %}

@@ -7,6 +7,7 @@ from .base import Confidence, ContractModel, Count, Score, Severity, UTCDateTime
 from .enums import ClaimVerdict, ComponentId, Concept, CoverageState, ReportState, Subzone, Zone
 from .evidence import BoundingBox, ClaimResult, NarratedStatement
 from .scoring import RepairSummary, ScoreResult
+from .sources import FreeSourceCheck, PaidSourceCheck
 
 
 class PublicCoverage(ContractModel):
@@ -100,6 +101,7 @@ class FreeReport(ContractModel):
     findings: tuple[FreeFinding, ...]
     locked_zones: tuple[LockedZoneSummary, ...]
     part1_summary: Annotated[str, Field(max_length=2000)]
+    additional_checks: tuple[FreeSourceCheck, ...] = ()
 
 
 class ShareEnableResponse(ContractModel):
@@ -140,6 +142,7 @@ class PaidReport(ContractModel):
     claims: tuple[PublicClaim, ...]
     narration: tuple[NarratedStatement, ...]
     rendered_at: UTCDateTime | None = None
+    additional_checks: tuple[PaidSourceCheck, ...] = ()
 
     @model_validator(mode="after")
     def citations_in_public_scope(self) -> Self:

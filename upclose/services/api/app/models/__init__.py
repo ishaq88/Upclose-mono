@@ -12,3 +12,6 @@ __all__.append('RateLimitBucket')
 
 from .privacy import PrivacyDerivative
 __all__.append('PrivacyDerivative')
+
+from .schema import EvidenceSource
+__all__.append('EvidenceSource')

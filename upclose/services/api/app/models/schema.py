@@ -497,3 +497,20 @@ class AccountToken(Record, Base):
     __table_args__ = (CheckConstraint("token_hash ~ '^[0-9a-f]{64}$'", name="token_hash"),
         CheckConstraint("expires_at > created_at", name="token_expiry"),
         CheckConstraint("revoked_at IS NULL OR revoked_at >= created_at", name="token_revocation"))
+
+
+class EvidenceSource(Record, Base):
+    """Plugin evidence attached before finalize: raw data bound by hash, plus its derived summary."""
+    __tablename__ = "evidence_sources"
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("sessions.id"), index=True)
+    kind: Mapped[str] = mapped_column(states("evidence_source_kind", "rig_telemetry", "obd_snapshot"))
+    provenance: Mapped[str] = mapped_column(states("evidence_source_provenance", "synthetic", "cached", "live"))
+    device: Mapped[str] = mapped_column(String(64))
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    data: Mapped[dict] = mapped_column(JSONB)
+    data_sha256: Mapped[str] = hash_column()
+    summary: Mapped[dict] = mapped_column(JSONB)
+
+    __table_args__ = (UniqueConstraint("session_id", "kind"),
+        CheckConstraint("data_sha256 ~ '^[0-9a-f]{64}$'", name="data_hash"),
+        CheckConstraint("jsonb_typeof(data) = 'object' AND jsonb_typeof(summary) = 'object'", name="json_objects"))

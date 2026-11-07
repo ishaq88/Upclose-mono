@@ -41,6 +41,21 @@
 {%- endif %}
 </section>
 
+{%- if check_rows %}
+<section aria-labelledby="extra-h">
+<h2 id="extra-h">Additional checks</h2>
+<table>
+<thead><tr><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Flags</th></tr></thead>
+<tbody>
+{%- for row in check_rows %}
+<tr><th scope="row">{{ row.label }}</th><td>{{ row.status }}</td><td>{{ row.flags }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+<p class="note">Additional checks do not change the score. A check that was not made is not a pass. Details are in the full report.</p>
+</section>
+{%- endif %}
+
 <section aria-labelledby="locked-h">
 <h2 id="locked-h">Locked zones</h2>
 {%- for zone in locked_rows %}

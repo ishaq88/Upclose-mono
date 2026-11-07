@@ -51,6 +51,7 @@ from app.contracts.evidence import ClaimResult, ConceptRun as ConceptRunContract
 from app.contracts.reports import (CandidateFinding, FreeFinding, FreeReport, LockedZoneSummary, PaidFinding, PaidReport, PublicClaim,
                                    PublicCoverage)
 from app.contracts.scoring import RepairSummary, ScoreResult, ScoringInput
+from app.contracts.sources import SOURCE_KINDS, FreeSourceCheck, PaidSourceCheck, SourceRecord
 from app.contracts.video import VideoRange
 from app.domain.claims import ClaimsConfig, eligible_findings, load_claims_config, resolve_claims
 from app.domain.config import CostConfig, ScoringConfig, load_cost_config, load_scoring_config
@@ -59,7 +60,7 @@ from app.domain.narration import NarrationConfig, NarrationOutcome, load_narrati
 from app.domain.repairs import estimate_repairs
 from app.domain.scoring import score_assessment
 from app.models import (Artifact, Claim, ClaimEvidence, Coverage as CoverageRow, ConceptRun as ConceptRunRow,
-                        Finding as FindingRow, Part, Report, ReportRevision, RevisionFinding, Session, VideoUpload)
+                        Finding as FindingRow, EvidenceSource, Part, Report, ReportRevision, RevisionFinding, Session, VideoUpload)
 from app.pipeline.orchestration import (CONFIG_DIR, FIXTURE_PROVIDERS, MASKED_FIXTURE_PROVIDERS, REPORT_CHAIN_VERSION, TERMINAL_PART_STATES,
                                         assessment_run, canonical_hash, to_contract_finding)
 from app.pipeline.media import FrameManifest
@@ -341,6 +342,7 @@ class ReportManifest(ContractModel):
     config_content: ManifestConfigContent
     code: ManifestCode
     source_video: ManifestSourceVideo | None = None
+    sources: tuple[SourceRecord, ...] = ()
 
     @model_validator(mode="after")
     def complete_and_owned(self) -> Self:
@@ -351,6 +353,9 @@ class ReportManifest(ContractModel):
                 raise ValueError("embedded configuration does not match its frozen hash")
         if hashlib.sha256((self.listing.text or "").encode("utf-8")).hexdigest() != self.listing.text_sha256:
             raise ValueError("listing does not match its frozen hash")
+        kinds = [row.kind for row in self.sources]
+        if kinds != sorted(set(kinds)):
+            raise ValueError("sources must be unique per kind and ordered by kind")
         seen: set[UUID] = set()
         for part in self.parts:
             if part.source_video is not None:
@@ -478,6 +483,18 @@ def _manifest_part(db: DBSession, part: Part) -> tuple[ManifestPart, Mapping[str
     return record, None if run is None else record.config_hashes
 
 
+def _manifest_sources(db: DBSession, session_id: UUID) -> tuple[SourceRecord, ...]:
+    """Plugin evidence frozen with the report; raw data stays in its row, bound by a re-verified hash."""
+    records: list[SourceRecord] = []
+    for row in db.scalars(select(EvidenceSource).where(EvidenceSource.session_id == session_id)
+                          .order_by(EvidenceSource.kind)):
+        if canonical_hash(row.data) != row.data_sha256:
+            raise SnapshotIntegrityError("evidence source data does not match its stored hash")
+        records.append(SourceRecord(kind=row.kind, provenance=row.provenance, device=row.device,
+                                    captured_at=row.captured_at, data_sha256=row.data_sha256, summary=row.summary))
+    return tuple(records)
+
+
 def build_manifest(db: DBSession, revision: ReportRevision, config: ReportConfig, default_provenance: Provenance) -> ReportManifest:
     """Read the persisted evidence into a manifest. Caller holds the session and revision locks.
 
@@ -501,6 +518,7 @@ def build_manifest(db: DBSession, revision: ReportRevision, config: ReportConfig
         session_id=owner.id, report_id=revision.report_id, revision_id=revision.id, revision_no=revision.revision_no,
         finalized_selection=selection,
         source_video=frozen_source,
+        sources=_manifest_sources(db, owner.id),
         provenance=provenance_label((hashes for _, hashes in records if hashes is not None), default_provenance),
         listing=ManifestListing(version=owner.listing_version, text=text,
                                 text_sha256=hashlib.sha256((text or "").encode("utf-8")).hexdigest()),
@@ -514,6 +532,8 @@ def manifest_payload(manifest: ReportManifest) -> dict[str, object]:
     # Additive provenance must not change the canonical bytes of pre-T12 frozen reports.
     if manifest.source_video is None:
         payload.pop("source_video", None)
+    if not manifest.sources:
+        payload.pop("sources", None)
     for part in payload["parts"]:
         if part.get("source_video") is None:
             part.pop("source_video", None)
@@ -743,6 +763,20 @@ def public_coverage_reason(part: ManifestPart, default: str | None) -> str | Non
     return default
 
 
+def free_source_checks(manifest: ReportManifest) -> tuple[FreeSourceCheck, ...]:
+    """Per kind: checked or not, plus a flag count. Missing or unassessed is never a pass."""
+    by_kind = {row.kind: row for row in manifest.sources}
+    return tuple(FreeSourceCheck(kind=kind, checked=kind in by_kind and by_kind[kind].summary.state == "assessed",
+                                 flag_count=by_kind[kind].summary.flag_count if kind in by_kind else 0)
+                 for kind in SOURCE_KINDS)
+
+
+def paid_source_checks(manifest: ReportManifest) -> tuple[PaidSourceCheck, ...]:
+    by_kind = {row.kind: row for row in manifest.sources}
+    return tuple(PaidSourceCheck(kind=kind, checked=kind in by_kind and by_kind[kind].summary.state == "assessed",
+                                 source=by_kind.get(kind)) for kind in SOURCE_KINDS)
+
+
 def build_free_report(snapshot: RevisionSnapshot) -> FreeReport:
     """Free scope: Part-1 findings, score, coverage and summary; other zones as locked totals only."""
     if snapshot.score is None or snapshot.free_narration is None:
@@ -757,7 +791,8 @@ def build_free_report(snapshot: RevisionSnapshot) -> FreeReport:
                       coverage=(PublicCoverage(zone=zone_score.zone, state=zone_score.state,
                                                reason=public_coverage_reason(part1, zone_score.reason)),),
                       part1_score=zone_score.score, findings=findings, locked_zones=locked,
-                      part1_summary=part1_summary_text(snapshot.free_narration.outcome.statements))
+                      part1_summary=part1_summary_text(snapshot.free_narration.outcome.statements),
+                      additional_checks=free_source_checks(manifest))
 
 
 def build_paid_report(snapshot: RevisionSnapshot) -> PaidReport:
@@ -777,7 +812,8 @@ def build_paid_report(snapshot: RevisionSnapshot) -> PaidReport:
                       coverage=tuple(PublicCoverage(zone=row.zone, state=row.state,
                           reason=public_coverage_reason(snapshot.manifest.part(PART_ZONES.index(row.zone) + 1), row.reason)) for row in zones),
                       scores=snapshot.score.scores, findings=findings, candidates=candidates, repairs=snapshot.score.repairs, claims=snapshot.claims,
-                      narration=snapshot.paid_narration.narration.statements, rendered_at=snapshot.rendered_at)
+                      narration=snapshot.paid_narration.narration.statements, rendered_at=snapshot.rendered_at,
+                      additional_checks=paid_source_checks(snapshot.manifest))
 
 
 def build_reports(snapshot: RevisionSnapshot) -> tuple[FreeReport, PaidReport]:

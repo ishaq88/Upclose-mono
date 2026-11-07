@@ -1,0 +1,26 @@
+{
+  "version": "sources-v1",
+  "rig": {
+    "analysis_rate_hz": 200,
+    "min_duration_s": 3.0,
+    "min_analysis_samples": 256,
+    "max_analysis_samples": 1024,
+    "band_low_hz": 5.0,
+    "band_high_hz": 60.0,
+    "coarse_step_hz": 0.25,
+    "fine_step_hz": 0.02,
+    "peak_to_median_min": 30.0,
+    "min_signal_mg": 2.0,
+    "window_ms": 500,
+    "irregular_deviation_ratio": 0.5,
+    "max_irregular_windows": 20,
+    "rough_cv_min": 0.25,
+    "warm_start_celsius": 45.0
+  },
+  "obd": {
+    "cleared_distance_km_below": 100,
+    "cleared_warmups_below": 10,
+    "incomplete_monitors_at_or_above": 3,
+    "cold_start_coolant_c_below": 40.0
+  }
+}

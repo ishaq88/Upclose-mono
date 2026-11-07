@@ -1,0 +1,12 @@
+# Opt-in local marketing host. Use together with compose.yaml; product app stays on 5173.
+services:
+  landing:
+    build:
+      context: ..
+      dockerfile: infra/landing.Dockerfile
+      args:
+        VITE_APP_ORIGIN: ${LANDING_APP_ORIGIN:-http://localhost:5173}
+        # Explicit local test exception; real hosting builds must omit this or set false.
+        LANDING_ALLOW_LOCAL_APP: "true"
+    ports: ["127.0.0.1:5180:8080"]
+    security_opt: [no-new-privileges:true]

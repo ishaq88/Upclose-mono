@@ -1,0 +1,72 @@
+{
+  "version": "media-v1-provisional",
+  "notes": "All numeric values are design defaults (contract section 5, PRD 7.3/7.4.3/7.8.2), not calibrated measurements. Per-process limits have not been measured on production hardware. Server-side measurements govern once golden walkarounds exist.",
+  "max_duration_s": 60,
+  "duration_tolerance_s": 0.25,
+  "max_source_long_edge": 3840,
+  "max_source_short_edge": 2160,
+  "max_source_bytes": 209715200,
+  "min_edge": 16,
+  "proxy_long_edge": 1280,
+  "max_output_frames": 3600,
+  "max_extract_frames": 512,
+  "allowed_containers": ["mov", "mp4", "matroska", "webm"],
+  "demuxer_whitelist": ["mov,mp4,m4a,3gp,3g2,mj2", "matroska,webm"],
+  "allowed_video_codecs": ["h264", "hevc", "vp8", "vp9", "av1"],
+  "x264_preset": "veryfast",
+  "x264_crf": 23,
+  "limits": {
+    "probe": {
+      "wall_time_s": 20,
+      "cpu_seconds": 20,
+      "address_space_bytes": 1073741824,
+      "max_file_bytes": 16777216,
+      "threads": 1
+    },
+    "transcode": {
+      "wall_time_s": 240,
+      "cpu_seconds": 480,
+      "address_space_bytes": 4294967296,
+      "max_file_bytes": 209715200,
+      "threads": 2
+    },
+    "extract": {
+      "wall_time_s": 90,
+      "cpu_seconds": 180,
+      "address_space_bytes": 2147483648,
+      "max_file_bytes": 67108864,
+      "threads": 2
+    }
+  },
+  "frame_plans": [
+    {"part_number": 1, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
+    {"part_number": 2, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
+    {"part_number": 3, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
+    {"part_number": 4, "mode": "stills", "purpose": "sam_image", "count": 8},
+    {"part_number": 5, "mode": "stills", "purpose": "dash_keyframes", "count": 3},
+    {"part_number": 6, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
+    {"part_number": 7, "mode": "video", "purpose": "sam_video", "sample_fps": 4},
+    {"part_number": 8, "mode": "stills", "purpose": "interior_keyframes", "count": 5}
+  ],
+  "quality": {
+    "provisional": true,
+    "source": "PRD 7.8.2 numeric thresholds are v1 design assumptions; unusable_* limits are not in the PRD and were added here as provisional fail-closed bounds",
+    "sample_count": 5,
+    "working_long_edge": 1280,
+    "working_short_edge": 720,
+    "blur_warn_below": 100,
+    "blur_strong_below": 40,
+    "blur_unusable_below": 100,
+    "luma_min": 40,
+    "luma_max": 215,
+    "luma_unusable_below": 15,
+    "luma_unusable_above": 240,
+    "clip_bright_pixel_above": 250,
+    "clip_dark_pixel_below": 10,
+    "clip_bright_max_pct": 5,
+    "clip_dark_max_pct": 10,
+    "min_source_long_edge": 1280,
+    "min_source_short_edge": 720,
+    "min_duration_s": 8
+  }
+}

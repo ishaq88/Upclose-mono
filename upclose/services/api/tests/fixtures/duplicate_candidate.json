@@ -1,0 +1,40 @@
+{
+  "data": {
+    "candidate_ids": [
+      "00000000-0000-4000-8000-000000000004",
+      "00000000-0000-4000-8000-000000000006"
+    ],
+    "verdicts": [
+      {
+        "component_id": null,
+        "concept": "rust",
+        "confidence": null,
+        "duplicate_of": null,
+        "evidence_note": "Synthetic retained patch.",
+        "finding_id": "00000000-0000-4000-8000-000000000004",
+        "flags": [],
+        "severity": 5,
+        "subzone": null,
+        "verdict": "confirmed"
+      },
+      {
+        "component_id": null,
+        "concept": "rust",
+        "confidence": null,
+        "duplicate_of": "00000000-0000-4000-8000-000000000004",
+        "evidence_note": "Synthetic same-frame duplicate.",
+        "finding_id": "00000000-0000-4000-8000-000000000006",
+        "flags": [],
+        "severity": null,
+        "subzone": null,
+        "verdict": "duplicate"
+      }
+    ]
+  },
+  "metadata": {
+    "description": "Two synthetic candidates resolve to one retained finding.",
+    "provenance": "synthetic"
+  },
+  "model": "VerificationGroup",
+  "valid": true
+}

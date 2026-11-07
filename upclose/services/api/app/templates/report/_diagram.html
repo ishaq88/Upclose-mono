@@ -1,0 +1,34 @@
+<figure class="diagram" id="defect-map">
+<figcaption><strong>Approximate diagram — pin positions are not measured locations.</strong> <span class="note">One generic car outline is used for every vehicle; pin numbers match the finding card numbers below.</span></figcaption>
+<div class="views">
+{%- for view in diagram_views %}
+<svg class="car-view" data-view="{{ view.id }}" viewBox="0 0 {{ view_width }} {{ view_height }}" role="img" aria-label="{{ view.label }} view of a generic car outline{% if view.pins %}; pins: {% for pin in view.pins %}{{ pin.number }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}; no pins{% endif %}">
+<title>{{ view.label }} view (generic outline)</title>
+{%- if view.id == "top" %}
+<path class="car-body" d="M24 44 Q24 32 36 32 L196 32 Q216 34 218 48 L218 72 Q216 86 196 88 L36 88 Q24 88 24 76 Z"/>
+<path class="car-glass" d="M80 38 L152 38 L172 52 L172 68 L152 82 L80 82 Z"/>
+<path class="car-line" d="M152 38 L152 82 M80 38 L80 82"/>
+<rect class="car-wheel" x="44" y="24" width="28" height="9" rx="3"/><rect class="car-wheel" x="44" y="87" width="28" height="9" rx="3"/>
+<rect class="car-wheel" x="170" y="24" width="28" height="9" rx="3"/><rect class="car-wheel" x="170" y="87" width="28" height="9" rx="3"/>
+{%- elif view.id == "left" or view.id == "right" %}
+<g{% if view.id == "right" %} transform="translate({{ view_width }} 0) scale(-1 1)"{% endif %}>
+<path class="car-body" d="M18 84 L18 68 Q18 62 26 60 L58 56 L82 34 Q86 30 94 30 L150 30 Q158 30 164 36 L184 56 L216 62 Q224 64 224 72 L224 84 Z"/>
+<path class="car-glass" d="M84 54 L98 37 L150 37 L170 54 Z"/>
+<path class="car-line" d="M125 37 L125 82"/>
+<circle class="car-wheel" cx="60" cy="86" r="16"/><circle class="car-wheel" cx="180" cy="86" r="16"/>
+<circle class="car-line" cx="60" cy="86" r="6"/><circle class="car-line" cx="180" cy="86" r="6"/>
+</g>
+{%- else %}
+<path class="car-body" d="M52 90 L52 66 Q52 60 58 58 L74 36 Q78 30 86 30 L154 30 Q162 30 166 36 L182 58 Q188 60 188 66 L188 90 Z"/>
+<path class="car-glass" d="M80 56 L90 38 L150 38 L160 56 Z"/>
+<rect class="car-wheel" x="46" y="82" width="14" height="26" rx="3"/><rect class="car-wheel" x="180" y="82" width="14" height="26" rx="3"/>
+<rect class="car-line" x="58" y="78" width="124" height="12" rx="3"/>
+{%- endif %}
+<text class="view-label" x="6" y="114">{{ view.label }}{% if view.id == "top" %} (front at right){% endif %}</text>
+{%- for pin in view.pins %}
+<g class="pin sev-{{ pin.severity }}" transform="translate({{ pin.x }} {{ pin.y }})"><title>Finding {{ pin.number }}: {{ pin.title }}</title><circle r="8"/><text dy="3">{{ pin.number }}</text></g>
+{%- endfor %}
+</svg>
+{%- endfor %}
+</div>
+</figure>

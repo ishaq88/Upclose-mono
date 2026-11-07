@@ -1,0 +1,35 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/paint-chip.html"
+        ],
+        "createdAt": "2026-11-04T19:28:05.024Z",
+        "reason": "Claude: throwaway decision sketch; chip label sits below the red chip on the white card, so the flagged ink-on-red pair never renders"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/paint-chip.html"
+        ],
+        "createdAt": "2026-11-04T19:28:16.907Z",
+        "reason": "Claude: throwaway decision-round sketch, not shipping UI; chip labels sit outside the chips, and the grey-beige surround is a placeholder to be re-decided if this direction wins"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/paint-chip.html"
+        ],
+        "createdAt": "2026-11-04T19:28:17.085Z",
+        "reason": "Claude: throwaway decision-round sketch, not shipping UI; chip labels sit outside the chips, and the grey-beige surround is a placeholder to be re-decided if this direction wins"
+      }
+    ]
+  }
+}

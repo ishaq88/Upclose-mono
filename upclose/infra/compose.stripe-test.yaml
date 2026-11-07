@@ -1,0 +1,13 @@
+# Opt-in only: docker compose -f infra/compose.yaml -f infra/compose.stripe-test.yaml up -d api worker
+# Use sandbox credentials in local environment. Never run `compose config` without --quiet with secrets loaded.
+services:
+  api:
+    environment:
+      PAYMENTS_MODE: test
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Set a sandbox test key locally}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?Set the local Stripe CLI listener signing secret}
+      STRIPE_REPORT_PRICE_ID: ${STRIPE_REPORT_PRICE_ID:-}
+  worker:
+    environment:
+      PAYMENTS_MODE: test
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?Set a sandbox test key locally}

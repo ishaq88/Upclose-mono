@@ -1,0 +1,58 @@
+{
+  "data": {
+    "coverage": [
+      {
+        "reason": null,
+        "state": "assessed",
+        "zone": "driver_side"
+      },
+      {
+        "reason": "part_skipped",
+        "state": "not_assessed",
+        "zone": "underbody"
+      }
+    ],
+    "findings": [
+      {
+        "bbox": {
+          "h": 0.1,
+          "w": 0.2,
+          "x": 0.1,
+          "y": 0.2
+        },
+        "component_id": "driver_rocker",
+        "concept": "rust",
+        "confidence": 0.8,
+        "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+        "evidence_available": false,
+        "evidence_note": "Synthetic rust patch on named rocker.",
+        "flags": [
+          "structural_rust_review"
+        ],
+        "id": "00000000-0000-4000-8000-000000000004",
+        "severity": 5,
+        "subzone": "rocker",
+        "zone": "driver_side"
+      }
+    ],
+    "locked_zones": [
+      {
+        "finding_count": 0,
+        "locked": true,
+        "zone": "passenger_side"
+      }
+    ],
+    "part1_score": 85.0,
+    "part1_summary": "Synthetic Part-1 rust finding. Evidence image withheld.",
+    "revision_id": "00000000-0000-4000-8000-000000000007",
+    "scope": "free",
+    "slug": "synthetic-report",
+    "state": "ready"
+  },
+  "metadata": {
+    "description": "Synthetic free DTO; no paid evidence or paid fields.",
+    "provenance": "synthetic"
+  },
+  "model": "FreeReport",
+  "valid": true
+}

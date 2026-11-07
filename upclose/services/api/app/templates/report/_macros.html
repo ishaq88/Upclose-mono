@@ -1,0 +1,36 @@
+{% macro finding_card(card) -%}
+<article class="card{% if card.high_risk %} risk{% endif %}" id="finding-{{ card.number }}">
+<h3><span class="card-number">{{ card.number }}</span>{{ card.concept_label }} — {{ card.zone_label }}</h3>
+<p>{{ card.location_label }} · Severity {{ card.severity }} of 5</p>
+{%- if card.flags %}
+<p>{% for flag in card.flags %}<span class="tag">{{ flag }}</span>{% endfor %}</p>
+{%- endif %}
+<p>{{ card.evidence_note }}</p>
+{%- if card.source_time is not none %}
+<p class="note">Source video {{ card.source_time }} · Section marked by uploader; area coverage unverified.</p>
+{%- endif %}
+<p class="note">{{ card.confidence_text }}</p>
+{%- if card.image_src %}
+<img class="evidence-img" src="{{ card.image_src }}" alt="Approved evidence frame for finding {{ card.number }}: {{ card.evidence_note }}" loading="lazy">
+{%- else %}
+<div class="withheld">Evidence image withheld</div>
+{%- endif %}
+</article>
+{%- endmacro %}
+
+{% macro coverage_table(rows) -%}
+<table>
+<thead><tr><th scope="col">Zone</th><th scope="col">Coverage</th><th scope="col">Note</th></tr></thead>
+<tbody>
+{%- for row in rows %}
+<tr><th scope="row">{{ row.zone_label }}</th><td class="state-{{ row.state }}">{{ row.state_label }}</td><td>{{ row.reason }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endmacro %}
+
+{% macro citations(refs) -%}
+{%- for ref in refs %}<a href="#finding-{{ ref }}">Finding {{ ref }}</a>{% if not loop.last %}, {% endif %}{% endfor -%}
+{%- endmacro %}
+
+{% macro candidate_card(c) -%}<article class="card"><h3><span class="card-number">{{ c.number }}</span>{{ c.concept_label }} - {{ c.zone_label }}</h3><p>Unverified candidate - not scored</p><p>{{ c.evidence_note }}</p><p>{{ c.confidence_text }}</p>{%- if c.source_time %}<p>Frame in the original video: {{ c.source_time }}</p>{%- endif %}{%- if c.image_src %}<img src="{{ c.image_src }}" alt="Reviewed evidence frame for candidate {{ c.number }}" loading="lazy">{%- else %}<p>Evidence image withheld</p>{%- endif %}</article>{%- endmacro %}

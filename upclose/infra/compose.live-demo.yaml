@@ -1,0 +1,17 @@
+# Opt-in only, demo track: docker compose -f infra/compose.yaml -f infra/compose.live-demo.yaml up -d worker
+# Worker-only live demo. The api service intentionally receives NO model key and stays fixture.
+# Requires .docs/evidence/live-demo-exception.md guardrails: demo/cleared media only, non-Standard free
+# credits may use content for product improvement. Revoke before any real-user inference.
+# Tune caps without code change: MODEL_SESSION_BUDGET_CENTS / MODEL_DAILY_BUDGET_CENTS (cents).
+# Never run `compose config` without --quiet with secrets loaded.
+services:
+  worker:
+    environment:
+      MODEL_MODE: live
+      MODEL_API_KEY: ${MODEL_API_KEY:?Set a Meta API key locally for the worker only}
+      META_API_BASE: ${META_API_BASE:-https://api.meta.ai}
+      MODEL_PRICE_VERSION: ${MODEL_PRICE_VERSION:-meta-docs-2026-10-28}
+      MODEL_SESSION_BUDGET_CENTS: ${MODEL_SESSION_BUDGET_CENTS:-500}
+      MODEL_DAILY_BUDGET_CENTS: ${MODEL_DAILY_BUDGET_CENTS:-5000}
+      MODEL_STANDARD_ACCESS_RECEIPT: ${MODEL_STANDARD_ACCESS_RECEIPT:-}
+      MODEL_ALLOW_NON_STANDARD_DEMO: ${MODEL_ALLOW_NON_STANDARD_DEMO:-true}

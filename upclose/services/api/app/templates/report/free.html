@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<p><strong>Free preview — Part 1 (driver side) only.</strong></p>
+<section aria-labelledby="part1-score">
+<h2 id="part1-score">Driver side result</h2>
+<div class="score-box">
+{%- if part1_score is not none %}
+<div class="score-value">{{ part1_score }}</div>
+<div class="score-label">Provisional visual-condition index, driver side (0–100)</div>
+{%- else %}
+<div class="score-value">Not scored</div>
+<div class="score-label">{{ part1_reason }}</div>
+{%- endif %}
+</div>
+{%- if part1_summary %}
+<p>{{ part1_summary }}</p>
+{%- endif %}
+</section>
+
+<section aria-labelledby="coverage-h">
+<h2 id="coverage-h">Coverage</h2>
+{{ m.coverage_table(coverage_rows) }}
+</section>
+
+<section aria-labelledby="map-h">
+<h2 id="map-h">Defect map</h2>
+{% include "_diagram.html" %}
+</section>
+
+<section aria-labelledby="findings-h">
+<h2 id="findings-h">Driver side findings</h2>
+{%- if cards %}
+<div class="cards">
+{%- for card in cards %}
+{{ m.finding_card(card) }}
+{%- endfor %}
+</div>
+{%- else %}
+<p>{{ no_findings_text }}</p>
+{%- endif %}
+</section>
+
+<section aria-labelledby="locked-h">
+<h2 id="locked-h">Locked zones</h2>
+{%- for zone in locked_rows %}
+<div class="locked"><span class="lock-tag">Locked</span> — <strong>{{ zone.zone_label }}</strong>: {{ zone.summary }}</div>
+{%- endfor %}
+{%- if unlock_href %}
+<p class="unlock"><a href="{{ unlock_href }}">Unlock the full report</a></p>
+{%- else %}
+<p class="note unlock">Unlock the full report to see these zones, repair estimates and claim checks.</p>
+{%- endif %}
+</section>
+{% endblock %}

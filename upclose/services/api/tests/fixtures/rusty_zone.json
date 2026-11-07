@@ -1,0 +1,43 @@
+{
+  "data": {
+    "component_id": "driver_rocker",
+    "concept": "rust",
+    "concept_run_id": "00000000-0000-4000-8000-000000000005",
+    "confidence": 0.8,
+    "coverage_pct": null,
+    "duplicate_of": null,
+    "evidence": {
+      "bbox": {
+        "h": 0.1,
+        "w": 0.2,
+        "x": 0.1,
+        "y": 0.2
+      },
+      "frame_height": 720,
+      "frame_index": 0,
+      "frame_key": "synthetic/frame-0.png",
+      "frame_width": 1280,
+      "mask_key": null
+    },
+    "evidence_note": "Synthetic rust patch on named rocker.",
+    "flags": [
+      "structural_rust_review"
+    ],
+    "id": "00000000-0000-4000-8000-000000000004",
+    "part_id": "00000000-0000-4000-8000-000000000003",
+    "part_no": 1,
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "session_id": "00000000-0000-4000-8000-000000000001",
+    "severity": 5,
+    "status": "verified",
+    "subzone": "rocker",
+    "track_id": "synthetic-track-1",
+    "zone": "driver_side"
+  },
+  "metadata": {
+    "description": "Handwritten synthetic rust finding; confidence is uncalibrated.",
+    "provenance": "synthetic"
+  },
+  "model": "Finding",
+  "valid": true
+}

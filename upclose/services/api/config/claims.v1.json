@@ -1,0 +1,151 @@
+{
+  "version": "claims-v1-rules-uncalibrated",
+  "max_listing_chars": 10000,
+  "max_claims": 40,
+  "max_claim_chars": 300,
+  "min_claim_chars": 3,
+  "max_cited_findings": 10,
+  "quality_contradiction_min_severity": 3,
+  "minimizer_max_severity": 3,
+  "no_listing_note": "No listing claims supplied.",
+  "truncated_note": "Listing claims were truncated to the configured maximum.",
+  "redactions": [
+    {"pattern": "(?:https?://|www\\.)\\S+", "replacement": "[link removed]"},
+    {"pattern": "\\b[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+\\b", "replacement": "[email removed]"}
+  ],
+  "sentence_split_pattern": "[.!?]+(?=\\s|$)|[;\\n\\u2022|]|\\s[-\\u2013\\u2014]\\s",
+  "fragment_split_pattern": "(?<!\\d),|,(?!\\d)",
+  "absence_patterns": [
+    "\\bno\\b", "\\bnone\\b", "\\bnot\\b", "\\bnever\\b", "\\bwithout\\b", "\\bzero\\b",
+    "\\bnothing\\b", "\\bfree\\b", "\\bclean\\b", "n't\\b"
+  ],
+  "quality_patterns": [
+    "\\bgood\\b", "\\bgreat\\b", "\\bexcellent\\b", "\\bperfect\\b", "\\bmint\\b", "\\bsolid\\b",
+    "\\bnew\\b", "\\bdecent\\b", "\\bpristine\\b", "\\bimmaculate\\b", "\\bflawless\\b",
+    "\\bplenty\\b", "\\blots of\\b", "\\bfresh\\b"
+  ],
+  "minimizer_patterns": [
+    "\\bminor\\b", "\\bsmall\\b", "\\bslight\\b", "\\blight\\b", "\\btiny\\b", "\\bsurface\\b",
+    "\\bcosmetic\\b", "\\blittle\\b", "\\bbarely\\b", "\\bhairline\\b", "\\bsuperficial\\b"
+  ],
+  "topics": [
+    {
+      "topic": "history", "kind": "not_visible",
+      "patterns": [
+        "\\baccidents?\\b", "\\bwreck\\w*", "\\bcollision\\b", "\\bcrash\\w*", "\\bcarfax\\b", "\\bautocheck\\b",
+        "\\btitle\\b", "\\bsalvage\\b", "\\bflood\\w*", "\\bowners?\\b", "\\bservice (?:records?|history)\\b",
+        "\\bmaintenance (?:records?|history)\\b", "\\brecords?\\b", "\\brecalls?\\b", "\\bhistory\\b",
+        "\\bstolen\\b", "\\blien\\b", "\\bfleet\\b", "\\brental\\b"
+      ],
+      "rationale": "Vehicle history, ownership, title and accident claims cannot be verified from walkaround video."
+    },
+    {
+      "topic": "mileage", "kind": "not_visible",
+      "patterns": ["\\bmiles?\\b", "\\bmileage\\b", "\\bodometer\\b", "\\d\\s?k\\s?mi\\b"],
+      "rationale": "Mileage and odometer claims are not verified; dash readings are not part of this report."
+    },
+    {
+      "topic": "structure", "kind": "not_visible", "overrides_visible": true,
+      "patterns": [
+        "\\bframe\\b", "\\bunibody\\b", "\\bstructur\\w*", "\\bsubframe\\b", "\\bchassis\\b",
+        "\\bairbags?\\b", "\\bcrumple\\w*"
+      ],
+      "rationale": "Hidden structural condition cannot be judged from visible footage."
+    },
+    {
+      "topic": "newness", "kind": "not_visible",
+      "patterns": [
+        "\\bnew\\b", "\\bnewer\\b", "\\bnewly\\b", "\\brecently\\b", "\\bjust (?:replaced|installed|serviced|done)\\b",
+        "\\breplaced\\b", "\\brebuilt\\b", "\\bfresh\\w*", "\\binstalled\\b", "\\brestored\\b",
+        "\\brefurbished\\b", "\\bupgraded?\\b"
+      ],
+      "rationale": "Claims that parts or work are new or recent cannot be verified from video."
+    },
+    {
+      "topic": "mechanical", "kind": "not_visible",
+      "patterns": [
+        "\\bengine\\b", "\\btransmission\\b", "\\bgearbox\\b", "\\bmotor\\b", "\\bcylinders?\\b", "\\bturbo\\w*",
+        "\\bsuspension\\b", "\\bsteering\\b", "\\bclutch\\b", "\\bbattery\\b", "\\bruns?\\b", "\\bdrives?\\b",
+        "\\bstarts?\\b", "\\bexhaust\\b", "\\btiming (?:belt|chain)\\b", "\\boil changes?\\b",
+        "\\bmaintain\\w*", "\\bserviced?\\b", "\\bmaintenance\\b", "\\bhorsepower\\b", "\\bmpg\\b", "\\bmechanic\\w*"
+      ],
+      "rationale": "Mechanical condition and operation cannot be verified from walkaround video."
+    },
+    {
+      "topic": "air_conditioning", "kind": "not_visible",
+      "patterns": ["\\ba/?c\\b", "\\ba\\.c\\b", "\\bair[ -]?con\\w*", "\\bclimate\\b", "\\bhvac\\b", "\\bheater\\b", "\\bheating\\b"],
+      "rationale": "Air conditioning and heating performance cannot be verified from walkaround video."
+    },
+    {
+      "topic": "brakes", "kind": "not_visible",
+      "patterns": ["\\bbrakes?\\b", "\\bbraking\\b", "\\brotors?\\b", "\\babs\\b", "\\bpads?\\b"],
+      "rationale": "Brake condition is not estimated from video."
+    },
+    {
+      "topic": "rust", "kind": "visible_defect",
+      "patterns": ["\\brust\\w*", "\\bcorro\\w*", "\\brot(?:ted|ten|ting)?\\b", "\\boxidiz\\w*"],
+      "zones": ["driver_side", "passenger_side", "front_rear_body", "engine_bay", "underbody"]
+    },
+    {
+      "topic": "paint_bubbling", "kind": "visible_defect",
+      "patterns": ["\\bbubbl\\w*", "\\bblister\\w*", "\\bpeeling paint\\b", "\\bpaint (?:peel|flak)\\w*"],
+      "zones": ["driver_side", "passenger_side", "front_rear_body"]
+    },
+    {
+      "topic": "dent", "kind": "visible_defect",
+      "patterns": ["\\bdents?\\b", "\\bdented\\b", "\\bdings?\\b", "\\bcreased?\\b", "\\bhail damage\\b"],
+      "zones": ["driver_side", "passenger_side", "front_rear_body"]
+    },
+    {
+      "topic": "scratch", "kind": "visible_defect",
+      "patterns": ["\\bscratch\\w*", "\\bscuff\\w*", "\\bscrap(?:e|ed|es|ing)\\b"],
+      "zones": ["driver_side", "passenger_side", "front_rear_body"]
+    },
+    {
+      "topic": "glass_crack", "kind": "visible_defect",
+      "patterns": ["\\bcrack\\w*", "\\bchip(?:s|ped)?\\b", "\\bdamag\\w*", "\\bflaws?\\b"],
+      "requires_any": ["\\bwindshield\\b", "\\bwindscreen\\b", "\\bglass\\b"],
+      "zones": ["front_rear_body"]
+    },
+    {
+      "topic": "tire_wear", "kind": "visible_condition",
+      "patterns": ["\\btires?\\b", "\\btread\\b", "\\bbald\\b"],
+      "defect_patterns": [
+        "\\bworn\\b", "\\bbald\\b", "\\bwear\\b", "\\blow tread\\b", "\\bneeds? (?:new|replac)\\w*", "\\buneven\\b",
+        "\\bdry ?rot\\b", "\\bbulge\\w*", "\\bcracked\\b", "\\bflat\\b"
+      ],
+      "zones": ["tires"]
+    },
+    {
+      "topic": "fluid_leak", "kind": "visible_defect",
+      "patterns": ["\\bleak\\w*", "\\bdrips?\\b", "\\bdripping\\b", "\\bseep\\w*", "\\bpuddle\\w*", "\\boil (?:stain|spot)s?\\b", "\\bwet spots?\\b"],
+      "zones": ["engine_bay", "underbody"]
+    }
+  ],
+  "locations": [
+    {"name": "driver", "side": true, "zones": ["driver_side"], "patterns": ["\\bdriver\\w*"]},
+    {"name": "passenger", "side": true, "zones": ["passenger_side"], "patterns": ["\\bpassenger\\w*"]},
+    {"name": "door", "side_dependent": true, "zones": ["driver_side", "passenger_side"], "patterns": ["\\bdoors?\\b"]},
+    {"name": "rocker", "side_dependent": true, "zones": ["driver_side", "passenger_side"], "patterns": ["\\brockers?\\b", "\\bsills?\\b"]},
+    {"name": "side_panel", "side_dependent": true, "zones": ["driver_side", "passenger_side", "front_rear_body"], "patterns": ["\\bfenders?\\b", "\\bquarter[ -]panels?\\b"]},
+    {"name": "end_panel", "zones": ["front_rear_body"], "patterns": ["\\bhood\\b", "\\bbumpers?\\b", "\\btrunk\\b", "\\broof\\b", "\\btailgate\\b", "\\bliftgate\\b", "\\bgrille\\b", "\\bwindshield\\b", "\\bwindscreen\\b"]},
+    {"name": "tires", "zones": ["tires"], "patterns": ["\\btires?\\b", "\\bwheels?\\b", "\\btread\\b"]},
+    {"name": "engine_bay", "zones": ["engine_bay"], "patterns": ["\\bengine bay\\b", "\\bunder the hood\\b", "\\bengine compartment\\b", "\\bengine\\b"]},
+    {"name": "underbody", "zones": ["underbody"], "patterns": ["\\bunderbod\\w*", "\\bundercarriage\\b", "\\bunderneath\\b", "\\bunder the car\\b", "\\bfloor ?pans?\\b", "\\bundersides?\\b"]},
+    {"name": "dash", "zones": ["dash_electrical"], "patterns": ["\\bdash(?:board)?\\b", "\\bgauges?\\b", "\\binstrument cluster\\b"]},
+    {"name": "interior", "zones": ["interior"], "patterns": ["\\binterior\\b", "\\bseats?\\b", "\\bcarpets?\\b", "\\bheadliner\\b", "\\bupholstery\\b"]}
+  ],
+  "rationales": {
+    "contradicted": "Verified {concept_label} evidence cited here conflicts with this listing claim ({count} finding(s)).",
+    "supported": "Affirmative verified evidence of {concept_label} matches this claim ({count} finding(s)) in assessed coverage.",
+    "absence_unverified": "No verified {concept_label} finding contradicts this claim, but absence of a detection does not establish it. {coverage_clause}",
+    "coverage_assessed": "Coverage for this concept in the relevant area was marked assessed.",
+    "coverage_incomplete": "Coverage for this concept in the relevant area was partial, not assessed, or not recorded.",
+    "presence_unmatched": "No verified {concept_label} finding in the described area matches this claim, so it is reported as not visible.",
+    "presence_partial": "A verified {concept_label} finding exists but its coverage is not marked assessed, so this claim is not marked supported.",
+    "minimizer": "Verified {concept_label} evidence is more severe than the listing's minimizing wording, so this claim is not marked supported.",
+    "location_unresolved": "The area described is not one this report assesses for {concept_label}.",
+    "neutral_visible": "The wording could not be tied to a checkable visible condition ({concept_label}).",
+    "other": "This statement is not a visible-condition claim that the footage can check."
+  }
+}

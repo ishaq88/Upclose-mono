@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UpClose — Prep Bay sketch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+:root{--primer:#cfd0ca;--primer-2:#bfc0b9;--ink:#1f2427;--tape:#e7d38a;--blue:#2f6fd6;--oxide:#a3422a;--kraft:#b99a6b;--kraft-2:#a88a5c}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--primer);color:var(--ink);font-family:"Atkinson Hyperlegible Next",system-ui,sans-serif}
+.nav{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 48px;position:relative;z-index:3}
+.logo{font:900 30px/1 "Big Shoulders Display";letter-spacing:.02em;text-transform:uppercase}
+.logo b{color:var(--oxide)}
+.nav nav{display:flex;gap:32px;font-weight:600;font-size:16px}
+.nav nav a{color:var(--ink);text-decoration:none}
+.sheet{position:absolute;left:0;right:0;background:var(--kraft);background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.035) 0 2px,transparent 2px 9px)}
+.sheet.top{top:64px;height:300px}
+.sheet.bot{top:676px;height:224px}
+.tape{position:absolute;background:var(--tape);height:34px;box-shadow:0 1px 0 rgba(0,0,0,.12);opacity:.96}
+h1{position:absolute;left:48px;top:96px;font:900 168px/.86 "Big Shoulders Display";text-transform:uppercase;letter-spacing:-.005em;color:var(--ink)}
+h1 span{display:block}
+.lede{position:absolute;right:56px;top:112px;width:400px;font-size:22px;line-height:1.4}
+.stage{position:absolute;top:300px;left:0;right:0;height:420px;z-index:1}
+.label{position:absolute;font:400 22px/1 "Permanent Marker";background:var(--tape);padding:8px 14px;color:var(--ink);transform:rotate(-2deg)}
+.cta{position:absolute;left:48px;top:720px;display:flex;align-items:center;gap:24px}
+.btn{background:var(--blue);color:#fff;font:700 24px/1 "Atkinson Hyperlegible Next";padding:22px 34px;border-radius:4px}
+.cta small{font-size:17px;max-width:280px;line-height:1.35}
+.zones{position:absolute;right:48px;top:716px;display:grid;grid-template-columns:repeat(4,150px);gap:10px}
+.zones span{background:var(--primer);font-weight:700;font-size:15px;padding:12px;border-left:6px solid var(--ink)}
+.zones span.n{border-left-color:var(--oxide);background:repeating-linear-gradient(-45deg,var(--primer) 0 6px,var(--primer-2) 6px 12px)}
+</style></head><body>
+<header class="nav"><div class="logo">Up<b>/</b>Close</div><nav><a>How it works</a><a>Sample report</a><a>My reports</a><a>Sign in</a></nav></header>
+<div class="sheet top"><div class="tape" style="left:0;right:0;bottom:-14px"></div></div>
+<h1><span>Good find.</span><span>Look closer.</span></h1>
+<p class="lede">Film the car on your phone. UpClose masks off everything that isn't the car, then marks rust, dents, cracked glass and worn tires on what's left, with a frame for every finding.</p>
+<svg class="stage" viewBox="0 0 1440 420" preserveAspectRatio="none" aria-hidden="true">
+  <rect width="1440" height="420" fill="#bfc0b9"/>
+  <g transform="translate(170,20)">
+    <path d="M40 300 L42 240 Q46 205 100 196 L270 178 Q330 104 430 86 L700 80 Q800 84 870 156 L1010 176 Q1080 188 1090 232 L1094 300 Z" fill="#8f979b" stroke="#1f2427" stroke-width="4"/>
+    <path d="M320 176 L432 104 L620 98 L620 176 Z M640 176 L640 98 L700 98 Q770 106 830 176 Z" fill="#59656c"/>
+    <circle cx="250" cy="300" r="70" fill="#1f2427"/><circle cx="250" cy="300" r="34" fill="#9aa2a6"/>
+    <circle cx="900" cy="300" r="70" fill="#1f2427"/><circle cx="900" cy="300" r="34" fill="#9aa2a6"/>
+    <ellipse cx="420" cy="276" rx="54" ry="30" fill="none" stroke="#a3422a" stroke-width="6"/>
+    <ellipse cx="1040" cy="210" rx="40" ry="28" fill="none" stroke="#a3422a" stroke-width="6"/>
+  </g>
+</svg>
+<div class="label" style="left:470px;top:640px;z-index:2">RUST · rocker · 0:14</div>
+<div class="label" style="left:1080px;top:500px;z-index:2">DENT · front qtr · 0:21</div>
+<div class="sheet bot"><div class="tape" style="left:0;right:0;top:-14px"></div></div>
+<div class="cta"><span class="btn">Start a walkaround →</span><small>Free driver-side result. Full report $19. Synthetic sample shown.</small></div>
+<div class="zones"><span>Driver side</span><span>Passenger</span><span>Front · rear</span><span>Tires</span><span>Dashboard</span><span>Engine bay</span><span class="n">Underbody</span><span>Interior</span></div>
+</body></html>

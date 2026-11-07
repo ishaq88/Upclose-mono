@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UpClose — Check-out Sheet sketch</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Text:wght@700;900&family=Atkinson+Hyperlegible+Next:wght@400;700&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<style>
+:root{--canary:#f2df6e;--pink:#f4b6c4;--form:#1d6a50;--pen:#2b45a6;--stamp:#c23b2a}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--pink);font-family:"Atkinson Hyperlegible Next",sans-serif;color:var(--form)}
+.form{position:absolute;inset:28px 40px 0 40px;background:var(--canary);border:3px solid var(--form)}
+.bar{display:flex;align-items:stretch;border-bottom:3px solid var(--form);height:150px}
+.bar h1{flex:1;font:900 112px/1 "Big Shoulders Text";text-transform:uppercase;padding:18px 28px;letter-spacing:-.01em}
+.fields{display:grid;grid-template-columns:200px 200px;border-left:3px solid var(--form)}
+.fields div{border-left:1px solid var(--form);border-bottom:1px solid var(--form);padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase}
+.fields div i{display:block;font:400 30px/1 "Nanum Pen Script";color:var(--pen);text-transform:none;font-style:normal;margin-top:6px}
+.body{display:grid;grid-template-columns:300px 1fr 320px;height:calc(100% - 150px)}
+.legend{border-right:3px solid var(--form);padding:24px;font-size:20px;line-height:1.5}
+.legend b{display:inline-block;width:34px;height:34px;border:2px solid var(--form);text-align:center;margin-right:10px;font:900 22px/30px "Big Shoulders Text"}
+.diagram{position:relative}
+.right{border-left:3px solid var(--form);padding:24px;display:flex;flex-direction:column;gap:18px}
+.right p{font-size:20px;line-height:1.4;color:var(--form)}
+.stampbox{margin-top:auto;border:4px solid var(--stamp);color:var(--stamp);font:900 40px/1 "Big Shoulders Text";text-transform:uppercase;padding:22px;text-align:center;transform:rotate(-3deg)}
+</style></head><body>
+<div class="form">
+  <div class="bar"><h1>Good find. Look closer.</h1>
+    <div class="fields"><div>Vehicle<i>'09 wagon, silver</i></div><div>Date<i>Nov 4</i></div><div>Zones filmed<i>7 of 8</i></div><div>Copy<i>Buyer (canary)</i></div></div></div>
+  <div class="body">
+    <div class="legend"><p><b>R</b>Rust</p><p><b>D</b>Dent</p><p><b>S</b>Scratch</p><p><b>G</b>Glass crack</p><p><b>T</b>Tire wear</p><p><b>L</b>Fluid leak</p><p style="margin-top:18px"><b style="background:repeating-linear-gradient(45deg,transparent 0 4px,#1d6a50 4px 6px)"></b>Not seen</p></div>
+    <svg class="diagram" viewBox="0 0 760 720" aria-hidden="true">
+      <g fill="none" stroke="#1d6a50" stroke-width="3">
+        <path d="M60 170 L64 120 Q70 96 110 92 L210 84 Q250 40 320 34 L470 32 Q540 36 580 80 L670 92 Q706 100 708 130 L710 170 Z"/><circle cx="190" cy="170" r="38"/><circle cx="590" cy="170" r="38"/>
+        <path d="M60 420 L64 370 Q70 346 110 342 L210 334 Q250 290 320 284 L470 282 Q540 286 580 330 L670 342 Q706 350 708 380 L710 420 Z"/><circle cx="190" cy="420" r="38"/><circle cx="590" cy="420" r="38"/>
+        <rect x="120" y="500" width="520" height="190" rx="60"/>
+      </g>
+      <rect x="120" y="500" width="520" height="190" rx="60" fill="url(#h)"/>
+      <defs><pattern id="h" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="3" height="10" fill="#1d6a50" opacity=".5"/></pattern></defs>
+      <g fill="none" stroke="#2b45a6" stroke-width="4"><ellipse cx="270" cy="160" rx="44" ry="26"/><ellipse cx="660" cy="118" rx="36" ry="24"/></g>
+      <g font-family="Nanum Pen Script" font-size="40" fill="#2b45a6"><text x="232" y="232">R 0:14</text><text x="640" y="60">D 0:21</text><text x="300" y="610">underbody — not seen</text></g>
+    </svg>
+    <div class="right"><p>Film the car. UpClose finds the car, then checks only the car. Anything not filmed stays hatched, never clean.</p><div class="stampbox">Start walkaround →</div></div>
+  </div>
+</div>
+</body></html>

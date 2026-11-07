@@ -1,0 +1,66 @@
+{
+  "version": "narration-v1-templates",
+  "free_zone": "driver_side",
+  "max_statements": 80,
+  "gaps_unrecorded_text": "coverage records are incomplete",
+  "zone_labels": [
+    {"zone": "driver_side", "label": "Driver side"},
+    {"zone": "passenger_side", "label": "Passenger side"},
+    {"zone": "front_rear_body", "label": "Front/rear body"},
+    {"zone": "tires", "label": "Tires"},
+    {"zone": "dash_electrical", "label": "Dash and electrical"},
+    {"zone": "engine_bay", "label": "Engine bay"},
+    {"zone": "underbody", "label": "Underbody"},
+    {"zone": "interior", "label": "Interior"}
+  ],
+  "concept_labels": [
+    {"concept": "rust", "label": "rust"},
+    {"concept": "paint_bubbling", "label": "paint bubbling"},
+    {"concept": "dent", "label": "dent"},
+    {"concept": "scratch", "label": "scratch"},
+    {"concept": "glass_crack", "label": "glass crack"},
+    {"concept": "tire_wear", "label": "tire wear"},
+    {"concept": "fluid_leak", "label": "fluid leak"}
+  ],
+  "templates": [
+    {"key": "provisional_notice", "text": "Scores are provisional visual-condition indices from a video review, not a safety certification or mechanical inspection."},
+    {"key": "confidence_notice", "text": "Model confidence values, where shown, are uncalibrated and are not accuracy probabilities."},
+    {"key": "free_score", "text": "{zone_label} visual-condition index: {score} of 100 (provisional)."},
+    {"key": "free_zero", "text": "{zone_label}: No visible findings detected in assessed footage."},
+    {"key": "free_findings", "text": "{zone_label}: {count} verified {finding_noun} listed; highest severity {max_severity} of 5."},
+    {"key": "free_unscored", "text": "{zone_label} could not be fully assessed from the footage, so no score is given. Coverage gaps: {gaps}."},
+    {"key": "free_partial_note", "text": "Verified findings found here are still listed; the absence of other findings cannot be concluded."},
+    {"key": "paid_headline", "text": "Overall provisional visual-condition index: {headline} of 100, a weighted mean over {assessed_count} assessed zones."},
+    {"key": "paid_headline_none", "text": "No overall index is given because too few zones were assessed ({assessed_count} assessed)."},
+    {"key": "paid_flagged", "text": "{count} verified {finding_noun} flagged as high risk and listed first."},
+    {"key": "paid_zone_scored", "text": "{zone_label}: visual-condition index {score} of 100 (provisional)."},
+    {"key": "paid_zone_zero", "text": "{zone_label}: No visible findings detected in assessed footage."},
+    {"key": "paid_zone_findings", "text": "{zone_label}: {count} verified {finding_noun}; highest severity {max_severity} of 5."},
+    {"key": "paid_zone_unscored", "text": "{zone_label}: no score because coverage is {coverage_state}."},
+    {"key": "paid_zone_unscored_findings", "text": "{zone_label}: no score because coverage is {coverage_state}; {count} verified {finding_noun} listed, and the absence of other findings cannot be concluded."},
+    {"key": "paid_finding", "text": "Severity {severity} of 5 {concept_label} finding: {location}{flag_clause}."},
+    {"key": "paid_costs_known", "text": "Estimated repairs: {low} to {high}. Table {table_version}; local planning estimate, not a current shop quote."},
+    {"key": "paid_costs_subtotal", "text": "Subtotal of estimated repairs: {low} to {high}; repair groups without an estimate are not included (count: {unestimated_count}). Table {table_version}; local planning estimate, not a current shop quote."},
+    {"key": "paid_costs_none", "text": "No repair cost estimate is available (repair groups without an estimate: {unestimated_count}); unknown costs are not treated as zero. Table {table_version}."},
+    {"key": "paid_costs_empty", "text": "No repair estimates were produced."},
+    {"key": "paid_claims_none", "text": "No listing claims supplied."},
+    {"key": "paid_claims_summary", "text": "Listing claims checked: {total}. Contradicted by verified evidence: {contradicted}. Supported by verified evidence: {supported}. Not visible in the footage: {not_visible}."},
+    {"key": "paid_claim_contradicted", "text": "Listing claim {claim_number} is contradicted by verified evidence."},
+    {"key": "paid_claim_supported", "text": "Listing claim {claim_number} matches verified evidence."},
+    {"key": "paid_coverage_gaps", "text": "Coverage gaps: {gaps}. A missing finding in these zones is not evidence of absence."}
+  ],
+  "forbidden_phrases": [
+    "damage free", "damage-free", "defect free", "defect-free", "problem free", "problem-free",
+    "guarantee", "safe to buy", "safe to drive", "no problems", "perfect condition"
+  ],
+  "zero_finding_patterns": [
+    "\\bno (?:visible |detected )?(?:damage|damages|findings|issues|problems|defects|rust)\\b"
+  ],
+  "zero_finding_phrase": "No visible findings detected in assessed footage",
+  "free_forbidden_patterns": [
+    "\\$", "\\brepairs?\\b", "\\bcosts?\\b", "\\bestimat\\w*", "\\bclaims?\\b", "\\blisting\\b", "\\boverall\\b",
+    "\\bheadline\\b", "\\bweighted\\b", "\\bpassenger\\b", "\\bfront/rear\\b", "\\bbumper\\b", "\\btires?\\b",
+    "\\bengine\\b", "\\bunderbody\\b", "\\bundercarriage\\b", "\\bdash\\w*", "\\binterior\\b", "\\blocked\\b",
+    "\\bunlock\\w*", "\\bpaid\\b", "\\bpurchase\\w*"
+  ]
+}

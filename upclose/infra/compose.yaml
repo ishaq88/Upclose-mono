@@ -1,0 +1,92 @@
+name: upclose
+x-server-environment: &server-environment
+  DATABASE_URL: postgresql+psycopg://upclose:local-development-only@postgres:5432/upclose
+  APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+  WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+  WEB_EXTRA_ORIGINS: ${WEB_EXTRA_ORIGINS:-}
+  S3_BUCKET: ${S3_BUCKET:-upclose-local}
+  S3_INTERNAL_ENDPOINT: http://floci:4566
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:4566}
+  AWS_ACCESS_KEY_ID: local-development-only
+  AWS_SECRET_ACCESS_KEY: local-development-only
+  AWS_DEFAULT_REGION: us-east-1
+  MODEL_MODE: fixture
+  PUBLIC_SHARING_ENABLED: "false"
+  DEMO_SESSION_ID: ${DEMO_SESSION_ID:-}
+services:
+  postgres:
+    image: postgres:16-bookworm@sha256:e8a07d2c7579b038938cdba6c539e580e5001caf9ea203d397b5cc83e76bd938
+    environment:
+      POSTGRES_USER: upclose
+      POSTGRES_PASSWORD: local-development-only
+      POSTGRES_DB: upclose
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U upclose -d upclose"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  floci:
+    image: floci/floci:1.6.0@sha256:eab36252ea43a4a73928423f0372219052c5c6f87207f6c4754db14b91d6ed30
+    ports: ["${STORAGE_BIND:-127.0.0.1}:4566:4566"]
+    environment:
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+    volumes: ["floci-data:/app/data"]
+  storage-init:
+    image: amazon/aws-cli:2.27.41@sha256:bc6b7bba44ce38f9604ede49c584824af919047ea03fbcc7c7610671fdef95d8
+    entrypoint: ["/bin/sh", "/init/init-storage.sh"]
+    environment:
+      AWS_ACCESS_KEY_ID: local-development-only
+      AWS_SECRET_ACCESS_KEY: local-development-only
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      S3_BUCKET: ${S3_BUCKET:-upclose-local}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+      WEB_EXTRA_ORIGINS: ${WEB_EXTRA_ORIGINS:-}
+    volumes: ["./init-storage.sh:/init/init-storage.sh:ro"]
+    depends_on: [floci]
+  api:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    environment:
+      <<: *server-environment
+      CONSENT_VERSION: ${CONSENT_VERSION:-upclose-prototype-v1}
+      SESSION_CREATION_LIMIT_PER_DAY: ${SESSION_CREATION_LIMIT_PER_DAY:-3}
+      TRUSTED_PROXY_HOSTS: ${TRUSTED_PROXY_HOSTS:-[]}
+      OPERATOR_TOKEN: ${OPERATOR_TOKEN:-}
+      DEMO_FREE_UNLOCK: ${DEMO_FREE_UNLOCK:-false}
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      storage-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    command: ["python", "-m", "app.jobs.worker"]
+    restart: "on-failure:3"
+    environment: *server-environment
+    depends_on:
+      postgres: {condition: service_healthy}
+      storage-init: {condition: service_completed_successfully}
+  web:
+    build:
+      context: ..
+      dockerfile: infra/web.Dockerfile
+    environment:
+      API_PROXY_TARGET: http://api:8000
+    ports: ["${WEB_BIND:-127.0.0.1}:5173:5173"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  postgres-data:
+  floci-data:
+

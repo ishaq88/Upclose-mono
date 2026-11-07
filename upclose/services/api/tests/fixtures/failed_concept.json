@@ -1,0 +1,18 @@
+{
+  "data": {
+    "concept": "rust",
+    "id": "00000000-0000-4000-8000-000000000005",
+    "part_id": "00000000-0000-4000-8000-000000000003",
+    "prompt_id": "synthetic-rust-v1",
+    "reason": "synthetic_timeout",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "state": "failed",
+    "zone": "driver_side"
+  },
+  "metadata": {
+    "description": "Synthetic model timeout; no paid call was made.",
+    "provenance": "synthetic"
+  },
+  "model": "ConceptRun",
+  "valid": true
+}

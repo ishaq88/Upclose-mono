@@ -1,0 +1,22 @@
+{
+  "data": {
+    "candidate_ids": [
+      "00000000-0000-4000-8000-000000000004"
+    ],
+    "verdicts": [
+      {
+        "concept": "rust",
+        "evidence_note": "Synthetic retained patch.",
+        "finding_id": "00000000-0000-4000-8000-000000000004",
+        "severity": null,
+        "verdict": "confirmed"
+      }
+    ]
+  },
+  "metadata": {
+    "description": "Intentionally invalid: confirmed verdict omits severity.",
+    "provenance": "synthetic"
+  },
+  "model": "VerificationGroup",
+  "valid": false
+}

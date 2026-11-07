@@ -1,0 +1,90 @@
+/* UpClose design tokens and primitives shared by the landing page, the sample report and the app. */
+:root {
+  --bg: #f3f4f5;
+  --surface: #ffffff;
+  --ink: #111315;
+  --ink-2: #4b5157;
+  --line: #e1e3e6;
+  --line-2: #c6cbd1;
+  --accent: #ff5a1f;
+  --accent-press: #ec4a10;
+  --accent-soft: #fff0e8;
+  --accent-ink: #9c3407;
+  --risk: #b42318;
+  --risk-ink: #8f1c13;
+  --risk-soft: #fdecea;
+  --ok: #1d7a46;
+  --ok-soft: #e6f3eb;
+  --part-soft: #fdf1dc;
+  --dark: #16181b;
+  --font: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --display: "Barlow Semi Condensed", "Barlow", ui-sans-serif, sans-serif;
+  --mark: "Manrope", "Barlow", sans-serif;
+  --hatch: repeating-linear-gradient(-45deg, #f1f3f5 0 8px, #e1e5e9 8px 16px);
+  color-scheme: light;
+}
+
+@font-face {
+  font-family: Manrope;
+  src: url("/assets/manrope-variable.ttf") format("truetype");
+  font-weight: 200 800;
+  font-display: swap;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 17px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: #ffd3bf; color: var(--ink); }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+a { color: var(--ink); text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+p { margin: 0; }
+img { max-width: 100%; }
+
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.muted { color: var(--ink-2); }
+.num { font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip-link { position: absolute; left: 12px; top: -60px; background: var(--ink); color: #fff; padding: 10px 14px; border-radius: 8px; z-index: 50; }
+.skip-link:focus { top: 12px; }
+
+.wordmark { display: inline-flex; align-items: baseline; font: 800 28px/1 var(--mark); letter-spacing: -1.6px; color: var(--ink); text-decoration: none; }
+.wordmark i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 3px; display: inline-block; }
+.wordmark-sm { font-size: 22px; letter-spacing: -1.2px; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 24px; border-radius: 12px; border: 0;
+  background: var(--accent); color: var(--ink); font: 700 17px/1 var(--font);
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { background: var(--accent-press); }
+.btn-ghost { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line-2); }
+.btn-ghost:hover { background: #f7f8f9; border-color: var(--ink); }
+.btn-dark { background: var(--ink); color: #fff; }
+.btn-dark:hover { background: #2a2e33; }
+.btn-sm { min-height: 44px; padding: 0 16px; font-size: 16px; border-radius: 10px; }
+.textlink {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0;
+  font: 600 16px var(--font); color: var(--ink); text-decoration: underline;
+  background: none; border: 0; cursor: pointer;
+}
+.pill { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
+.pill-not { background: var(--hatch); color: #3d434a; }
+.pill-ok { background: var(--ok-soft); color: #155f36; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

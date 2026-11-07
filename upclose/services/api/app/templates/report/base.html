@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>UpClose visual condition report{% if vehicle_label %} — {{ vehicle_label }}{% endif %}</title>
+<style>{{ css }}</style>
+</head>
+<body>
+<main>
+<h1>UpClose visual condition report</h1>
+{%- if vehicle_label %}
+<p class="vehicle-label">{{ vehicle_label }}</p>
+{%- endif %}
+{%- if provenance_label %}
+<div class="banner warn"><strong>{{ provenance_label }}</strong></div>
+{%- endif %}
+{%- if state_notice %}
+<div class="banner warn">{{ state_notice }}</div>
+{%- endif %}
+{% block content %}{% endblock %}
+<footer>
+<p class="note">Scores are a provisional visual-condition index based only on the footage assessed. They are not a safety certification, inspection or appraisal. Model confidence is uncalibrated and is not an accuracy probability. Absence of a finding does not mean damage free.</p>
+<p class="note">Report revision {{ revision_short }}{% if footer_extra %} · {{ footer_extra }}{% endif %}</p>
+</footer>
+</main>
+</body>
+</html>

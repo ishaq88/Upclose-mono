@@ -1,0 +1,3249 @@
+{
+  "components": {
+    "schemas": {
+      "AccountSessionSummary": {
+        "additionalProperties": false,
+        "description": "Free-safe account listing row: no findings, costs, evidence, or tokens.",
+        "properties": {
+          "capture_mode": {
+            "default": "guided",
+            "enum": [
+              "guided",
+              "single_video"
+            ],
+            "title": "Capture Mode",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "part_state_counts": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "title": "Part State Counts",
+            "type": "object"
+          },
+          "purpose": {
+            "const": "buyer",
+            "title": "Purpose",
+            "type": "string"
+          },
+          "report_slug": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Report Slug"
+          },
+          "report_state": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportState"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "vehicle_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vehicle Label"
+          }
+        },
+        "required": [
+          "session_id",
+          "state",
+          "purpose",
+          "created_at",
+          "updated_at",
+          "part_state_counts"
+        ],
+        "title": "AccountSessionSummary",
+        "type": "object"
+      },
+      "AccountSessionsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/AccountSessionSummary"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions"
+        ],
+        "title": "AccountSessionsResponse",
+        "type": "object"
+      },
+      "AccountSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "disabled": {
+            "default": false,
+            "title": "Disabled",
+            "type": "boolean"
+          },
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "created_at"
+        ],
+        "title": "AccountSummary",
+        "type": "object"
+      },
+      "Artifact": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]+$",
+            "title": "Key",
+            "type": "string"
+          },
+          "privacy_state": {
+            "$ref": "#/components/schemas/PrivacyState"
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Revision Id"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "key",
+          "sha256",
+          "privacy_state",
+          "created_at"
+        ],
+        "title": "Artifact",
+        "type": "object"
+      },
+      "AuthResponse": {
+        "additionalProperties": false,
+        "description": "The plaintext token is returned exactly once, at issuance.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountSummary"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 256,
+            "minLength": 22,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "token",
+          "expires_at"
+        ],
+        "title": "AuthResponse",
+        "type": "object"
+      },
+      "BoundingBox": {
+        "additionalProperties": false,
+        "properties": {
+          "h": {
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "title": "H",
+            "type": "number"
+          },
+          "w": {
+            "exclusiveMinimum": 0,
+            "maximum": 1,
+            "title": "W",
+            "type": "number"
+          },
+          "x": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "title": "BoundingBox",
+        "type": "object"
+      },
+      "CandidateFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/BoundingBox"
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "confidence_label": {
+            "const": "Uncalibrated model confidence, not an accuracy probability",
+            "default": "Uncalibrated model confidence, not an accuracy probability",
+            "title": "Confidence Label",
+            "type": "string"
+          },
+          "evidence_available": {
+            "title": "Evidence Available",
+            "type": "boolean"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mapping_basis": {
+            "anyOf": [
+              {
+                "const": "user_declared",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Basis"
+          },
+          "source_timestamp_ms": {
+            "anyOf": [
+              {
+                "maximum": 180250,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Timestamp Ms"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "zone",
+          "concept",
+          "confidence",
+          "evidence_note",
+          "bbox",
+          "evidence_available"
+        ],
+        "title": "CandidateFinding",
+        "type": "object"
+      },
+      "ChangePasswordRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Current Password",
+            "type": "string"
+          },
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "current_password",
+          "new_password"
+        ],
+        "title": "ChangePasswordRequest",
+        "type": "object"
+      },
+      "CheckoutRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "product": {
+            "const": "report_unlock",
+            "title": "Product",
+            "type": "string"
+          }
+        },
+        "required": [
+          "product"
+        ],
+        "title": "CheckoutRequest",
+        "type": "object"
+      },
+      "CheckoutResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "checkout_url": {
+            "anyOf": [
+              {
+                "format": "uri",
+                "maxLength": 2083,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Checkout Url"
+          },
+          "unlocked": {
+            "default": false,
+            "title": "Unlocked",
+            "type": "boolean"
+          }
+        },
+        "title": "CheckoutResponse",
+        "type": "object"
+      },
+      "ClaimGroup": {
+        "additionalProperties": false,
+        "description": "Trusted revision evidence whitelist plus model claim results.",
+        "properties": {
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimResult"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "findings",
+          "claims"
+        ],
+        "title": "ClaimGroup",
+        "type": "object"
+      },
+      "ClaimResult": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_index": {
+            "minimum": 0,
+            "title": "Claim Index",
+            "type": "integer"
+          },
+          "evidence_frame_keys": {
+            "items": {
+              "maxLength": 1024,
+              "minLength": 1,
+              "pattern": "^[^\\r\\n]+$",
+              "type": "string"
+            },
+            "title": "Evidence Frame Keys",
+            "type": "array"
+          },
+          "finding_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
+          "rationale": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ClaimVerdict"
+          }
+        },
+        "required": [
+          "claim_index",
+          "text",
+          "verdict",
+          "finding_ids",
+          "evidence_frame_keys",
+          "rationale"
+        ],
+        "title": "ClaimResult",
+        "type": "object"
+      },
+      "ClaimSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "owner_token": {
+            "maxLength": 256,
+            "minLength": 22,
+            "title": "Owner Token",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "owner_token"
+        ],
+        "title": "ClaimSessionRequest",
+        "type": "object"
+      },
+      "ClaimSessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "account_id"
+        ],
+        "title": "ClaimSessionResponse",
+        "type": "object"
+      },
+      "ClaimVerdict": {
+        "enum": [
+          "supported",
+          "contradicted",
+          "not_visible"
+        ],
+        "title": "ClaimVerdict",
+        "type": "string"
+      },
+      "ComponentId": {
+        "enum": [
+          "driver_rocker",
+          "passenger_rocker",
+          "windshield",
+          "tire_fl",
+          "tire_fr",
+          "tire_rl",
+          "tire_rr",
+          "driver_front_door",
+          "driver_rear_door",
+          "passenger_front_door",
+          "passenger_rear_door",
+          "hood",
+          "roof",
+          "trunk",
+          "front_bumper",
+          "rear_bumper"
+        ],
+        "title": "ComponentId",
+        "type": "string"
+      },
+      "Concept": {
+        "enum": [
+          "rust",
+          "paint_bubbling",
+          "dent",
+          "scratch",
+          "glass_crack",
+          "tire_wear",
+          "fluid_leak"
+        ],
+        "title": "Concept",
+        "type": "string"
+      },
+      "ConceptRun": {
+        "additionalProperties": false,
+        "properties": {
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "prompt_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Prompt Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ConceptRunState"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "run_id",
+          "part_id",
+          "zone",
+          "concept",
+          "prompt_id",
+          "state"
+        ],
+        "title": "ConceptRun",
+        "type": "object"
+      },
+      "ConceptRunState": {
+        "enum": [
+          "succeeded",
+          "failed",
+          "unsupported",
+          "budget_exhausted"
+        ],
+        "title": "ConceptRunState",
+        "type": "string"
+      },
+      "ContractModel": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "ContractModel",
+        "type": "object"
+      },
+      "Coverage": {
+        "additionalProperties": false,
+        "properties": {
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CoverageState"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "run_id",
+          "zone",
+          "concept",
+          "state"
+        ],
+        "title": "Coverage",
+        "type": "object"
+      },
+      "CoverageState": {
+        "enum": [
+          "assessed",
+          "partial",
+          "not_assessed"
+        ],
+        "title": "CoverageState",
+        "type": "string"
+      },
+      "CreateSessionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_mode": {
+            "default": "guided",
+            "enum": [
+              "guided",
+              "single_video"
+            ],
+            "title": "Capture Mode",
+            "type": "string"
+          },
+          "consent": {
+            "const": true,
+            "title": "Consent",
+            "type": "boolean"
+          },
+          "consent_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Consent Version",
+            "type": "string"
+          },
+          "listing_text": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Listing Text"
+          },
+          "purpose": {
+            "const": "buyer",
+            "title": "Purpose",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purpose",
+          "consent_version",
+          "consent"
+        ],
+        "title": "CreateSessionRequest",
+        "type": "object"
+      },
+      "CreateSessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "session_token": {
+            "maxLength": 256,
+            "minLength": 22,
+            "title": "Session Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "session_token"
+        ],
+        "title": "CreateSessionResponse",
+        "type": "object"
+      },
+      "CreateUploadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_length": {
+            "exclusiveMinimum": 0,
+            "maximum": 209715200,
+            "title": "Content Length",
+            "type": "integer"
+          },
+          "content_type": {
+            "enum": [
+              "video/mp4",
+              "video/webm",
+              "video/quicktime"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "part_no": {
+            "maximum": 8,
+            "minimum": 1,
+            "title": "Part No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_no",
+          "content_type",
+          "content_length"
+        ],
+        "title": "CreateUploadRequest",
+        "type": "object"
+      },
+      "CreateUploadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_count": {
+            "maximum": 25,
+            "minimum": 1,
+            "title": "Chunk Count",
+            "type": "integer"
+          },
+          "chunk_size_bytes": {
+            "const": 8388608,
+            "default": 8388608,
+            "title": "Chunk Size Bytes",
+            "type": "integer"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "upload_id",
+          "chunk_count"
+        ],
+        "title": "CreateUploadResponse",
+        "type": "object"
+      },
+      "CreateVideoUploadRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_length": {
+            "exclusiveMinimum": 0,
+            "maximum": 209715200,
+            "title": "Content Length",
+            "type": "integer"
+          },
+          "content_type": {
+            "enum": [
+              "video/mp4",
+              "video/webm",
+              "video/quicktime"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "segments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/VideoRange"
+            },
+            "maxItems": 8,
+            "title": "Segments",
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_type",
+          "content_length"
+        ],
+        "title": "CreateVideoUploadRequest",
+        "type": "object"
+      },
+      "CreateVideoUploadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "chunk_count": {
+            "maximum": 25,
+            "minimum": 1,
+            "title": "Chunk Count",
+            "type": "integer"
+          },
+          "chunk_size_bytes": {
+            "const": 8388608,
+            "default": 8388608,
+            "title": "Chunk Size Bytes",
+            "type": "integer"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload_id",
+          "chunk_count"
+        ],
+        "title": "CreateVideoUploadResponse",
+        "type": "object"
+      },
+      "DeleteMediaResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "enum": [
+              "deleting",
+              "deleted"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "DeleteMediaResponse",
+        "type": "object"
+      },
+      "EmptyRequest": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "EmptyRequest",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/BoundingBox"
+          },
+          "frame_height": {
+            "exclusiveMinimum": 0,
+            "title": "Frame Height",
+            "type": "integer"
+          },
+          "frame_index": {
+            "minimum": 0,
+            "title": "Frame Index",
+            "type": "integer"
+          },
+          "frame_key": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "pattern": "^[^\\r\\n]+$",
+            "title": "Frame Key",
+            "type": "string"
+          },
+          "frame_width": {
+            "exclusiveMinimum": 0,
+            "title": "Frame Width",
+            "type": "integer"
+          },
+          "mask_key": {
+            "anyOf": [
+              {
+                "maxLength": 1024,
+                "minLength": 1,
+                "pattern": "^[^\\r\\n]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mask Key"
+          }
+        },
+        "required": [
+          "frame_key",
+          "frame_index",
+          "frame_width",
+          "frame_height",
+          "bbox"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "FinalizeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "report_slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Report Slug",
+            "type": "string"
+          },
+          "state": {
+            "const": "finalized",
+            "default": "finalized",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_slug"
+        ],
+        "title": "FinalizeResponse",
+        "type": "object"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "concept_run_id": {
+            "format": "uuid",
+            "title": "Concept Run Id",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Confidence"
+          },
+          "coverage_pct": {
+            "default": null,
+            "title": "Coverage Pct",
+            "type": "null"
+          },
+          "duplicate_of": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duplicate Of"
+          },
+          "evidence": {
+            "$ref": "#/components/schemas/EvidenceRef"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "part_no": {
+            "maximum": 8,
+            "minimum": 1,
+            "title": "Part No",
+            "type": "integer"
+          },
+          "run_id": {
+            "format": "uuid",
+            "title": "Run Id",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FindingStatus"
+          },
+          "subzone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Subzone"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "track_id": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Track Id",
+            "type": "string"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "run_id",
+          "part_id",
+          "concept_run_id",
+          "part_no",
+          "zone",
+          "track_id",
+          "status",
+          "concept",
+          "evidence",
+          "evidence_note"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "FindingStatus": {
+        "enum": [
+          "candidate",
+          "verified",
+          "rejected",
+          "unverified"
+        ],
+        "title": "FindingStatus",
+        "type": "string"
+      },
+      "FixtureMetadata": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "provenance": {
+            "pattern": "^synthetic$",
+            "title": "Provenance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provenance",
+          "description"
+        ],
+        "title": "FixtureMetadata",
+        "type": "object"
+      },
+      "FreeFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/BoundingBox"
+          },
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "confidence_label": {
+            "const": "Uncalibrated model confidence, not an accuracy probability",
+            "default": "Uncalibrated model confidence, not an accuracy probability",
+            "title": "Confidence Label",
+            "type": "string"
+          },
+          "evidence_available": {
+            "title": "Evidence Available",
+            "type": "boolean"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mapping_basis": {
+            "anyOf": [
+              {
+                "const": "user_declared",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Basis"
+          },
+          "severity": {
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Severity",
+            "type": "integer"
+          },
+          "source_timestamp_ms": {
+            "anyOf": [
+              {
+                "maximum": 180250,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Timestamp Ms"
+          },
+          "subzone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Subzone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone": {
+            "const": "driver_side",
+            "default": "driver_side",
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "concept",
+          "severity",
+          "confidence",
+          "evidence_note",
+          "subzone",
+          "component_id",
+          "flags",
+          "bbox",
+          "evidence_available"
+        ],
+        "title": "FreeFinding",
+        "type": "object"
+      },
+      "FreeReport": {
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCoverage"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FreeFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "locked_zones": {
+            "items": {
+              "$ref": "#/components/schemas/LockedZoneSummary"
+            },
+            "title": "Locked Zones",
+            "type": "array"
+          },
+          "part1_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part1 Score"
+          },
+          "part1_summary": {
+            "maxLength": 2000,
+            "title": "Part1 Summary",
+            "type": "string"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "const": "free",
+            "default": "free",
+            "title": "Scope",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ReportState"
+          },
+          "vehicle_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vehicle Label"
+          }
+        },
+        "required": [
+          "slug",
+          "revision_id",
+          "state",
+          "coverage",
+          "part1_score",
+          "findings",
+          "locked_zones",
+          "part1_summary"
+        ],
+        "title": "FreeReport",
+        "type": "object"
+      },
+      "LockedZoneSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "finding_count": {
+            "minimum": 0,
+            "title": "Finding Count",
+            "type": "integer"
+          },
+          "locked": {
+            "const": true,
+            "default": true,
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "zone",
+          "finding_count"
+        ],
+        "title": "LockedZoneSummary",
+        "type": "object"
+      },
+      "LoginRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "type": "object"
+      },
+      "NarratedStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "finding_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "finding_ids"
+        ],
+        "title": "NarratedStatement",
+        "type": "object"
+      },
+      "PaidFinding": {
+        "additionalProperties": false,
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/BoundingBox"
+          },
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "confidence_label": {
+            "const": "Uncalibrated model confidence, not an accuracy probability",
+            "default": "Uncalibrated model confidence, not an accuracy probability",
+            "title": "Confidence Label",
+            "type": "string"
+          },
+          "evidence_available": {
+            "title": "Evidence Available",
+            "type": "boolean"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mapping_basis": {
+            "anyOf": [
+              {
+                "const": "user_declared",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Basis"
+          },
+          "severity": {
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Severity",
+            "type": "integer"
+          },
+          "source_timestamp_ms": {
+            "anyOf": [
+              {
+                "maximum": 180250,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Timestamp Ms"
+          },
+          "subzone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Subzone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "zone",
+          "concept",
+          "severity",
+          "confidence",
+          "evidence_note",
+          "subzone",
+          "component_id",
+          "flags",
+          "bbox",
+          "evidence_available"
+        ],
+        "title": "PaidFinding",
+        "type": "object"
+      },
+      "PaidReport": {
+        "additionalProperties": false,
+        "properties": {
+          "candidates": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CandidateFinding"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/PublicClaim"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCoverage"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/PaidFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "narration": {
+            "items": {
+              "$ref": "#/components/schemas/NarratedStatement"
+            },
+            "title": "Narration",
+            "type": "array"
+          },
+          "rendered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rendered At"
+          },
+          "repairs": {
+            "$ref": "#/components/schemas/RepairSummary"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "const": "paid",
+            "default": "paid",
+            "title": "Scope",
+            "type": "string"
+          },
+          "scores": {
+            "$ref": "#/components/schemas/ScoreResult"
+          },
+          "slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ReportState"
+          },
+          "vehicle_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vehicle Label"
+          }
+        },
+        "required": [
+          "slug",
+          "revision_id",
+          "state",
+          "coverage",
+          "scores",
+          "findings",
+          "repairs",
+          "claims",
+          "narration"
+        ],
+        "title": "PaidReport",
+        "type": "object"
+      },
+      "Part1Verdict": {
+        "additionalProperties": false,
+        "description": "Owner-progress free verdict. No report identity: before finalize no report exists,\nand afterwards `ProgressResponse.report` carries the slug and state.",
+        "properties": {
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/PublicCoverage"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/FreeFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "locked_zones": {
+            "items": {
+              "$ref": "#/components/schemas/LockedZoneSummary"
+            },
+            "title": "Locked Zones",
+            "type": "array"
+          },
+          "part1_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Part1 Score"
+          },
+          "part1_summary": {
+            "maxLength": 2000,
+            "title": "Part1 Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "coverage",
+          "part1_score",
+          "findings",
+          "locked_zones",
+          "part1_summary"
+        ],
+        "title": "Part1Verdict",
+        "type": "object"
+      },
+      "PartAcceptedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "part_id": {
+            "format": "uuid",
+            "title": "Part Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PartState"
+          }
+        },
+        "required": [
+          "part_id",
+          "state"
+        ],
+        "title": "PartAcceptedResponse",
+        "type": "object"
+      },
+      "PartState": {
+        "enum": [
+          "pending",
+          "uploading",
+          "uploaded",
+          "processing",
+          "processed",
+          "failed",
+          "skipped"
+        ],
+        "title": "PartState",
+        "type": "string"
+      },
+      "PartSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "active_upload_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Active Upload Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "part_no": {
+            "maximum": 8,
+            "minimum": 1,
+            "title": "Part No",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PartState"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "part_no",
+          "zone",
+          "state"
+        ],
+        "title": "PartSummary",
+        "type": "object"
+      },
+      "PasswordResetConfirmRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "new_password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "New Password",
+            "type": "string"
+          },
+          "token": {
+            "maxLength": 1024,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirmRequest",
+        "type": "object"
+      },
+      "PasswordResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "type": "object"
+      },
+      "PrivacyState": {
+        "enum": [
+          "pending",
+          "approved",
+          "withheld"
+        ],
+        "title": "PrivacyState",
+        "type": "string"
+      },
+      "Problem": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "TOKEN_INVALID",
+              "NOT_FOUND",
+              "STATE_CONFLICT",
+              "UPLOAD_TOO_LARGE",
+              "UPLOAD_INCOMPLETE",
+              "RATE_LIMITED",
+              "VALIDATION",
+              "REPORT_NOT_READY",
+              "INTERNAL",
+              "EMAIL_TAKEN",
+              "INVALID_CREDENTIALS"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "maxLength": 1000,
+            "title": "Detail",
+            "type": "string"
+          },
+          "request_id": {
+            "format": "uuid",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "status": {
+            "maximum": 599,
+            "minimum": 400,
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "code",
+          "detail",
+          "request_id"
+        ],
+        "title": "Problem",
+        "type": "object"
+      },
+      "ProgressResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "free_verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Part1Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartSummary"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionState"
+          }
+        },
+        "required": [
+          "state",
+          "parts",
+          "free_verdict",
+          "report"
+        ],
+        "title": "ProgressResponse",
+        "type": "object"
+      },
+      "PublicClaim": {
+        "additionalProperties": false,
+        "properties": {
+          "claim_index": {
+            "minimum": 0,
+            "title": "Claim Index",
+            "type": "integer"
+          },
+          "finding_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
+          "rationale": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ClaimVerdict"
+          }
+        },
+        "required": [
+          "claim_index",
+          "text",
+          "verdict",
+          "finding_ids",
+          "rationale"
+        ],
+        "title": "PublicClaim",
+        "type": "object"
+      },
+      "PublicCoverage": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CoverageState"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "zone",
+          "state"
+        ],
+        "title": "PublicCoverage",
+        "type": "object"
+      },
+      "PublicFinding": {
+        "additionalProperties": false,
+        "description": "Evidence route identifies a validated finding, never a storage key/URL.",
+        "properties": {
+          "bbox": {
+            "$ref": "#/components/schemas/BoundingBox"
+          },
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "confidence_label": {
+            "const": "Uncalibrated model confidence, not an accuracy probability",
+            "default": "Uncalibrated model confidence, not an accuracy probability",
+            "title": "Confidence Label",
+            "type": "string"
+          },
+          "evidence_available": {
+            "title": "Evidence Available",
+            "type": "boolean"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mapping_basis": {
+            "anyOf": [
+              {
+                "const": "user_declared",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mapping Basis"
+          },
+          "severity": {
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Severity",
+            "type": "integer"
+          },
+          "source_timestamp_ms": {
+            "anyOf": [
+              {
+                "maximum": 180250,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source Timestamp Ms"
+          },
+          "subzone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Subzone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "id",
+          "zone",
+          "concept",
+          "severity",
+          "confidence",
+          "evidence_note",
+          "subzone",
+          "component_id",
+          "flags",
+          "bbox",
+          "evidence_available"
+        ],
+        "title": "PublicFinding",
+        "type": "object"
+      },
+      "RegisterRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "type": "object"
+      },
+      "RepairEstimate": {
+        "additionalProperties": false,
+        "properties": {
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "finding_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
+          "high_cents": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Cents"
+          },
+          "low_cents": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Cents"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RepairOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "severity": {
+            "maximum": 5,
+            "minimum": 1,
+            "title": "Severity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "operation",
+          "component_id",
+          "severity",
+          "finding_ids",
+          "low_cents",
+          "high_cents",
+          "reason"
+        ],
+        "title": "RepairEstimate",
+        "type": "object"
+      },
+      "RepairOperation": {
+        "enum": [
+          "replace_tire",
+          "replace_windshield",
+          "repair_rocker",
+          "paint_panel"
+        ],
+        "title": "RepairOperation",
+        "type": "string"
+      },
+      "RepairSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RepairEstimate"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "label": {
+            "default": "Local planning estimate; not a current shop quote",
+            "title": "Label",
+            "type": "string"
+          },
+          "subtotal_high_cents": {
+            "minimum": 0,
+            "title": "Subtotal High Cents",
+            "type": "integer"
+          },
+          "subtotal_low_cents": {
+            "minimum": 0,
+            "title": "Subtotal Low Cents",
+            "type": "integer"
+          },
+          "table_version": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Table Version",
+            "type": "string"
+          },
+          "unestimated_count": {
+            "minimum": 0,
+            "title": "Unestimated Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "subtotal_low_cents",
+          "subtotal_high_cents",
+          "unestimated_count",
+          "table_version"
+        ],
+        "title": "RepairSummary",
+        "type": "object"
+      },
+      "ReportProgress": {
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ReportState"
+          },
+          "unlocked": {
+            "default": false,
+            "title": "Unlocked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "state"
+        ],
+        "title": "ReportProgress",
+        "type": "object"
+      },
+      "ReportState": {
+        "enum": [
+          "building",
+          "ready",
+          "failed"
+        ],
+        "title": "ReportState",
+        "type": "string"
+      },
+      "ReportStatus": {
+        "additionalProperties": false,
+        "description": "A non-ready report exposes status only, never partial paid stage outputs.",
+        "properties": {
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "free",
+              "paid"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Slug",
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "building",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "slug",
+          "revision_id",
+          "state"
+        ],
+        "title": "ReportStatus",
+        "type": "object"
+      },
+      "ScoreResult": {
+        "additionalProperties": false,
+        "properties": {
+          "config_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Config Hash",
+            "type": "string"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "label": {
+            "default": "Provisional visual-condition index",
+            "title": "Label",
+            "type": "string"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/ZoneScore"
+            },
+            "title": "Zones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "headline",
+          "zones",
+          "config_hash"
+        ],
+        "title": "ScoreResult",
+        "type": "object"
+      },
+      "ScoringInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coverage": {
+            "items": {
+              "$ref": "#/components/schemas/Coverage"
+            },
+            "title": "Coverage",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "run_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Run Ids",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "run_ids",
+          "findings",
+          "coverage"
+        ],
+        "title": "ScoringInput",
+        "type": "object"
+      },
+      "SessionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "capture_mode": {
+            "default": "guided",
+            "enum": [
+              "guided",
+              "single_video"
+            ],
+            "title": "Capture Mode",
+            "type": "string"
+          },
+          "consent_at": {
+            "format": "date-time",
+            "title": "Consent At",
+            "type": "string"
+          },
+          "listing_text": {
+            "anyOf": [
+              {
+                "maxLength": 10000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listing Text"
+          },
+          "listing_version": {
+            "minimum": 1,
+            "title": "Listing Version",
+            "type": "integer"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/PartSummary"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "purpose": {
+            "const": "buyer",
+            "title": "Purpose",
+            "type": "string"
+          },
+          "session_id": {
+            "format": "uuid",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/SessionState"
+          },
+          "vehicle_label": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vehicle Label"
+          }
+        },
+        "required": [
+          "session_id",
+          "purpose",
+          "state",
+          "consent_at",
+          "listing_text",
+          "listing_version",
+          "parts"
+        ],
+        "title": "SessionResponse",
+        "type": "object"
+      },
+      "SessionState": {
+        "enum": [
+          "capturing",
+          "finalized",
+          "deleting",
+          "deleted"
+        ],
+        "title": "SessionState",
+        "type": "string"
+      },
+      "ShareDisableResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "share_enabled": {
+            "const": false,
+            "default": false,
+            "title": "Share Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "ShareDisableResponse",
+        "type": "object"
+      },
+      "ShareEnableResponse": {
+        "additionalProperties": false,
+        "description": "Owner-only share enable result. `url` is the existing public report\npath (`/r/{slug}`); `public_access_active` is\n`settings.public_sharing_enabled and share_enabled`, so callers can tell\nwhether the link actually opens today while the global gate is off.",
+        "properties": {
+          "public_access_active": {
+            "title": "Public Access Active",
+            "type": "boolean"
+          },
+          "share_enabled": {
+            "const": true,
+            "default": true,
+            "title": "Share Enabled",
+            "type": "boolean"
+          },
+          "url": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "public_access_active"
+        ],
+        "title": "ShareEnableResponse",
+        "type": "object"
+      },
+      "SkipPartResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "const": "skipped",
+            "default": "skipped",
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "title": "SkipPartResponse",
+        "type": "object"
+      },
+      "Subzone": {
+        "enum": [
+          "rocker",
+          "door",
+          "fender",
+          "quarter_panel",
+          "hood",
+          "roof",
+          "trunk",
+          "bumper",
+          "windshield",
+          "tire",
+          "engine_bay",
+          "underbody",
+          "interior",
+          "dash"
+        ],
+        "title": "Subzone",
+        "type": "string"
+      },
+      "UpdateListingRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "listing_text": {
+            "maxLength": 10000,
+            "title": "Listing Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "listing_text"
+        ],
+        "title": "UpdateListingRequest",
+        "type": "object"
+      },
+      "UpdateListingResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "listing_version": {
+            "minimum": 1,
+            "title": "Listing Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "listing_version"
+        ],
+        "title": "UpdateListingResponse",
+        "type": "object"
+      },
+      "UpdateVehicleLabelRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "UpdateVehicleLabelRequest",
+        "type": "object"
+      },
+      "UploadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "pieces": {
+            "items": {
+              "$ref": "#/components/schemas/UploadedPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/UploadState"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload_id",
+          "state",
+          "pieces"
+        ],
+        "title": "UploadResponse",
+        "type": "object"
+      },
+      "UploadState": {
+        "enum": [
+          "open",
+          "completing",
+          "accepted",
+          "aborted"
+        ],
+        "title": "UploadState",
+        "type": "string"
+      },
+      "UploadUrl": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Headers",
+            "type": "object"
+          },
+          "part_number": {
+            "maximum": 25,
+            "minimum": 1,
+            "title": "Part Number",
+            "type": "integer"
+          },
+          "url": {
+            "format": "uri",
+            "maxLength": 2083,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_number",
+          "url",
+          "expires_at",
+          "headers"
+        ],
+        "title": "UploadUrl",
+        "type": "object"
+      },
+      "UploadUrlsRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "part_numbers": {
+            "items": {
+              "maximum": 25,
+              "minimum": 1,
+              "type": "integer"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Part Numbers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part_numbers"
+        ],
+        "title": "UploadUrlsRequest",
+        "type": "object"
+      },
+      "UploadUrlsResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UploadUrl"
+            },
+            "maxItems": 10,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "UploadUrlsResponse",
+        "type": "object"
+      },
+      "UploadedPiece": {
+        "additionalProperties": false,
+        "properties": {
+          "etag": {
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Etag",
+            "type": "string"
+          },
+          "part_number": {
+            "maximum": 25,
+            "minimum": 1,
+            "title": "Part Number",
+            "type": "integer"
+          },
+          "size_bytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 8388608,
+            "title": "Size Bytes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_number",
+          "etag",
+          "size_bytes"
+        ],
+        "title": "UploadedPiece",
+        "type": "object"
+      },
+      "VerificationGroup": {
+        "additionalProperties": false,
+        "description": "Construct from trusted input IDs plus untrusted parsed verdicts.",
+        "properties": {
+          "candidate_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Candidate Ids",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "verdicts": {
+            "items": {
+              "$ref": "#/components/schemas/VerificationVerdict"
+            },
+            "title": "Verdicts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidate_ids",
+          "verdicts"
+        ],
+        "title": "VerificationGroup",
+        "type": "object"
+      },
+      "VerificationStatus": {
+        "enum": [
+          "confirmed",
+          "artifact",
+          "wrong_type",
+          "duplicate",
+          "unverifiable"
+        ],
+        "title": "VerificationStatus",
+        "type": "string"
+      },
+      "VerificationVerdict": {
+        "additionalProperties": false,
+        "properties": {
+          "component_id": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComponentId"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "maximum": 1,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Confidence"
+          },
+          "duplicate_of": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duplicate Of"
+          },
+          "evidence_note": {
+            "maxLength": 240,
+            "title": "Evidence Note",
+            "type": "string"
+          },
+          "finding_id": {
+            "format": "uuid",
+            "title": "Finding Id",
+            "type": "string"
+          },
+          "flags": {
+            "default": [],
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "severity": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Severity"
+          },
+          "subzone": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Subzone"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          }
+        },
+        "required": [
+          "finding_id",
+          "verdict",
+          "concept",
+          "evidence_note"
+        ],
+        "title": "VerificationVerdict",
+        "type": "object"
+      },
+      "VideoAcceptedResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "processing_state": {
+            "enum": [
+              "pending",
+              "queued",
+              "ready",
+              "failed"
+            ],
+            "title": "Processing State",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/UploadState"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload_id",
+          "state",
+          "processing_state"
+        ],
+        "title": "VideoAcceptedResponse",
+        "type": "object"
+      },
+      "VideoRange": {
+        "additionalProperties": false,
+        "properties": {
+          "end_ms": {
+            "exclusiveMinimum": 0,
+            "maximum": 180000,
+            "title": "End Ms",
+            "type": "integer"
+          },
+          "part_no": {
+            "maximum": 8,
+            "minimum": 1,
+            "title": "Part No",
+            "type": "integer"
+          },
+          "start_ms": {
+            "exclusiveMaximum": 180000,
+            "minimum": 0,
+            "title": "Start Ms",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_no",
+          "start_ms",
+          "end_ms"
+        ],
+        "title": "VideoRange",
+        "type": "object"
+      },
+      "VideoSourceResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VideoUploadResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "VideoSourceResponse",
+        "type": "object"
+      },
+      "VideoUploadResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "content_type": {
+            "enum": [
+              "video/mp4",
+              "video/webm",
+              "video/quicktime"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          },
+          "duration_ms": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 180250,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Duration Ms"
+          },
+          "expected_bytes": {
+            "exclusiveMinimum": 0,
+            "maximum": 209715200,
+            "title": "Expected Bytes",
+            "type": "integer"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/UploadedPiece"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "processing_state": {
+            "enum": [
+              "pending",
+              "queued",
+              "ready",
+              "failed"
+            ],
+            "title": "Processing State",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "segments": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/VideoRange"
+            },
+            "maxItems": 8,
+            "title": "Segments",
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/UploadState"
+          },
+          "upload_id": {
+            "format": "uuid",
+            "title": "Upload Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload_id",
+          "state",
+          "processing_state",
+          "expected_bytes",
+          "content_type"
+        ],
+        "title": "VideoUploadResponse",
+        "type": "object"
+      },
+      "Zone": {
+        "enum": [
+          "driver_side",
+          "passenger_side",
+          "front_rear_body",
+          "tires",
+          "dash_electrical",
+          "engine_bay",
+          "underbody",
+          "interior"
+        ],
+        "title": "Zone",
+        "type": "string"
+      },
+      "ZoneScore": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 240,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CoverageState"
+          },
+          "zone": {
+            "$ref": "#/components/schemas/Zone"
+          }
+        },
+        "required": [
+          "zone",
+          "state",
+          "score"
+        ],
+        "title": "ZoneScore",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "UpClose contracts (routes not yet implemented)",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {}
+}

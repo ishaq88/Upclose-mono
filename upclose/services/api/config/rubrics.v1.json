@@ -1,0 +1,99 @@
+{
+  "version": "rubrics-v1-uncalibrated",
+  "status": "uncalibrated_design_default",
+  "mechanic_review_required": true,
+  "statement": "Severity anchors describe what is visible in the supplied frames only. They are uncalibrated design defaults that require mechanic review before being presented as validated. They are not a mechanical diagnosis, a measurement or a safety or structural certification.",
+  "forbidden_patterns": [
+    "\\b\\d+(\\.\\d+)?\\s*(mm|millimet\\w*|/32|32nds?)\\b",
+    "\\bstructurally\\s+(sound|safe|unsound)\\b",
+    "\\bsafe\\s+to\\s+drive\\b",
+    "\\bcertif\\w*",
+    "\\bdiagnos\\w*"
+  ],
+  "concepts": [
+    {
+      "concept": "rust",
+      "limitations": "Visible surface appearance only. Depth of corrosion, hidden corrosion and structural effect are not assessed.",
+      "suggested_flags": ["perforation_suspected", "structural_suspected"],
+      "anchors": [
+        {"severity": 1, "description": "A few tiny orange-brown specks or faint discoloration on paint or bare metal, with the paint surface still intact around them."},
+        {"severity": 2, "description": "Several small rust spots or one light patch of surface rust; paint is intact or only beginning to lift at the edges."},
+        {"severity": 3, "description": "A moderate rust patch with visibly flaking or lifting paint, limited to one area of a panel."},
+        {"severity": 4, "description": "Extensive rust across a large part of a panel, seam or edge, with heavy flaking, rough pitted texture or lifted paint clearly visible."},
+        {"severity": 5, "description": "Heavy rust with visible material loss such as hole-like openings, crumbling edges or missing metal. A hole-like appearance is only a flag for possible perforation (perforation_suspected); its extent and structural effect are not measured."}
+      ]
+    },
+    {
+      "concept": "paint_bubbling",
+      "limitations": "Visible paint surface only. What lies beneath the paint is not assessed.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "A few tiny isolated raised blisters in the paint."},
+        {"severity": 2, "description": "A small cluster of blisters in one spot, paint otherwise intact."},
+        {"severity": 3, "description": "Several clusters of blisters on one panel area, with some bubbles broken open."},
+        {"severity": 4, "description": "Widespread blistering across much of one panel, with peeling or broken bubbles exposing the surface beneath."},
+        {"severity": 5, "description": "Blistering with extensive peeling across several adjacent panels or along edges, with bare surface visible in many places."}
+      ]
+    },
+    {
+      "concept": "dent",
+      "limitations": "Visible body shape and reflection distortion only. Hidden damage and repair method are not assessed.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "A very shallow, subtle distortion visible only as a slight change in the reflection."},
+        {"severity": 2, "description": "A small shallow dent with smooth edges and intact paint."},
+        {"severity": 3, "description": "A clearly visible dent of moderate size, with paint intact or lightly cracked at the edge."},
+        {"severity": 4, "description": "A large or deep-looking dent with creased edges or cracked, chipped paint."},
+        {"severity": 5, "description": "Severe distortion with sharp creases, a folded panel, or a panel that visibly sits out of line with its neighbors."}
+      ]
+    },
+    {
+      "concept": "scratch",
+      "limitations": "Visible marks only. Depth is judged from apparent color layers, not measured.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "Faint hairline marks visible only at certain angles or in reflection."},
+        {"severity": 2, "description": "Light scratches limited to the surface layer over a small area."},
+        {"severity": 3, "description": "Distinct scratches that show a different color layer along their length."},
+        {"severity": 4, "description": "Long or deep-looking scratches showing primer-colored or bare material across much of one panel."},
+        {"severity": 5, "description": "Extensive gouges or scrapes with bare material visible over a large part of a panel or across multiple panels."}
+      ]
+    },
+    {
+      "concept": "glass_crack",
+      "limitations": "Visible glass surface only. Whether the glass is repairable or legal for use is not assessed.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "A tiny chip or star mark with no lines radiating from it."},
+        {"severity": 2, "description": "A small chip with one short hairline crack."},
+        {"severity": 3, "description": "A single crack line of moderate length, or a chip with several radiating lines."},
+        {"severity": 4, "description": "A long crack crossing a substantial part of the glass, or several separate cracks."},
+        {"severity": 5, "description": "A network of cracks or shattered pattern across a large part of the glass, or missing glass."}
+      ]
+    },
+    {
+      "concept": "tire_wear",
+      "limitations": "Visual impression of the visible tire face only. Tread depth is not measured and the tire must be inspected in person.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "Minor visible wear: tread pattern still looks clearly defined, with only slight rounding of tread edges."},
+        {"severity": 2, "description": "Light uneven wear on part of the visible tread, or fine surface cracking of the rubber in a small area."},
+        {"severity": 3, "description": "Noticeable wear: tread blocks look visibly flattened across part of the visible face, or sidewall cracking is visible."},
+        {"severity": 4, "description": "Pronounced visible wear: tread pattern looks mostly smoothed across the visible face, a distinct band of uneven wear, or multiple sidewall cracks."},
+        {"severity": 5, "description": "Severe visible wear or damage: tread looks largely smooth, cords or fabric are visible, or there is a visible bulge or cut in the sidewall."}
+      ]
+    },
+    {
+      "concept": "fluid_leak",
+      "limitations": "Visible wetness or staining only. The fluid type, its source and whether a leak is active are not identified.",
+      "suggested_flags": [],
+      "anchors": [
+        {"severity": 1, "description": "Faint dark or wet-looking residue on a surface, with no drips or pooling visible."},
+        {"severity": 2, "description": "A small stained or wet-looking area, often with dirt collected around it."},
+        {"severity": 3, "description": "A clearly wet or streaked area with visible runs across a component or surface."},
+        {"severity": 4, "description": "Visible drips, or a wet trail or small puddle on a component or the ground below it."},
+        {"severity": 5, "description": "Heavy wetness: pooled liquid or a widespread wet coating across several components or a large ground area."}
+      ]
+    }
+  ]
+}

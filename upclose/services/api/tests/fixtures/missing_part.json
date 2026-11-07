@@ -1,0 +1,15 @@
+{
+  "data": {
+    "concept": "rust",
+    "reason": "part_skipped",
+    "run_id": "00000000-0000-4000-8000-000000000002",
+    "state": "not_assessed",
+    "zone": "underbody"
+  },
+  "metadata": {
+    "description": "Skipped footage is not assessed, never clean.",
+    "provenance": "synthetic"
+  },
+  "model": "Coverage",
+  "valid": true
+}

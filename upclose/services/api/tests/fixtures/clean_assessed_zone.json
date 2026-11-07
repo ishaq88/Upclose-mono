@@ -1,0 +1,45 @@
+{
+  "data": {
+    "coverage": [
+      {
+        "concept": "rust",
+        "reason": null,
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "state": "assessed",
+        "zone": "driver_side"
+      },
+      {
+        "concept": "paint_bubbling",
+        "reason": null,
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "state": "assessed",
+        "zone": "driver_side"
+      },
+      {
+        "concept": "dent",
+        "reason": null,
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "state": "assessed",
+        "zone": "driver_side"
+      },
+      {
+        "concept": "scratch",
+        "reason": null,
+        "run_id": "00000000-0000-4000-8000-000000000002",
+        "state": "assessed",
+        "zone": "driver_side"
+      }
+    ],
+    "findings": [],
+    "run_ids": [
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "session_id": "00000000-0000-4000-8000-000000000001"
+  },
+  "metadata": {
+    "description": "Synthetic driver-side required concepts assessed with zero findings; not an accuracy evaluation.",
+    "provenance": "synthetic"
+  },
+  "model": "ScoringInput",
+  "valid": true
+}

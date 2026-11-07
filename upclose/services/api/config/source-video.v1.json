@@ -1,0 +1,9 @@
+{
+  "version": "source-video-v1-provisional",
+  "max_duration_ms": 180000,
+  "max_source_bytes": 209715200,
+  "max_range_ms": 60000,
+  "max_ranges": 8,
+  "max_source_frames": 10800,
+  "mapper": "unavailable-v1"
+}

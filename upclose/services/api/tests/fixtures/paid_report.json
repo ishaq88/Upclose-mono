@@ -1,0 +1,85 @@
+{
+  "data": {
+    "claims": [],
+    "coverage": [
+      {
+        "reason": null,
+        "state": "assessed",
+        "zone": "driver_side"
+      },
+      {
+        "reason": "part_skipped",
+        "state": "not_assessed",
+        "zone": "underbody"
+      }
+    ],
+    "findings": [
+      {
+        "bbox": {
+          "h": 0.1,
+          "w": 0.2,
+          "x": 0.1,
+          "y": 0.2
+        },
+        "component_id": "driver_rocker",
+        "concept": "rust",
+        "confidence": 0.8,
+        "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+        "evidence_available": false,
+        "evidence_note": "Synthetic rust patch on named rocker.",
+        "flags": [
+          "structural_rust_review"
+        ],
+        "id": "00000000-0000-4000-8000-000000000004",
+        "severity": 5,
+        "subzone": "rocker",
+        "zone": "driver_side"
+      }
+    ],
+    "narration": [],
+    "rendered_at": null,
+    "repairs": {
+      "items": [
+        {
+          "component_id": "driver_rocker",
+          "finding_ids": [
+            "00000000-0000-4000-8000-000000000004"
+          ],
+          "high_cents": null,
+          "low_cents": null,
+          "operation": null,
+          "reason": "structural_rust_not_estimated",
+          "severity": 5
+        }
+      ],
+      "label": "Local planning estimate; not a current shop quote",
+      "subtotal_high_cents": 0,
+      "subtotal_low_cents": 0,
+      "table_version": "synthetic-planning-v1",
+      "unestimated_count": 1
+    },
+    "revision_id": "00000000-0000-4000-8000-000000000007",
+    "scope": "paid",
+    "scores": {
+      "config_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "headline": null,
+      "label": "Provisional visual-condition index",
+      "zones": [
+        {
+          "reason": null,
+          "score": 85.0,
+          "state": "assessed",
+          "zone": "driver_side"
+        }
+      ]
+    },
+    "slug": "synthetic-report",
+    "state": "ready"
+  },
+  "metadata": {
+    "description": "Synthetic paid DTO; unknown repair remains null, not a zero-cost estimate.",
+    "provenance": "synthetic"
+  },
+  "model": "PaidReport",
+  "valid": true
+}

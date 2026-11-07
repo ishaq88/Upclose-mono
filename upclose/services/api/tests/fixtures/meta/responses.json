@@ -1,0 +1,11 @@
+{
+  "empty": {"provenance":"synthetic","description":"Handwritten completed empty lane, no detections.","status":"completed","output_text":"","usage":{"images_processed":1}},
+  "image": {"provenance":"synthetic","description":"2x2 diagonal binary mask encoded with official parser 0.1.0 test-only encoder; 4x3 synthetic image.","status":"completed","output_text":"<0f>7<|box;x1=1;y1=0;x2=2;y2=1;w=4;h=3|><|mask;x=0;y=0;data=2,2,!!!!!&T:u9`|>","usage":{"images_processed":1}},
+  "video": {"provenance":"synthetic","description":"Same synthetic track on sparse source frames 2 then0; no media/provider calls.","status":"completed","output_text":"<2f>7<|box;x1=1;y1=0;x2=2;y2=1;w=4;h=3|><|mask;x=0;y=0;data=2,2,!!!!!&T:u9`|>\n<0f>7<|box;x1=0;y1=0;x2=1;y2=1;w=4;h=3|><|mask;x=0;y=0;data=2,2,!!!!!&T:u9`|>","usage":{"video_frames_processed":50}},
+  "rotated": {"provenance":"synthetic","description":"Stored4x3 rotation90 displays3x4; box coordinates already in displayed pixel plane.","status":"completed","output_text":"<0f>7<|box;x1=1;y1=2;x2=2;y2=3;w=3;h=4|><|mask;x=0;y=0;data=2,2,!!!!!&T:u9`|>","usage":{"images_processed":1}},
+  "malformed_mask": {"provenance":"synthetic","description":"Invalid canonical mask payload must fail rather than produce clean result.","status":"completed","output_text":"<0f>7<|box;x1=1;y1=0;x2=2;y2=1;w=4;h=3|><|mask;x=0;y=0;data=2,2,!broken|>","usage":{"images_processed":1}},
+  "malformed_geometry": {"provenance":"synthetic","description":"Box exceeds source boundary.","status":"completed","output_text":"<0f>7<|box;x1=1;y1=0;x2=4;y2=1;w=4;h=3|><|mask;x=0;y=0;data=2,2,!!!!!&T:u9`|>","usage":{"images_processed":1}},
+  "timeout": {"provenance":"synthetic","description":"Synthetic timeout; actual provider usage remains unknown.","status":"timeout","output_text":"","usage":{}},
+  "failed": {"provenance":"synthetic","description":"Synthetic provider failure.","status":"failed","output_text":"","usage":{}},
+  "incomplete": {"provenance":"synthetic","description":"Missing completed response cannot become empty success.","status":"incomplete","output_text":"","usage":{}}
+}

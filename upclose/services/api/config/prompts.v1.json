@@ -1,0 +1,31 @@
+{
+  "version": "prompts-v1-design",
+  "status": "design_config_subject_to_evaluation",
+  "note": "Initial segmentation prompt plan from contract section 5. Uncalibrated design default: prompt wording, per-part assignment and dedup thresholds have not been evaluated against labeled held-out media. Not a claim about provider capability, limits or price.",
+  "prompts": [
+    {"prompt_id": "rust_a", "concept": "rust", "text": "rust"},
+    {"prompt_id": "rust_b", "concept": "rust", "text": "corroded metal"},
+    {"prompt_id": "paint_bubbling", "concept": "paint_bubbling", "text": "bubbling paint"},
+    {"prompt_id": "dent", "concept": "dent", "text": "dent"},
+    {"prompt_id": "scratch", "concept": "scratch", "text": "scratch"},
+    {"prompt_id": "glass_crack", "concept": "glass_crack", "text": "cracked glass"},
+    {"prompt_id": "tire_wear", "concept": "tire_wear", "text": "worn tire"},
+    {"prompt_id": "fluid_leak", "concept": "fluid_leak", "text": "fluid leak"}
+  ],
+  "parts": [
+    {"part_no": 1, "zone": "driver_side", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch"]},
+    {"part_no": 2, "zone": "passenger_side", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch"]},
+    {"part_no": 3, "zone": "front_rear_body", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch", "glass_crack"]},
+    {"part_no": 4, "zone": "tires", "disposition": "planned", "media": "stills", "still_count": 8, "prompt_ids": ["tire_wear"]},
+    {"part_no": 5, "zone": "dash_electrical", "disposition": "deferred", "media": "stills", "prompt_ids": [], "reason": "Dash reading is deferred optional evidence; no damage concept is implemented."},
+    {"part_no": 6, "zone": "engine_bay", "disposition": "planned", "media": "video", "prompt_ids": ["fluid_leak"]},
+    {"part_no": 7, "zone": "underbody", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "fluid_leak"]},
+    {"part_no": 8, "zone": "interior", "disposition": "no_concept", "media": "stills", "prompt_ids": [], "reason": "No interior concept is implemented; the zone stays not assessed."}
+  ],
+  "dedup": {
+    "version": "dedup-v1-design",
+    "iou_threshold": "0.5",
+    "ambiguous_min_iou_exclusive": "0",
+    "merge_on_known_component": false
+  }
+}

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>UpClose — Guide Sign sketch</title>
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--concrete:#f4f5f1;--green:#0f6b45;--amber:#f2b51d;--ink:#1b1f1d;--line:#c8ccc4}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;background:var(--concrete);color:var(--ink);font-family:Overpass,sans-serif}
+.nav{display:flex;justify-content:space-between;align-items:center;padding:22px 48px}
+.logo{font-weight:900;font-size:28px;letter-spacing:-.01em}
+.nav nav{display:flex;gap:30px;font-weight:600;font-size:17px}
+.panel{margin:6px 48px 0;background:var(--green);border-radius:22px;padding:10px}
+.panel-in{border:5px solid #fff;border-radius:16px;padding:40px 48px 44px;color:#fff;display:grid;grid-template-columns:1fr auto;gap:40px;align-items:end}
+h1{font-weight:800;font-size:112px;line-height:.92;letter-spacing:-.02em}
+.panel p{font-size:24px;line-height:1.35;max-width:620px;margin-top:22px;font-weight:400}
+.exit{background:#fff;color:var(--green);border-radius:12px;padding:22px 30px;font-weight:900;font-size:28px;display:flex;align-items:center;gap:16px;white-space:nowrap}
+.exit svg{width:40px;height:40px}
+.car{position:relative;margin:10px 48px 0;height:300px}
+.diamond{position:absolute;width:64px;height:64px;background:var(--amber);transform:rotate(45deg);border:4px solid var(--ink);border-radius:6px}
+.tag{position:absolute;background:var(--amber);font-weight:800;font-size:20px;padding:8px 14px;border-radius:6px;border:3px solid var(--ink)}
+</style></head><body>
+<header class="nav"><div class="logo">UpClose</div><nav><span>How it works</span><span>Sample report</span><span>My reports</span><span>Sign in</span></nav></header>
+<section class="panel"><div class="panel-in"><div><h1>Good find.<br>Look closer.</h1><p>Film the car on your phone. UpClose finds the car first, then checks only the car for rust, dents, glass, tires and leaks.</p></div>
+<span class="exit">Start a walkaround <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="5"><path d="M8 32 L32 8 M14 8 H32 V26"/></svg></span></div></section>
+<div class="car">
+<svg viewBox="0 0 1344 300" width="1344" height="300" aria-hidden="true"><g transform="translate(220,0) scale(.82)">
+<path d="M40 300 L42 240 Q46 205 100 196 L270 178 Q330 104 430 86 L700 80 Q800 84 870 156 L1010 176 Q1080 188 1090 232 L1094 300 Z" fill="#b9bfbb" stroke="#1b1f1d" stroke-width="5"/>
+<path d="M320 176 L432 104 L620 98 L620 176 Z M640 176 L640 98 L700 98 Q770 106 830 176 Z" fill="#6c7570"/>
+<circle cx="250" cy="300" r="70" fill="#1b1f1d"/><circle cx="900" cy="300" r="70" fill="#1b1f1d"/></g></svg>
+<span class="diamond" style="left:560px;top:190px"></span><span class="tag" style="left:640px;top:200px">Rust · rocker · 0:14</span>
+<span class="diamond" style="left:1080px;top:120px"></span><span class="tag" style="left:1160px;top:130px">Dent · 0:21</span>
+</div>
+</body></html>

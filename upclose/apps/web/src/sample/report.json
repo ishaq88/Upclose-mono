@@ -1,0 +1,353 @@
+{
+  "slug": "sample-van",
+  "revision_id": "8d1e0c4b-2f3a-4e5b-9c6d-7e8f9a0b1c2d",
+  "scope": "paid",
+  "state": "ready",
+  "rendered_at": "2026-11-04T16:12:00Z",
+  "vehicle_label": "2004 panel van, white",
+  "coverage": [
+    {
+      "zone": "driver_side",
+      "state": "assessed",
+      "reason": null
+    },
+    {
+      "zone": "passenger_side",
+      "state": "assessed",
+      "reason": null
+    },
+    {
+      "zone": "front_rear_body",
+      "state": "assessed",
+      "reason": null
+    },
+    {
+      "zone": "tires",
+      "state": "partial",
+      "reason": "Rear tread too dark to read"
+    },
+    {
+      "zone": "engine_bay",
+      "state": "not_assessed",
+      "reason": "The clip was too blurry to read"
+    },
+    {
+      "zone": "underbody",
+      "state": "not_assessed",
+      "reason": "Skipped"
+    },
+    {
+      "zone": "dash_electrical",
+      "state": "not_assessed",
+      "reason": "Not scored yet"
+    },
+    {
+      "zone": "interior",
+      "state": "not_assessed",
+      "reason": "Not scored yet"
+    }
+  ],
+  "scores": {
+    "config_hash": "scoring-v1-uncalibrated",
+    "label": "Visual-condition index",
+    "headline": 94.9,
+    "zones": [
+      {
+        "zone": "driver_side",
+        "state": "assessed",
+        "score": 87.0,
+        "reason": null
+      },
+      {
+        "zone": "passenger_side",
+        "state": "assessed",
+        "score": 94.0,
+        "reason": null
+      },
+      {
+        "zone": "front_rear_body",
+        "state": "assessed",
+        "score": 93.0,
+        "reason": null
+      },
+      {
+        "zone": "tires",
+        "state": "partial",
+        "score": null,
+        "reason": "Rear tread too dark to read"
+      },
+      {
+        "zone": "engine_bay",
+        "state": "not_assessed",
+        "score": null,
+        "reason": "The clip was too blurry to read"
+      },
+      {
+        "zone": "underbody",
+        "state": "not_assessed",
+        "score": null,
+        "reason": "Skipped"
+      },
+      {
+        "zone": "dash_electrical",
+        "state": "not_assessed",
+        "score": null,
+        "reason": "Not scored yet"
+      },
+      {
+        "zone": "interior",
+        "state": "not_assessed",
+        "score": null,
+        "reason": "Not scored yet"
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e01",
+      "zone": "driver_side",
+      "concept": "rust",
+      "severity": 3,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Flaking paint and rust along the rear wheel arch and the sill below it, next to a non-factory panel patch.",
+      "subzone": "rocker",
+      "component_id": "driver_rocker",
+      "flags": [
+        "structural_rust_review"
+      ],
+      "bbox": {
+        "x": 0.3,
+        "y": 0.41,
+        "w": 0.39,
+        "h": 0.18
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 41000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e02",
+      "zone": "driver_side",
+      "concept": "dent",
+      "severity": 2,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Creased metal at the bottom of the front door opening.",
+      "subzone": "door",
+      "component_id": "driver_front_door",
+      "flags": [],
+      "bbox": {
+        "x": 0.39,
+        "y": 0.29,
+        "w": 0.25,
+        "h": 0.38
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 12000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e03",
+      "zone": "front_rear_body",
+      "concept": "scratch",
+      "severity": 1,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Scuffs on the corner of the front bumper.",
+      "subzone": "bumper",
+      "component_id": "front_bumper",
+      "flags": [],
+      "bbox": {
+        "x": 0.18,
+        "y": 0.39,
+        "w": 0.13,
+        "h": 0.21
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 5000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e05",
+      "zone": "passenger_side",
+      "concept": "dent",
+      "severity": 2,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Shallow dent in the sliding door at waist height.",
+      "subzone": "door",
+      "component_id": "passenger_sliding_door",
+      "flags": [],
+      "bbox": {
+        "x": 0.36,
+        "y": 0.34,
+        "w": 0.28,
+        "h": 0.3
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 58000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e06",
+      "zone": "front_rear_body",
+      "concept": "glass_crack",
+      "severity": 2,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Stone chip with a short crack, low on the passenger side of the windshield.",
+      "subzone": "windshield",
+      "component_id": "windshield",
+      "flags": [],
+      "bbox": {
+        "x": 0.42,
+        "y": 0.4,
+        "w": 0.2,
+        "h": 0.22
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 9000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e07",
+      "zone": "tires",
+      "concept": "tire_wear",
+      "severity": 2,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Outer edge of the front tread worn lower than the inner edge.",
+      "subzone": "front_tire",
+      "component_id": "front_left_tire",
+      "flags": [],
+      "bbox": {
+        "x": 0.3,
+        "y": 0.3,
+        "w": 0.4,
+        "h": 0.42
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 76000,
+      "mapping_basis": null
+    },
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e08",
+      "zone": "front_rear_body",
+      "concept": "scratch",
+      "severity": 1,
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Scrapes along the top of the rear bumper.",
+      "subzone": "bumper",
+      "component_id": "rear_bumper",
+      "flags": [],
+      "bbox": {
+        "x": 0.25,
+        "y": 0.42,
+        "w": 0.45,
+        "h": 0.16
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 97000,
+      "mapping_basis": null
+    }
+  ],
+  "candidates": [
+    {
+      "id": "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e04",
+      "zone": "driver_side",
+      "concept": "paint_bubbling",
+      "confidence": null,
+      "confidence_label": "Uncalibrated model confidence, not an accuracy probability",
+      "evidence_note": "Possible bubbling near the side door.",
+      "bbox": {
+        "x": 0.43,
+        "y": 0.42,
+        "w": 0.15,
+        "h": 0.18
+      },
+      "evidence_available": true,
+      "source_timestamp_ms": 31000,
+      "mapping_basis": null
+    }
+  ],
+  "claims": [
+    {
+      "claim_index": 1,
+      "text": "No rust",
+      "verdict": "contradicted",
+      "rationale": "Rust at the rear wheel arch.",
+      "finding_ids": [
+        "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e01"
+      ],
+      "evidence_frame_keys": []
+    },
+    {
+      "claim_index": 2,
+      "text": "New tires last year",
+      "verdict": "not_visible",
+      "rationale": "The front tires look fine; the rear tread was too dark to see.",
+      "finding_ids": [],
+      "evidence_frame_keys": []
+    }
+  ],
+  "repairs": {
+    "label": "Local planning estimate; not a current shop quote",
+    "table_version": "costs-v1-planning-seed",
+    "subtotal_low_cents": 49000,
+    "subtotal_high_cents": 120000,
+    "unestimated_count": 1,
+    "items": [
+      {
+        "operation": "repair_rocker",
+        "component_id": "driver_rocker",
+        "severity": 3,
+        "finding_ids": [
+          "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e01"
+        ],
+        "low_cents": 40000,
+        "high_cents": 90000,
+        "reason": null
+      },
+      {
+        "operation": "paint_panel",
+        "component_id": "front_bumper",
+        "severity": 1,
+        "finding_ids": [
+          "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e03"
+        ],
+        "low_cents": 9000,
+        "high_cents": 30000,
+        "reason": null
+      },
+      {
+        "operation": null,
+        "component_id": "driver_front_door",
+        "severity": 2,
+        "finding_ids": [
+          "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e02"
+        ],
+        "low_cents": null,
+        "high_cents": null,
+        "reason": "No cost table row for dents"
+      }
+    ]
+  },
+  "narration": [
+    {
+      "text": "Ask whether the rear wheel arch and sill have been repaired, and what is behind the panel patch.",
+      "finding_ids": [
+        "3f6c1d2a-5b7e-4c1a-9d2e-1a2b3c4d5e01"
+      ]
+    },
+    {
+      "text": "Have a mechanic check the underbody; it was not filmed and there is rust nearby.",
+      "finding_ids": []
+    },
+    {
+      "text": "Look at the engine bay yourself; the clip was too blurry to check.",
+      "finding_ids": []
+    }
+  ]
+}

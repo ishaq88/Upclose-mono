@@ -1,0 +1,56 @@
+{
+  "title": "Choose UpClose's visual world (safer hand)",
+  "question": "Familiar directions from the driver's world. Pick one, the category standard, or re-roll again.",
+  "options": [
+    {
+      "id": "road-sign",
+      "kind": "grounded",
+      "label": "Guide Sign",
+      "lineage": "highway guide signs: reflective green panels, white Highway Gothic lettering, amber warning diamonds",
+      "thesis": "Wayfinding for a walkaround: big, calm, outdoor-legible signage that tells the buyer exactly where to film next and what was found.",
+      "palette": ["#f4f5f1", "#0f6b45", "#ffffff", "#f2b51d", "#1b1f1d", "#c8ccc4"],
+      "materials": ["reflective sign panels", "rounded sign corners with an inset white border", "amber warning diamonds for findings", "route-shield numbers for zones"],
+      "viewport": "A white concrete page with one huge green guide panel spanning the width: 'Good find. Look closer.' in Highway Gothic-style lettering, an exit-style arrow action, and the car below with amber diamonds on its findings.",
+      "risk": "It can feel municipal, and the green echoes the old incumbent palette, so the green has to be a signage green, not a muted sage.",
+      "html": ".impeccable/mocks/decision/road-sign.html"
+    },
+    {
+      "id": "paint-chip",
+      "kind": "grounded",
+      "label": "Paint Chip Card",
+      "lineage": "factory paint-code chip cards and body-colour swatch books",
+      "thesis": "A factory colour card for condition: white card stock, glossy chips, and printed codes, where each zone is a chip that is filled, flagged, or left blank.",
+      "palette": ["#fbfaf7", "#202326", "#c8352b", "#1f4fa3", "#e6e3dc", "#7a8087"],
+      "materials": ["coated white card stock", "glossy colour chips with printed codes", "die-cut holes", "small technical captions"],
+      "viewport": "A white card page with the headline set large at the top left, the car photo as one big glossy chip, and the 8 zones as a row of chips with codes beneath; the action is the solid blue chip.",
+      "risk": "It can drift into a paint-store look, and the chip grid can collapse into a row of equal cards.",
+      "html": ".impeccable/mocks/decision/paint-chip.html"
+    },
+    {
+      "id": "claim-file",
+      "kind": "grounded",
+      "label": "Evidence File",
+      "lineage": "an adjuster's photo file: manila folder, glossy prints with orange date stamps, typed labels",
+      "thesis": "Every finding is a print in the file, with its timestamp burned into the corner: UpClose as the evidence folder you take to the seller.",
+      "palette": ["#e9d7a8", "#fffdf8", "#232220", "#e8641e", "#3a5a8c", "#cbb88a"],
+      "materials": ["manila folder stock with a tab", "white-bordered photo prints", "orange LCD date stamps", "typed index labels"],
+      "viewport": "An open manila folder filling the viewport: the headline is typed on the tab label, three findings are prints with orange time stamps clipped inside, and the action is the blue 'Open a new file' button on the folder's edge.",
+      "risk": "Insurance-file cues can suggest an accident claim, and the folder can tip into skeuomorphic costume.",
+      "html": ".impeccable/mocks/decision/claim-file.html"
+    }
+  ],
+  "reroll": {"registers": ["safer", "bolder"]},
+  "buildPath": {"value": "code"},
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "The category standard",
+    "thesis": "The used-car web canon as Carvana, CarGurus and CARFAX ship it: white ground, one strong blue, big car photography, a clean report UI.",
+    "palette": ["#ffffff", "#14181f", "#1f5fd1", "#eef2f7", "#1a8a4a"],
+    "materials": ["clean grid", "car photography", "rounded report cards"],
+    "viewport": "Headline and CTA over a large car photo, with a 3-step row and a report preview below, at Carvana-level polish.",
+    "risk": "Indistinguishable from every listing site by design.",
+    "html": ".impeccable/mocks/decision/canon.html"
+  },
+  "steer": true
+}

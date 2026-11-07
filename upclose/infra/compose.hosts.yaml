@@ -1,0 +1,20 @@
+# Static split-host rehearsal only; no DNS/TLS and no change to dev/phone services.
+# Use with compose.yaml, not compose.landing.yaml (both define the landing service).
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: infra/app.Dockerfile
+    ports: ["127.0.0.1:5174:8080"]
+    depends_on:
+      api: {condition: service_healthy}
+    security_opt: [no-new-privileges:true]
+  landing:
+    build:
+      context: ..
+      dockerfile: infra/landing.Dockerfile
+      args:
+        VITE_APP_ORIGIN: http://localhost:5174
+        LANDING_ALLOW_LOCAL_APP: "true"
+    ports: ["127.0.0.1:5181:8080"]
+    security_opt: [no-new-privileges:true]

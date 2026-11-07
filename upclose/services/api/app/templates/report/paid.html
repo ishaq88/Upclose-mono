@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block content %}
+<section aria-labelledby="headline-h">
+<h2 id="headline-h">Overall</h2>
+<div class="score-box">
+{%- if headline is not none %}
+<div class="score-value">{{ headline }}</div>
+<div class="score-label">{{ score_label }} (0–100), weighted across {{ assessed_count }} assessed zones</div>
+{%- else %}
+<div class="score-value">No overall index</div>
+<div class="score-label">No overall index — fewer than 3 zones assessed. {{ score_label }}.</div>
+{%- endif %}
+</div>
+</section>
+
+{%- if risk_cards %}
+<section aria-labelledby="risk-h">
+<h2 id="risk-h">High-risk flags</h2>
+<div class="flags">
+<p>These are shown first regardless of the overall score. Each flagged finding is scored once and remains in the findings list.</p>
+<ul>
+{%- for card in risk_cards %}
+<li><a href="#finding-{{ card.number }}">Finding {{ card.number }}</a>: {{ card.concept_label }}, {{ card.location_label }}, severity {{ card.severity }} of 5 — {% for flag in card.flags %}{{ flag }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+{%- endfor %}
+</ul>
+</div>
+</section>
+{%- endif %}
+
+<section aria-labelledby="zones-h">
+<h2 id="zones-h">Zone scores and coverage</h2>
+<table>
+<thead><tr><th scope="col">Zone</th><th scope="col">Coverage</th><th scope="col">Score</th><th scope="col">Note</th></tr></thead>
+<tbody>
+{%- for row in zone_rows %}
+<tr><th scope="row">{{ row.zone_label }}</th><td class="state-{{ row.state }}">{{ row.state_label }}</td><td class="num">{{ row.score_text }}</td><td>{{ row.note }}{% if row.finding_refs %} <span class="note">({{ m.citations(row.finding_refs) }})</span>{% endif %}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+<p class="note">{{ score_label }}. Zone scores exist only where every required check completed.</p>
+</section>
+
+<section aria-labelledby="map-h">
+<h2 id="map-h">Defect map</h2>
+{% include "_diagram.html" %}
+</section>
+
+<section aria-labelledby="findings-h">
+<h2 id="findings-h">Findings</h2>
+{%- if cards %}
+<div class="cards">
+{%- for card in cards %}
+{{ m.finding_card(card) }}
+{%- endfor %}
+</div>
+{%- else %}
+<p>{{ no_findings_text }}</p>
+{%- endif %}
+</section>
+
+{% if candidate_cards %}<section><h2>Unverified candidates</h2><p>Model candidates below still need verification. They are not findings, carry no severity, and do not affect scores.</p><div class="cards">{% for c in candidate_cards %}{{ m.candidate_card(c) }}{% endfor %}</div></section>{% endif %}
+
+<section aria-labelledby="claims-h">
+<h2 id="claims-h">Listing claims checked against the footage</h2>
+{%- if claim_rows %}
+<table>
+<thead><tr><th scope="col">#</th><th scope="col">Claim</th><th scope="col">Result</th><th scope="col">Why</th><th scope="col">Evidence</th></tr></thead>
+<tbody>
+{%- for claim in claim_rows %}
+<tr><td class="num">{{ claim.index }}</td><td>{{ claim.text }}</td><td class="verdict-{{ claim.verdict }}">{{ claim.verdict_label }}</td><td>{{ claim.rationale }}</td><td>{% if claim.refs %}{{ m.citations(claim.refs) }}{% else %}—{% endif %}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- else %}
+<p>No listing claims were checked.</p>
+{%- endif %}
+</section>
+
+<section aria-labelledby="repairs-h">
+<h2 id="repairs-h">{{ repairs.title }}</h2>
+{%- if repairs.rows %}
+<table>
+<thead><tr><th scope="col">Component</th><th scope="col">Repair</th><th scope="col">Severity</th><th scope="col">Estimate</th><th scope="col">Evidence</th></tr></thead>
+<tbody>
+{%- for row in repairs.rows %}
+<tr><td>{{ row.component }}</td><td>{{ row.operation }}</td><td class="num">{{ row.severity }} of 5</td><td class="num">{{ row.estimate }}{% if row.reason %}<br><span class="note">{{ row.reason }}</span>{% endif %}</td><td>{% if row.refs %}{{ m.citations(row.refs) }}{% else %}—{% endif %}</td></tr>
+{%- endfor %}
+</tbody>
+<tfoot><tr><th scope="row" colspan="3">{{ repairs.title }}</th><td class="num" colspan="2">{{ repairs.total_text }}</td></tr></tfoot>
+</table>
+{%- else %}
+<p>No repair items.</p>
+{%- endif %}
+{%- if repairs.unestimated_text %}
+<p>{{ repairs.unestimated_text }}</p>
+{%- endif %}
+<p class="note">{{ repairs.label }}. Table version {{ repairs.table_version }}.</p>
+</section>
+
+<section aria-labelledby="narr-h">
+<h2 id="narr-h">Summary</h2>
+{%- if narration_rows %}
+<ul>
+{%- for row in narration_rows %}
+<li>{{ row.text }}{% if row.refs %} <span class="note">({{ m.citations(row.refs) }})</span>{% endif %}</li>
+{%- endfor %}
+</ul>
+{%- else %}
+<p>No summary statements.</p>
+{%- endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,15 @@
+{
+  "version": "costs-v1-planning-seed",
+  "blocked_flag_fragments": ["structural", "perforat", "rust_through"],
+  "severity_multipliers": [
+    {"severity": 1, "multiplier": "0.6"}, {"severity": 2, "multiplier": "0.6"},
+    {"severity": 3, "multiplier": "1"}, {"severity": 4, "multiplier": "1.4"},
+    {"severity": 5, "multiplier": "1.4"}
+  ],
+  "rows": [
+    {"operation": "replace_tire", "components": ["tire_fl", "tire_fr", "tire_rl", "tire_rr"], "concepts": ["tire_wear"], "low_dollars": "90", "high_dollars": "160"},
+    {"operation": "replace_windshield", "components": ["windshield"], "concepts": ["glass_crack"], "low_dollars": "250", "high_dollars": "450"},
+    {"operation": "repair_rocker", "components": ["driver_rocker", "passenger_rocker"], "concepts": ["rust"], "low_dollars": "400", "high_dollars": "900"},
+    {"operation": "paint_panel", "components": ["driver_front_door", "driver_rear_door", "passenger_front_door", "passenger_rear_door", "hood", "roof", "trunk", "front_bumper", "rear_bumper"], "concepts": ["scratch", "paint_bubbling"], "low_dollars": "150", "high_dollars": "500"}
+  ]
+}

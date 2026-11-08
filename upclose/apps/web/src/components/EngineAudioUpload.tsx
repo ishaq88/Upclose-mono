@@ -38,7 +38,7 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
   const label = upload.phase === 'completing' ? 'Finishing upload...' : `Uploading engine audio... ${percent}%`;
 
   return (
-    <div className="audio-upload stack" data-testid="audio-upload">
+    <div className="audio-upload stack" data-testid="engine-audio-upload">
       <p className="hint">Add a WAV, MP3 or M4A clip of the engine, up to {MAX_AUDIO_SECONDS} seconds and 10 MiB. Not attached shows as Not checked.</p>
       {rejection && <p role="alert" className="notice notice-error" data-testid="audio-rejection">{rejection}</p>}
       {notice && !upload.error && <p role="status" className="hint">{notice}</p>}
@@ -48,15 +48,15 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
         <div className="upload-status" role="status">
           <label className="upload-label">
             {label}
-            <progress className="meter" max={100} value={percent} aria-label="Engine audio upload progress" />
+            <progress className="meter" max={100} value={percent} aria-label="Engine audio upload progress" data-testid="engine-audio-progress" />
           </label>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void upload.abort(); }}>Cancel upload</button>
+          <button type="button" className="btn btn-ghost btn-sm" data-testid="engine-audio-cancel" onClick={() => { void upload.abort(); }}>Cancel upload</button>
         </div>
       )}
       {upload.phase === 'accepted' && <p role="status" className="hint">Uploaded. Waiting for the clip to be checked and attached.</p>}
       {upload.phase === 'failed' && upload.canRetry && (
         <div className="cap-actions">
-          <button type="button" className="btn btn-sm" onClick={() => { void upload.retry(); }}>Try again</button>
+          <button type="button" className="btn btn-sm" data-testid="engine-audio-retry" onClick={() => { void upload.retry(); }}>Try again</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void upload.abort(); }}>Discard</button>
         </div>
       )}
@@ -64,11 +64,11 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
         <div className="cap-actions">
           <label className="btn btn-sm file-btn">
             <span>Record engine audio</span>
-            <input type="file" accept="audio/*" capture className="sr-only" onChange={(event) => { void pick(event); }} />
+            <input type="file" accept="audio/*" capture data-testid="engine-audio-record-input" className="sr-only" onChange={(event) => { void pick(event); }} />
           </label>
           <label className="btn btn-ghost btn-sm file-btn">
             <span>Choose audio file</span>
-            <input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a" className="sr-only" onChange={(event) => { void pick(event); }} />
+            <input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a" data-testid="engine-audio-file-input" className="sr-only" onChange={(event) => { void pick(event); }} />
           </label>
         </div>
       )}

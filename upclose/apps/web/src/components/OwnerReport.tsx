@@ -127,13 +127,14 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
   const retry = (): void => { setAwaiting(false); setAttempt((n) => n + 1); };
   const label = renamed !== undefined ? renamed : report && 'vehicle_label' in report ? report.vehicle_label : null;
   const kind = report ? kindOf(report) : null;
+  const renameSessionId = report && 'session_id' in report ? report.session_id ?? sessionId : sessionId;
 
   return (
     <div className="res-col" data-testid="owner-report">
       <header className="res-head">
         <nav className="crumbs" aria-label="Breadcrumb"><a href="/reports">My reports</a><span aria-hidden="true">/</span><span>{label ?? 'Report'}</span></nav>
         <h1 className="page-title">{label ?? 'Your report'}</h1>
-        {sessionId && report && <RenameLabel api={api} sessionId={sessionId} label={label} onRenamed={setRenamed} />}
+        {renameSessionId && report && <RenameLabel api={api} sessionId={renameSessionId} label={label} onRenamed={setRenamed} />}
       </header>
       {error && (
         <ResultError error={error}>
@@ -175,12 +176,13 @@ function Status({ state: value }: { state: 'building' | 'failed' }): ReactElemen
 
 function PaidBody({ report, slug, api, resolveFrame }: { report: PaidReport; slug: string; api: Api; resolveFrame: (id: string) => Promise<string> }): ReactElement {
   const synthetic = useMemo(() => isSyntheticPaid(report), [report]);
+  const resolveMedia = useCallback((which: import('../api/client').ReportMedia, signal: AbortSignal) => api.getReportMedia(slug, which, signal), [api, slug]);
   return (
     <>
       {synthetic && <p className="res-badge" data-testid="synthetic-badge">Synthetic test result. No real inference was performed.</p>}
       <ShareControl api={api} slug={slug} />
       <p className="res-note">Private report. Evidence frames load from your account only as you scroll. Anyone you share the link with can read the report; downloaded copies cannot be recalled.</p>
-      <ReportView report={report} resolveFrame={resolveFrame} />
+      <ReportView report={report} resolveFrame={resolveFrame} resolveMedia={resolveMedia} />
     </>
   );
 }

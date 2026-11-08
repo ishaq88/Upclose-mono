@@ -10,14 +10,15 @@
     {"prompt_id": "scratch", "concept": "scratch", "text": "scratch"},
     {"prompt_id": "glass_crack", "concept": "glass_crack", "text": "cracked glass"},
     {"prompt_id": "tire_wear", "concept": "tire_wear", "text": "worn tire"},
-    {"prompt_id": "fluid_leak", "concept": "fluid_leak", "text": "fluid leak"}
+    {"prompt_id": "fluid_leak", "concept": "fluid_leak", "text": "fluid leak"},
+    {"prompt_id": "dash_cluster", "concept": null, "text": "instrument panel"}
   ],
   "parts": [
     {"part_no": 1, "zone": "driver_side", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch"]},
     {"part_no": 2, "zone": "passenger_side", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch"]},
     {"part_no": 3, "zone": "front_rear_body", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch", "glass_crack"]},
     {"part_no": 4, "zone": "tires", "disposition": "planned", "media": "stills", "still_count": 8, "prompt_ids": ["tire_wear"]},
-    {"part_no": 5, "zone": "dash_electrical", "disposition": "deferred", "media": "stills", "prompt_ids": [], "reason": "Dash reading is deferred optional evidence; no damage concept is implemented."},
+    {"part_no": 5, "zone": "dash_electrical", "disposition": "planned", "media": "stills", "still_count": 5, "prompt_ids": ["dash_cluster"]},
     {"part_no": 6, "zone": "engine_bay", "disposition": "planned", "media": "video", "prompt_ids": ["fluid_leak"]},
     {"part_no": 7, "zone": "underbody", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "fluid_leak"]},
     {"part_no": 8, "zone": "interior", "disposition": "no_concept", "media": "stills", "prompt_ids": [], "reason": "No interior concept is implemented; the zone stays not assessed."}

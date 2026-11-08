@@ -144,6 +144,10 @@ class PipelineReconciler:
                 changes["parts_failed"] += 1
             db.flush()
             return
+        if "dash" in run.config_hashes:
+            if advance_part(db, self.ctx, part.id):
+                changes["parts_completed"] += 1
+            return
         if vehicle_mask_required(run):
             if not release_masked_segments(db, self.ctx, run):
                 job = db.scalar(select(Job).where(Job.session_id == part.session_id, Job.stage == "vehicle_mask",

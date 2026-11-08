@@ -1,0 +1,26 @@
+# Opt-in overlay for the demo's real-provider runs (advisory, narration voice, voice guide, Tiger Data, VIN decode).
+# Nothing here is on by default: without this file the stack stays fixture and nothing leaves the machine.
+# Provider keys live in upclose/.env, which compose does not read, so pass it explicitly (never print it):
+#   docker compose --env-file .env -f infra/compose.yaml -f infra/compose.live-demo.yaml -f infra/compose.live-full.yaml up -d --no-deps --force-recreate worker api
+# Run from the upclose/ folder. Omit compose.live-demo.yaml to keep Meta (SAM, Spark) in fixture mode.
+# Each variable defaults to the fixture value, so setting only some of them is safe.
+services:
+  worker:
+    environment:
+      ADVISOR_PROVIDER: ${ADVISOR_PROVIDER:-fixture}
+      ADVISOR_META_MODEL: ${ADVISOR_META_MODEL:-}
+      ADVISOR_GEMINI_MODEL: ${ADVISOR_GEMINI_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VOICE_PROVIDER: ${VOICE_PROVIDER:-fixture}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID:-}
+      TIGER_DATABASE_URL: ${TIGER_DATABASE_URL:-}
+      VIN_PROVIDER: ${VIN_PROVIDER:-fixture}
+  # The API receives only the voice-guide variables, never a model or database key.
+  api:
+    environment:
+      VOICE_PROVIDER: ${VOICE_PROVIDER:-fixture}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID:-}

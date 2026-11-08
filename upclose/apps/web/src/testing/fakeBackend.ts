@@ -180,7 +180,7 @@ export class FakeBackend {
     if ((m = /^\/voice-guide\/([^/]+)$/.exec(path)) && method === 'GET') {
       if (this.voiceAudioStatus !== 200) return problem(this.voiceAudioStatus, 'INTERNAL');
       if (!this.voiceCatalog.lines.some((line) => line.id === m![1])) return problem(404, 'NOT_FOUND');
-      return new Response(new Blob([new Uint8Array([82, 73, 70, 70])], { type: 'audio/wav' }), { status: 200, headers: { 'Content-Type': 'audio/wav' } });
+      return new Response(new Uint8Array([82, 73, 70, 70]), { status: 200, headers: { 'Content-Type': 'audio/wav' } });
     }
     if ((m = /^\/sessions\/([^/]+)\/label$/.exec(path)) && method === 'PUT') {
       if (this.labelStatus !== 200) return problem(this.labelStatus, this.labelStatus === 422 ? 'VALIDATION' : 'INTERNAL');

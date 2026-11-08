@@ -41,5 +41,5 @@ export function missingKits(rows: readonly KitRow[]): KitRow[] {
 }
 
 export function rigCommand(sessionId: string): string {
-  return `python -m upclose_rig post --recording <file> --provenance synthetic --session ${sessionId}`;
+  return `python -m upclose_rig demo-run --session ${sessionId} --api http://localhost:8000 --port COM3 --audio synth`;
 }

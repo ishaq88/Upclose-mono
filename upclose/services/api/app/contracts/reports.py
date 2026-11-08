@@ -5,6 +5,9 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from .base import Confidence, ContractModel, Count, Score, Severity, UTCDateTime
 from .enums import ClaimVerdict, ComponentId, Concept, CoverageState, ReportState, Subzone, Zone
+from .briefing import FreeVehicleCheck, FrozenVibration, FrozenVin, NarrationAudioView
+from app.briefing.advisory_block import AdvisoryBlock
+from .mechanical import CategoryScores, MechanicalBreakdown, FreeDashCheck, PaidDashCheck
 from .evidence import BoundingBox, ClaimResult, NarratedStatement
 from .scoring import RepairSummary, ScoreResult
 from .sources import FreeSourceCheck, PaidSourceCheck
@@ -102,6 +105,10 @@ class FreeReport(ContractModel):
     locked_zones: tuple[LockedZoneSummary, ...]
     part1_summary: Annotated[str, Field(max_length=2000)]
     additional_checks: tuple[FreeSourceCheck, ...] = ()
+    categories: CategoryScores | None = None
+    vehicle_check: FreeVehicleCheck | None = None
+    dashboard: FreeDashCheck | None = None
+    session_id: UUID | None = None  # owner reads only
 
 
 class ShareEnableResponse(ContractModel):
@@ -143,6 +150,14 @@ class PaidReport(ContractModel):
     narration: tuple[NarratedStatement, ...]
     rendered_at: UTCDateTime | None = None
     additional_checks: tuple[PaidSourceCheck, ...] = ()
+    categories: CategoryScores | None = None
+    mechanical_breakdown: MechanicalBreakdown | None = None
+    dashboard: PaidDashCheck | None = None
+    advisory: AdvisoryBlock | None = None
+    narration_audio: NarrationAudioView | None = None
+    vehicle_check: FrozenVin | None = None
+    vibration: FrozenVibration | None = None
+    session_id: UUID | None = None  # owner reads only
 
     @model_validator(mode="after")
     def citations_in_public_scope(self) -> Self:

@@ -89,6 +89,56 @@ export interface components {
              */
             id: string;
         };
+        /** AdvisoryBlock */
+        AdvisoryBlock: {
+            /**
+             * Label
+             * @default AI advisory, not a finding
+             * @constant
+             */
+            label: "AI advisory, not a finding";
+            /**
+             * Mechanic Checks
+             * @default []
+             */
+            mechanic_checks: components["schemas"]["BlockItem"][];
+            /** Model */
+            model: string;
+            /** Prompt Version */
+            prompt_version: string;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "fixture" | "live";
+            /** Provider */
+            provider: string;
+            /**
+             * Questions For Seller
+             * @default []
+             */
+            questions_for_seller: components["schemas"]["BlockItem"][];
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "available" | "not_available";
+            /**
+             * Summary
+             * @default null
+             */
+            summary: string | null;
+            /**
+             * Vehicle
+             * @default null
+             */
+            vehicle: string | null;
+        };
         /** Artifact */
         Artifact: {
             /**
@@ -117,6 +167,30 @@ export interface components {
             /** Sha256 */
             sha256: string;
         };
+        /** AudioAcceptedResponse */
+        AudioAcceptedResponse: {
+            /**
+             * State
+             * @default accepted
+             * @constant
+             */
+            state: "accepted";
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+        };
+        /** AudioUploadResponse */
+        AudioUploadResponse: {
+            /** Chunk Count */
+            chunk_count: number;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+        };
         /**
          * AuthResponse
          * @description The plaintext token is returned exactly once, at issuance.
@@ -130,6 +204,13 @@ export interface components {
             expires_at: string;
             /** Token */
             token: string;
+        };
+        /** BlockItem */
+        BlockItem: {
+            /** Cites */
+            cites: string[];
+            /** Text */
+            text: string;
         };
         /** BoundingBox */
         BoundingBox: {
@@ -174,6 +255,40 @@ export interface components {
              */
             source_timestamp_ms: number | null;
             zone: components["schemas"]["Zone"];
+        };
+        /** CategoryScore */
+        CategoryScore: {
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Score
+             * @default null
+             */
+            score: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "assessed" | "not_checked";
+        };
+        /**
+         * CategoryScores
+         * @description Public scores. A category without evidence is `not_checked` with no number, never a silent pass.
+         */
+        CategoryScores: {
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Label
+             * @default Provisional index, not a diagnosis
+             */
+            label: string;
+            mechanical: components["schemas"]["CategoryScore"];
+            overall: components["schemas"]["OverallScore"];
+            visual: components["schemas"]["CategoryScore"];
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -321,6 +436,16 @@ export interface components {
          * @enum {string}
          */
         CoverageState: "assessed" | "partial" | "not_assessed";
+        /** CreateAudioUploadRequest */
+        CreateAudioUploadRequest: {
+            /** Content Length */
+            content_length: number;
+            /**
+             * Content Type
+             * @enum {string}
+             */
+            content_type: "audio/wav" | "audio/x-wav" | "audio/mpeg" | "audio/mp4" | "audio/x-m4a";
+        };
         /** CreateSessionRequest */
         CreateSessionRequest: {
             /**
@@ -654,6 +779,13 @@ export interface components {
             /** Provenance */
             provenance: string;
         };
+        /** FreeDashCheck */
+        FreeDashCheck: {
+            /** Checked */
+            checked: boolean;
+            /** Flag Count */
+            flag_count: number;
+        };
         /** FreeFinding */
         FreeFinding: {
             bbox: components["schemas"]["BoundingBox"];
@@ -705,8 +837,12 @@ export interface components {
              * @default []
              */
             additional_checks: components["schemas"]["FreeSourceCheck"][];
+            /** @default null */
+            categories: components["schemas"]["CategoryScores"] | null;
             /** Coverage */
             coverage: components["schemas"]["PublicCoverage"][];
+            /** @default null */
+            dashboard: components["schemas"]["FreeDashCheck"] | null;
             /** Findings */
             findings: components["schemas"]["FreeFinding"][];
             /** Locked Zones */
@@ -726,9 +862,16 @@ export interface components {
              * @constant
              */
             scope: "free";
+            /**
+             * Session Id
+             * @default null
+             */
+            session_id: string | null;
             /** Slug */
             slug: string;
             state: components["schemas"]["ReportState"];
+            /** @default null */
+            vehicle_check: components["schemas"]["FreeVehicleCheck"] | null;
             /**
              * Vehicle Label
              * @default null
@@ -752,6 +895,216 @@ export interface components {
              * @enum {string}
              */
             kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
+        };
+        /** FreeVehicleCheck */
+        FreeVehicleCheck: {
+            /**
+             * Make
+             * @default null
+             */
+            make: string | null;
+            /**
+             * Match
+             * @default not_checked
+             * @enum {string}
+             */
+            match: "match" | "mismatch" | "not_checked";
+            /**
+             * Model
+             * @default null
+             */
+            model: string | null;
+            /**
+             * Model Year
+             * @default null
+             */
+            model_year: number | null;
+        };
+        /**
+         * FrozenDash
+         * @description Dashboard-light reading frozen with the manifest. Mechanical scoring uses the deduction only when assessed.
+         */
+        FrozenDash: {
+            /** Config Hash */
+            config_hash: string;
+            /**
+             * Crop Sha256
+             * @default null
+             */
+            crop_sha256: string | null;
+            /**
+             * Deduction
+             * @default 0
+             */
+            deduction: string;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+            /**
+             * Lit
+             * @default []
+             */
+            lit: components["schemas"]["FrozenDashLit"][];
+            /**
+             * Provenance
+             * @default synthetic
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "assessed" | "not_readable" | "not_checked";
+        };
+        /** FrozenDashLit */
+        FrozenDashLit: {
+            /** Confidence */
+            confidence: number;
+            /** Deduction */
+            deduction: string;
+            /** Indicator */
+            indicator: string;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "urgent" | "serious" | "advisory";
+        };
+        /** FrozenSeriesPoint */
+        FrozenSeriesPoint: {
+            /**
+             * Accel Rms
+             * @default null
+             */
+            accel_rms: number | null;
+            /** N Accel */
+            n_accel: number;
+            /**
+             * Sound Max
+             * @default null
+             */
+            sound_max: number | null;
+            /**
+             * Sound Mean
+             * @default null
+             */
+            sound_mean: number | null;
+            /** T S */
+            t_s: number;
+        };
+        /** FrozenVibration */
+        FrozenVibration: {
+            /** Duration S */
+            duration_s: number;
+            /**
+             * Points
+             * @default []
+             */
+            points: components["schemas"]["FrozenSeriesPoint"][];
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /** Sample Count */
+            sample_count: number;
+            /**
+             * Series Source
+             * @enum {string}
+             */
+            series_source: "tiger" | "computed";
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "assessed" | "not_assessed";
+        };
+        /**
+         * FrozenVin
+         * @description VIN facts. The free view shows only make, model, year and `match`, never the VIN.
+         */
+        FrozenVin: {
+            /**
+             * Check Digit
+             * @enum {string}
+             */
+            check_digit: "valid" | "invalid" | "not_applicable";
+            /** @default null */
+            decode: components["schemas"]["FrozenVinDecode"] | null;
+            /**
+             * Decode Reason
+             * @default null
+             */
+            decode_reason: string | null;
+            /**
+             * Manufacturer
+             * @default null
+             */
+            manufacturer: string | null;
+            /**
+             * Match
+             * @default not_checked
+             * @enum {string}
+             */
+            match: "match" | "mismatch" | "not_checked";
+            /** Vin */
+            vin: string;
+            /**
+             * Year Candidates
+             * @default []
+             */
+            year_candidates: number[];
+        };
+        /** FrozenVinDecode */
+        FrozenVinDecode: {
+            /**
+             * Body Class
+             * @default null
+             */
+            body_class: string | null;
+            /**
+             * Cylinders
+             * @default null
+             */
+            cylinders: number | null;
+            /**
+             * Displacement L
+             * @default null
+             */
+            displacement_l: number | null;
+            /**
+             * Fuel Type
+             * @default null
+             */
+            fuel_type: string | null;
+            /**
+             * Make
+             * @default null
+             */
+            make: string | null;
+            /**
+             * Model
+             * @default null
+             */
+            model: string | null;
+            /**
+             * Model Year
+             * @default null
+             */
+            model_year: number | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "fixture" | "nhtsa-vpic";
         };
         /** IrregularWindow */
         IrregularWindow: {
@@ -784,6 +1137,31 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * MechanicalBreakdown
+         * @description Paid only: which evidence moved the Mechanical score. Never in the free view.
+         */
+        MechanicalBreakdown: {
+            /**
+             * Deductions
+             * @default []
+             */
+            deductions: components["schemas"]["MechanicalDeduction"][];
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+        };
+        /** MechanicalDeduction */
+        MechanicalDeduction: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Points */
+            points: string;
         };
         /**
          * ModelVerdict
@@ -842,6 +1220,45 @@ export interface components {
             finding_ids: string[];
             /** Text */
             text: string;
+        };
+        /** NarrationAudioMeta */
+        NarrationAudioMeta: {
+            /** Content Type */
+            content_type: string;
+            /** Label */
+            label: string;
+            /** Model Id */
+            model_id: string;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "live";
+            /** Provider */
+            provider: string;
+            /** Sha256 */
+            sha256: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Storage Key */
+            storage_key: string;
+            /** Voice Id */
+            voice_id: string;
+        };
+        /**
+         * NarrationAudioView
+         * @description Paid report: a spoken version exists. Served only through the entitlement-checked narration route.
+         */
+        NarrationAudioView: {
+            /** Content Type */
+            content_type: string;
+            /** Label */
+            label: string;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "live";
         };
         /** ObdSnapshotData */
         ObdSnapshotData: {
@@ -987,6 +1404,42 @@ export interface components {
              */
             warmups_since_codes_cleared: number | null;
         };
+        /** OverallScore */
+        OverallScore: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "blend" | "visual_only" | "mechanical_only" | "none";
+            /** Note */
+            note: string;
+            /**
+             * Score
+             * @default null
+             */
+            score: number | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "assessed" | "not_checked";
+        };
+        /** PaidDashCheck */
+        PaidDashCheck: {
+            /** @default null */
+            assessment: components["schemas"]["FrozenDash"] | null;
+            /**
+             * Evidence Available
+             * @default false
+             * @constant
+             */
+            evidence_available: false;
+            /**
+             * Note
+             * @default Uncalibrated warning-light reading, not a diagnosis. Crop withheld pending operator privacy review.
+             */
+            note: string;
+        };
         /** PaidFinding */
         PaidFinding: {
             bbox: components["schemas"]["BoundingBox"];
@@ -1033,19 +1486,29 @@ export interface components {
              * @default []
              */
             additional_checks: components["schemas"]["PaidSourceCheck"][];
+            /** @default null */
+            advisory: components["schemas"]["AdvisoryBlock"] | null;
             /**
              * Candidates
              * @default []
              */
             candidates: components["schemas"]["CandidateFinding"][];
+            /** @default null */
+            categories: components["schemas"]["CategoryScores"] | null;
             /** Claims */
             claims: components["schemas"]["PublicClaim"][];
             /** Coverage */
             coverage: components["schemas"]["PublicCoverage"][];
+            /** @default null */
+            dashboard: components["schemas"]["PaidDashCheck"] | null;
             /** Findings */
             findings: components["schemas"]["PaidFinding"][];
+            /** @default null */
+            mechanical_breakdown: components["schemas"]["MechanicalBreakdown"] | null;
             /** Narration */
             narration: components["schemas"]["NarratedStatement"][];
+            /** @default null */
+            narration_audio: components["schemas"]["NarrationAudioView"] | null;
             /**
              * Rendered At
              * @default null
@@ -1064,14 +1527,23 @@ export interface components {
              */
             scope: "paid";
             scores: components["schemas"]["ScoreResult"];
+            /**
+             * Session Id
+             * @default null
+             */
+            session_id: string | null;
             /** Slug */
             slug: string;
             state: components["schemas"]["ReportState"];
+            /** @default null */
+            vehicle_check: components["schemas"]["FrozenVin"] | null;
             /**
              * Vehicle Label
              * @default null
              */
             vehicle_label: string | null;
+            /** @default null */
+            vibration: components["schemas"]["FrozenVibration"] | null;
         };
         /** PaidSourceCheck */
         PaidSourceCheck: {
@@ -1635,6 +2107,17 @@ export interface components {
             source_id: string;
             /** Summary */
             summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"] | components["schemas"]["EngineAudioSummary"];
+        };
+        /** StoredBriefing */
+        StoredBriefing: {
+            /** @default null */
+            advisory: components["schemas"]["AdvisoryBlock"] | null;
+            /** @default null */
+            narration_audio: components["schemas"]["NarrationAudioMeta"] | null;
+            /** @default null */
+            vibration: components["schemas"]["FrozenVibration"] | null;
+            /** @default null */
+            vin: components["schemas"]["FrozenVin"] | null;
         };
         /**
          * Subzone

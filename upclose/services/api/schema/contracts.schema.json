@@ -197,6 +197,115 @@
       "title": "AccountSummary",
       "type": "object"
     },
+    "AdvisoryBlock": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "const": "AI advisory, not a finding",
+          "default": "AI advisory, not a finding",
+          "title": "Label",
+          "type": "string"
+        },
+        "mechanic_checks": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BlockItem"
+          },
+          "title": "Mechanic Checks",
+          "type": "array"
+        },
+        "model": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "prompt_version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Prompt Version",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "fixture",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "questions_for_seller": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/BlockItem"
+          },
+          "title": "Questions For Seller",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 240,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "not_available"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "vehicle": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vehicle"
+        }
+      },
+      "required": [
+        "status",
+        "provider",
+        "model",
+        "prompt_version",
+        "provenance"
+      ],
+      "title": "AdvisoryBlock",
+      "type": "object"
+    },
     "Artifact": {
       "additionalProperties": false,
       "properties": {
@@ -255,6 +364,48 @@
       "title": "Artifact",
       "type": "object"
     },
+    "AudioAcceptedResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "const": "accepted",
+          "default": "accepted",
+          "title": "State",
+          "type": "string"
+        },
+        "upload_id": {
+          "format": "uuid",
+          "title": "Upload Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id"
+      ],
+      "title": "AudioAcceptedResponse",
+      "type": "object"
+    },
+    "AudioUploadResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_count": {
+          "minimum": 1,
+          "title": "Chunk Count",
+          "type": "integer"
+        },
+        "upload_id": {
+          "format": "uuid",
+          "title": "Upload Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id",
+        "chunk_count"
+      ],
+      "title": "AudioUploadResponse",
+      "type": "object"
+    },
     "AuthResponse": {
       "additionalProperties": false,
       "description": "The plaintext token is returned exactly once, at issuance.",
@@ -280,6 +431,34 @@
         "expires_at"
       ],
       "title": "AuthResponse",
+      "type": "object"
+    },
+    "BlockItem": {
+      "additionalProperties": false,
+      "properties": {
+        "cites": {
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Cites",
+          "type": "array"
+        },
+        "text": {
+          "maxLength": 400,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "cites"
+      ],
+      "title": "BlockItem",
       "type": "object"
     },
     "BoundingBox": {
@@ -402,6 +581,81 @@
         "evidence_available"
       ],
       "title": "CandidateFinding",
+      "type": "object"
+    },
+    "CategoryScore": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "state": {
+          "enum": [
+            "assessed",
+            "not_checked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "CategoryScore",
+      "type": "object"
+    },
+    "CategoryScores": {
+      "additionalProperties": false,
+      "description": "Public scores. A category without evidence is `not_checked` with no number, never a silent pass.",
+      "properties": {
+        "config_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "label": {
+          "default": "Provisional index, not a diagnosis",
+          "title": "Label",
+          "type": "string"
+        },
+        "mechanical": {
+          "$ref": "#/$defs/CategoryScore"
+        },
+        "overall": {
+          "$ref": "#/$defs/OverallScore"
+        },
+        "visual": {
+          "$ref": "#/$defs/CategoryScore"
+        }
+      },
+      "required": [
+        "visual",
+        "mechanical",
+        "overall",
+        "config_hash"
+      ],
+      "title": "CategoryScores",
       "type": "object"
     },
     "ChangePasswordRequest": {
@@ -760,6 +1014,34 @@
       ],
       "title": "CoverageState",
       "type": "string"
+    },
+    "CreateAudioUploadRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "content_length": {
+          "maximum": 10485760,
+          "minimum": 1,
+          "title": "Content Length",
+          "type": "integer"
+        },
+        "content_type": {
+          "enum": [
+            "audio/wav",
+            "audio/x-wav",
+            "audio/mpeg",
+            "audio/mp4",
+            "audio/x-m4a"
+          ],
+          "title": "Content Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "content_type",
+        "content_length"
+      ],
+      "title": "CreateAudioUploadRequest",
+      "type": "object"
     },
     "CreateSessionRequest": {
       "additionalProperties": false,
@@ -1495,6 +1777,26 @@
       "title": "FixtureMetadata",
       "type": "object"
     },
+    "FreeDashCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "checked": {
+          "title": "Checked",
+          "type": "boolean"
+        },
+        "flag_count": {
+          "minimum": 0,
+          "title": "Flag Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "checked",
+        "flag_count"
+      ],
+      "title": "FreeDashCheck",
+      "type": "object"
+    },
     "FreeFinding": {
       "additionalProperties": false,
       "properties": {
@@ -1630,12 +1932,34 @@
           "title": "Additional Checks",
           "type": "array"
         },
+        "categories": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryScores"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "coverage": {
           "items": {
             "$ref": "#/$defs/PublicCoverage"
           },
           "title": "Coverage",
           "type": "array"
+        },
+        "dashboard": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FreeDashCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "findings": {
           "items": {
@@ -1678,6 +2002,19 @@
           "title": "Scope",
           "type": "string"
         },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
         "slug": {
           "maxLength": 128,
           "minLength": 1,
@@ -1686,6 +2023,17 @@
         },
         "state": {
           "$ref": "#/$defs/ReportState"
+        },
+        "vehicle_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FreeVehicleCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "vehicle_label": {
           "anyOf": [
@@ -1744,6 +2092,495 @@
         "checked"
       ],
       "title": "FreeSourceCheck",
+      "type": "object"
+    },
+    "FreeVehicleCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "make": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Make"
+        },
+        "match": {
+          "default": "not_checked",
+          "enum": [
+            "match",
+            "mismatch",
+            "not_checked"
+          ],
+          "title": "Match",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "model_year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Year"
+        }
+      },
+      "title": "FreeVehicleCheck",
+      "type": "object"
+    },
+    "FrozenDash": {
+      "additionalProperties": false,
+      "description": "Dashboard-light reading frozen with the manifest. Mechanical scoring uses the deduction only when assessed.",
+      "properties": {
+        "config_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "crop_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Crop Sha256"
+        },
+        "deduction": {
+          "default": "0",
+          "title": "Deduction",
+          "type": "string"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "maxLength": 32,
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "lit": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FrozenDashLit"
+          },
+          "title": "Lit",
+          "type": "array"
+        },
+        "provenance": {
+          "default": "synthetic",
+          "enum": [
+            "synthetic",
+            "cached",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "state": {
+          "enum": [
+            "assessed",
+            "not_readable",
+            "not_checked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "config_hash"
+      ],
+      "title": "FrozenDash",
+      "type": "object"
+    },
+    "FrozenDashLit": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence": {
+          "maximum": 5,
+          "minimum": 1,
+          "title": "Confidence",
+          "type": "integer"
+        },
+        "deduction": {
+          "title": "Deduction",
+          "type": "string"
+        },
+        "indicator": {
+          "maxLength": 32,
+          "title": "Indicator",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "urgent",
+            "serious",
+            "advisory"
+          ],
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "indicator",
+        "severity",
+        "confidence",
+        "deduction"
+      ],
+      "title": "FrozenDashLit",
+      "type": "object"
+    },
+    "FrozenSeriesPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "accel_rms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Accel Rms"
+        },
+        "n_accel": {
+          "minimum": 0,
+          "title": "N Accel",
+          "type": "integer"
+        },
+        "sound_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sound Max"
+        },
+        "sound_mean": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sound Mean"
+        },
+        "t_s": {
+          "title": "T S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "t_s",
+        "n_accel"
+      ],
+      "title": "FrozenSeriesPoint",
+      "type": "object"
+    },
+    "FrozenVibration": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_s": {
+          "minimum": 0,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "points": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/FrozenSeriesPoint"
+          },
+          "maxItems": 600,
+          "title": "Points",
+          "type": "array"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "sample_count": {
+          "minimum": 0,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "series_source": {
+          "enum": [
+            "tiger",
+            "computed"
+          ],
+          "title": "Series Source",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "assessed",
+            "not_assessed"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "series_source",
+        "state",
+        "sample_count",
+        "duration_s"
+      ],
+      "title": "FrozenVibration",
+      "type": "object"
+    },
+    "FrozenVin": {
+      "additionalProperties": false,
+      "description": "VIN facts. The free view shows only make, model, year and `match`, never the VIN.",
+      "properties": {
+        "check_digit": {
+          "enum": [
+            "valid",
+            "invalid",
+            "not_applicable"
+          ],
+          "title": "Check Digit",
+          "type": "string"
+        },
+        "decode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenVinDecode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "decode_reason": {
+          "anyOf": [
+            {
+              "maxLength": 120,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decode Reason"
+        },
+        "manufacturer": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Manufacturer"
+        },
+        "match": {
+          "default": "not_checked",
+          "enum": [
+            "match",
+            "mismatch",
+            "not_checked"
+          ],
+          "title": "Match",
+          "type": "string"
+        },
+        "vin": {
+          "pattern": "^[A-HJ-NPR-Z0-9]{17}$",
+          "title": "Vin",
+          "type": "string"
+        },
+        "year_candidates": {
+          "default": [],
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 4,
+          "title": "Year Candidates",
+          "type": "array"
+        }
+      },
+      "required": [
+        "vin",
+        "check_digit"
+      ],
+      "title": "FrozenVin",
+      "type": "object"
+    },
+    "FrozenVinDecode": {
+      "additionalProperties": false,
+      "properties": {
+        "body_class": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body Class"
+        },
+        "cylinders": {
+          "anyOf": [
+            {
+              "maximum": 16,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cylinders"
+        },
+        "displacement_l": {
+          "anyOf": [
+            {
+              "maximum": 20,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Displacement L"
+        },
+        "fuel_type": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fuel Type"
+        },
+        "make": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Make"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "model_year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1900,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Year"
+        },
+        "source": {
+          "enum": [
+            "fixture",
+            "nhtsa-vpic"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "title": "FrozenVinDecode",
       "type": "object"
     },
     "IrregularWindow": {
@@ -1819,6 +2656,54 @@
         "password"
       ],
       "title": "LoginRequest",
+      "type": "object"
+    },
+    "MechanicalBreakdown": {
+      "additionalProperties": false,
+      "description": "Paid only: which evidence moved the Mechanical score. Never in the free view.",
+      "properties": {
+        "deductions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MechanicalDeduction"
+          },
+          "title": "Deductions",
+          "type": "array"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        }
+      },
+      "title": "MechanicalBreakdown",
+      "type": "object"
+    },
+    "MechanicalDeduction": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "points": {
+          "title": "Points",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "label",
+        "points"
+      ],
+      "title": "MechanicalDeduction",
       "type": "object"
     },
     "ModelVerdict": {
@@ -2015,6 +2900,104 @@
         "finding_ids"
       ],
       "title": "NarratedStatement",
+      "type": "object"
+    },
+    "NarrationAudioMeta": {
+      "additionalProperties": false,
+      "properties": {
+        "content_type": {
+          "maxLength": 64,
+          "title": "Content Type",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 80,
+          "title": "Label",
+          "type": "string"
+        },
+        "model_id": {
+          "maxLength": 128,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "synthetic",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 64,
+          "title": "Provider",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 1,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "storage_key": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Storage Key",
+          "type": "string"
+        },
+        "voice_id": {
+          "maxLength": 128,
+          "title": "Voice Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "voice_id",
+        "model_id",
+        "provenance",
+        "sha256",
+        "storage_key",
+        "content_type",
+        "size_bytes",
+        "label"
+      ],
+      "title": "NarrationAudioMeta",
+      "type": "object"
+    },
+    "NarrationAudioView": {
+      "additionalProperties": false,
+      "description": "Paid report: a spoken version exists. Served only through the entitlement-checked narration route.",
+      "properties": {
+        "content_type": {
+          "maxLength": 64,
+          "title": "Content Type",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 80,
+          "title": "Label",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "synthetic",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "provenance",
+        "content_type"
+      ],
+      "title": "NarrationAudioView",
       "type": "object"
     },
     "ObdSnapshotData": {
@@ -2315,6 +3298,81 @@
       "title": "ObdSummary",
       "type": "object"
     },
+    "OverallScore": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "blend",
+            "visual_only",
+            "mechanical_only",
+            "none"
+          ],
+          "title": "Basis",
+          "type": "string"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Score"
+        },
+        "state": {
+          "enum": [
+            "assessed",
+            "not_checked"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "basis",
+        "note"
+      ],
+      "title": "OverallScore",
+      "type": "object"
+    },
+    "PaidDashCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenDash"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "evidence_available": {
+          "const": false,
+          "default": false,
+          "title": "Evidence Available",
+          "type": "boolean"
+        },
+        "note": {
+          "default": "Uncalibrated warning-light reading, not a diagnosis. Crop withheld pending operator privacy review.",
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "title": "PaidDashCheck",
+      "type": "object"
+    },
     "PaidFinding": {
       "additionalProperties": false,
       "properties": {
@@ -2448,6 +3506,17 @@
           "title": "Additional Checks",
           "type": "array"
         },
+        "advisory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdvisoryBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "candidates": {
           "default": [],
           "items": {
@@ -2455,6 +3524,17 @@
           },
           "title": "Candidates",
           "type": "array"
+        },
+        "categories": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CategoryScores"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "claims": {
           "items": {
@@ -2470,6 +3550,17 @@
           "title": "Coverage",
           "type": "array"
         },
+        "dashboard": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaidDashCheck"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "findings": {
           "items": {
             "$ref": "#/$defs/PaidFinding"
@@ -2477,12 +3568,34 @@
           "title": "Findings",
           "type": "array"
         },
+        "mechanical_breakdown": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MechanicalBreakdown"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "narration": {
           "items": {
             "$ref": "#/$defs/NarratedStatement"
           },
           "title": "Narration",
           "type": "array"
+        },
+        "narration_audio": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NarrationAudioView"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "rendered_at": {
           "anyOf": [
@@ -2514,6 +3627,19 @@
         "scores": {
           "$ref": "#/$defs/ScoreResult"
         },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
         "slug": {
           "maxLength": 128,
           "minLength": 1,
@@ -2522,6 +3648,17 @@
         },
         "state": {
           "$ref": "#/$defs/ReportState"
+        },
+        "vehicle_check": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenVin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "vehicle_label": {
           "anyOf": [
@@ -2536,6 +3673,17 @@
           ],
           "default": null,
           "title": "Vehicle Label"
+        },
+        "vibration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenVibration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -4035,6 +5183,57 @@
         "summary"
       ],
       "title": "SourceResponse",
+      "type": "object"
+    },
+    "StoredBriefing": {
+      "additionalProperties": false,
+      "properties": {
+        "advisory": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AdvisoryBlock"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "narration_audio": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/NarrationAudioMeta"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vibration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenVibration"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FrozenVin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "StoredBriefing",
       "type": "object"
     },
     "Subzone": {

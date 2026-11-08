@@ -37,9 +37,9 @@ export function CaptureKits({ rows, sessionId, ownerToken, capturing, audio }: P
   const label = (state: CopyState, idle: string): string => (state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : idle);
 
   return (
-    <section aria-labelledby="kits-heading" className="card kits">
+    <section aria-labelledby="kits-heading" className="card kits" data-testid="capture-kits">
       <h2 id="kits-heading">Capture kits</h2>
-      <p className="hint">Extra evidence attached to this inspection. It does not change the condition score. Kits not attached show as Not checked.</p>
+      <p className="hint">Extra evidence for this inspection. The sensor pod, OBD and engine audio feed the Mechanical score. Kits not attached show as Not checked.</p>
       <ul className="kit-list">
         {rows.map((row) => (
           <li key={row.id} className="kit-row" data-testid={`kit-${row.id}`}>
@@ -67,6 +67,7 @@ export function CaptureKits({ rows, sessionId, ownerToken, capturing, audio }: P
               <code className="kit-code">{command}</code>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void copy(command, setCommandState); }}>{label(commandState, 'Copy command')}</button>
             </div>
+            <p className="hint" data-testid="rig-token-note">The command reads the owner token from the <code>UPCLOSE_OWNER_TOKEN</code> environment variable. Use Copy owner token below and set it in your shell; it is not part of the command.</p>
             <p className="notice notice-warn" role="note">This key controls this inspection. Only paste it into your own rig. It is never shown again after you leave this page.</p>
             <div>
               <button type="button" className="btn btn-sm" onClick={() => { void copy(ownerToken, setTokenState); }}>{label(tokenState, 'Copy owner token')}</button>

@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% import "_macros.html" as m %}
 {% block content %}
+{%- if categories %}
+{{ m.category_block(categories) }}
+{%- endif %}
 <section aria-labelledby="headline-h">
-<h2 id="headline-h">Overall</h2>
+<h2 id="headline-h">{% if categories %}Visual inspection{% else %}Overall{% endif %}</h2>
 <div class="score-box">
 {%- if headline is not none %}
 <div class="score-value">{{ headline }}</div>
@@ -40,6 +43,85 @@
 </table>
 <p class="note">{{ score_label }}. Zone scores exist only where every required check completed.</p>
 </section>
+
+{%- if check_rows or vehicle or vibration_svg %}
+<section aria-labelledby="extra-h">
+<h2 id="extra-h">Mechanical checks</h2>
+<p class="note">{% if categories %}Mechanical checks feed the Mechanical score (unvalidated weights). {% else %}These checks did not change this report's score. {% endif %}Values are uncalibrated estimates, not measurements.</p>
+{%- if dashboard %}
+<article class="card check" data-testid="dashboard-check">
+<h3>Dashboard</h3>
+{%- set dash = dashboard.assessment %}
+<p><strong>{{ 'Checked' if dash and dash.state == 'assessed' else 'Not checked' }}</strong></p>
+{%- if dash %}
+<p>{{ 'Simulated bench data' if dash.provenance == 'synthetic' else 'Replayed recording' if dash.provenance == 'cached' else 'Live' }}</p>
+{%- if dash.reason %}<p>{{ dash.reason | replace('_', ' ') }}</p>{%- endif %}
+{%- for light in dash.lit %}<p>{{ light.indicator | replace('_', ' ') }} ({{ light.severity }}; model confidence {{ light.confidence }}/5)</p>{%- endfor %}
+{%- for flag in dash.flags %}<p>{{ flag | replace('_', ' ') }}</p>{%- endfor %}
+{%- endif %}
+<p class="note">{{ dashboard.note }}</p>
+</article>
+{%- endif %}
+{%- if categories and (categories.deductions or categories.flags) %}
+<div class="card check" data-testid="mechanical-breakdown">
+<h3>How the Mechanical score was reached</h3>
+{%- if categories.deductions %}
+<table><tbody>
+{%- for d in categories.deductions %}
+<tr><th scope="row">{{ d.label }}</th><td class="num">{{ d.points }}</td></tr>
+{%- endfor %}
+</tbody></table>
+{%- endif %}
+{%- if categories.flags %}
+<p>{% for f in categories.flags %}<span class="tag">{{ f }}</span>{% endfor %}</p>
+{%- endif %}
+</div>
+{%- endif %}
+{%- if vehicle %}
+{{ m.vehicle_block(vehicle) }}
+{%- endif %}
+{%- for row in check_rows %}
+<article class="card check">
+<h3>{{ row.label }}{% if row.badge %} <span class="badge">{{ row.badge }}</span>{% endif %}</h3>
+<p><strong>{{ row.status }}</strong>{% if row.device %} \· Source device {{ row.device }}{% endif %}</p>
+{%- if row.reason %}
+<p>{{ row.reason }}</p>
+{%- endif %}
+{%- if row.note %}
+<p class="note">{{ row.note }}</p>
+{%- endif %}
+{%- if row.audio_src %}
+<p><audio controls preload="none" src="{{ row.audio_src }}">Your browser cannot play this clip.</audio></p>
+{%- endif %}
+{%- if row.spectrogram_src %}
+<img class="evidence-img" src="{{ row.spectrogram_src }}" alt="Spectrogram of the engine sound clip" loading="lazy">
+{%- endif %}
+{%- if row.details %}
+<table>
+<tbody>
+{%- for label, value in row.details %}
+<tr><th scope="row">{{ label }}</th><td>{{ value }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{%- if row.windows %}
+<p>Irregular vibration windows (unverified):</p>
+<ul>
+{%- for window in row.windows %}
+<li>{{ window }}</li>
+{%- endfor %}
+</ul>
+{%- endif %}
+</article>
+{%- endfor %}
+{%- if vibration_svg %}
+<figure class="card check" data-testid="vibration-chart">
+{{ vibration_svg }}
+</figure>
+{%- endif %}
+</section>
+{%- endif %}
 
 <section aria-labelledby="map-h">
 <h2 id="map-h">Defect map</h2>
@@ -98,50 +180,14 @@
 <p class="note">{{ repairs.label }}. Table version {{ repairs.table_version }}.</p>
 </section>
 
-{%- if check_rows %}
-<section aria-labelledby="extra-h">
-<h2 id="extra-h">Additional checks</h2>
-<p class="note">Additional checks do not change the score. Values are uncalibrated estimates, not measurements.</p>
-{%- for row in check_rows %}
-<article class="card check">
-<h3>{{ row.label }}{% if row.badge %} <span class="badge">{{ row.badge }}</span>{% endif %}</h3>
-<p><strong>{{ row.status }}</strong>{% if row.device %} \· Source device {{ row.device }}{% endif %}</p>
-{%- if row.reason %}
-<p>{{ row.reason }}</p>
-{%- endif %}
-{%- if row.note %}
-<p class="note">{{ row.note }}</p>
-{%- endif %}
-{%- if row.audio_src %}
-<p><audio controls preload="none" src="{{ row.audio_src }}">Your browser cannot play this clip.</audio></p>
-{%- endif %}
-{%- if row.spectrogram_src %}
-<img class="evidence-img" src="{{ row.spectrogram_src }}" alt="Spectrogram of the engine sound clip" loading="lazy">
-{%- endif %}
-{%- if row.details %}
-<table>
-<tbody>
-{%- for label, value in row.details %}
-<tr><th scope="row">{{ label }}</th><td>{{ value }}</td></tr>
-{%- endfor %}
-</tbody>
-</table>
-{%- endif %}
-{%- if row.windows %}
-<p>Irregular vibration windows (unverified):</p>
-<ul>
-{%- for window in row.windows %}
-<li>{{ window }}</li>
-{%- endfor %}
-</ul>
-{%- endif %}
-</article>
-{%- endfor %}
-</section>
-{%- endif %}
-
 <section aria-labelledby="narr-h">
 <h2 id="narr-h">Summary</h2>
+{%- if narration %}
+<p class="narration-player"><audio controls preload="none" src="{{ narration.src }}">Your browser cannot play this audio.</audio><br>
+<span class="note">{{ narration.label }}{% if narration.synthetic %} · Synthetic sample audio{% endif %}</span></p>
+{%- else %}
+<p class="note">Spoken narration is unavailable. The written narration remains available below.</p>
+{%- endif %}
 {%- if narration_rows %}
 <ul>
 {%- for row in narration_rows %}
@@ -152,4 +198,33 @@
 <p>No summary statements.</p>
 {%- endif %}
 </section>
+
+{%- if advisory %}
+<section aria-labelledby="advisory-h" data-testid="advisory">
+<h2 id="advisory-h">Advisory</h2>
+<p><span class="badge">{{ advisory.label }}</span>{% if advisory.synthetic %} <span class="tag">Synthetic sample advisory</span>{% endif %}</p>
+{%- if advisory.available %}
+{%- if advisory.questions %}
+<h3>Questions for the seller</h3>
+<ul>
+{%- for q in advisory.questions %}
+<li>{{ q.text }} <span class="note">({{ q.cites }})</span></li>
+{%- endfor %}
+</ul>
+{%- endif %}
+{%- if advisory.checks %}
+<h3>Checks for a mechanic</h3>
+<ul>
+{%- for c in advisory.checks %}
+<li>{{ c.text }} <span class="note">({{ c.cites }})</span></li>
+{%- endfor %}
+</ul>
+{%- endif %}
+<p>{{ advisory.summary }}</p>
+{%- else %}
+<p>{{ advisory.reason }}</p>
+{%- endif %}
+<p class="note">This is generated advice, not a finding, and it does not affect any score.</p>
+</section>
+{%- endif %}
 {% endblock %}

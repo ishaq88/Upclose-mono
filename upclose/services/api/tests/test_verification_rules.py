@@ -139,11 +139,13 @@ def test_config_rejects_fake_concepts_and_unreviewed_status() -> None:
 
 def test_prompt_plan_matches_contract_and_scoring_requirements() -> None:
     counts = {part: len(PROMPTS.part(part).prompt_ids) for part in range(1, 9)}
-    assert counts == {1: 5, 2: 5, 3: 6, 4: 1, 5: 0, 6: 1, 7: 3, 8: 0}
+    assert counts == {1: 5, 2: 5, 3: 6, 4: 1, 5: 1, 6: 1, 7: 3, 8: 0}
     assert list(PROMPTS.expected_prompts(1)) == [Concept.DENT, Concept.PAINT_BUBBLING, Concept.RUST, Concept.SCRATCH]
     assert len(PROMPTS.expected_prompts(1)[Concept.RUST]) == 2 and Concept.GLASS_CRACK in PROMPTS.expected_prompts(3)
     assert PROMPTS.part(4).media == "stills" and PROMPTS.part(4).still_count == 8
-    assert PROMPTS.part(5).disposition == "deferred" and PROMPTS.part(8).disposition == "no_concept"
+    assert PROMPTS.part(5).disposition == "planned" and PROMPTS.part(8).disposition == "no_concept"
+    assert PROMPTS.prompt("dash_cluster").text == "instrument panel"
+    assert PROMPTS.expected_prompts(5) == {}  # mechanical reading never becomes visual coverage
     assert PROMPTS.expected_prompts(8) == {}
     assert set(PROMPTS.expected_prompts(7)) == {Concept.RUST, Concept.FLUID_LEAK}
     validate_plan_against_scoring(PROMPTS, SCORING)

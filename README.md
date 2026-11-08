@@ -17,7 +17,7 @@ flowchart LR
     Pod["Sensor pod + anomaly model"] -->|evidence| API
     OBD["OBD snapshot"] -->|evidence| API
     API["UpClose API"] --> Pipe["Vision pipeline"]
-    API --> Report["Report<br/>findings · coverage · Additional checks"]
+    API --> Report["Report<br/>findings · coverage · Mechanical checks"]
     Pipe --> Report
 ```
 

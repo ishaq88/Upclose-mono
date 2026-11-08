@@ -186,8 +186,12 @@ def test_parts_without_concepts_go_straight_to_processed_and_not_assessed(make, 
     pipe = Pipe(h)
     upload(h, media_dir, part_no)
     assert pipe.step() is True
+    if part_no == 5:  # the dashboard has no damage concept but is read by the dash job before it is processed
+        assert part(h, part_no).state == PartState.PROCESSING and len(jobs(h, "read_dash")) == 1
+        assert pipe.drain() >= 1
     assert part(h, part_no).state == PartState.PROCESSED
     assert rows(h, ConceptRun) == [] and jobs(h, "segment") == [] and jobs(h, "verify") == []
+    assert (part_no == 5) == bool(jobs(h, "read_dash"))
     assert coverage(h, part_no) == {}  # no concept to attach: scoring reports the zone not_assessed, never clean
     assert pipe.step() is False
 

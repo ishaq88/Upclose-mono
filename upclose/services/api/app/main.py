@@ -12,7 +12,10 @@ from app.adapters.email import EmailSender
 from app.adapters.storage import ObjectStorage, S3Storage
 from app.adapters.session_storage import fenced_storage
 from app.adapters.stripe import StripeGateway, build_gateway
+from app.briefing.voice_guide import create_voice_guide_router
 from app.models import create_session_factory
+from app.services.auth import authenticate
+from app.services.auxiliary_providers import guarded_guide_adapter
 from app.readiness import DatabaseProbe, database_ready, storage_config_ready
 from app.routers.accounts import create_account_router
 from app.routers.billing import create_billing_router
@@ -40,11 +43,18 @@ def create_app(
         raise ValueError("API process must not receive MODEL_API_KEY (worker-only); use infra/compose.live-demo.yaml on the worker only")
     application = FastAPI(title="UpClose API", version="0.1.0")
     sessions = session_factory or create_session_factory(config.database_url.get_secret_value())
-    object_storage = fenced_storage(sessions, storage or S3Storage(config))
+    raw_storage = storage or S3Storage(config)
+    object_storage = fenced_storage(sessions, raw_storage)
+
+    def authenticate_owner(token: str) -> None:
+        with sessions() as db:
+            authenticate(db, token)  # raises ProblemError 401 for an unknown token
     application.include_router(create_account_router(sessions, config, email_sender))
     application.include_router(create_session_router(sessions, config))
     application.include_router(create_source_router(sessions, config, object_storage))
     application.include_router(create_audio_upload_router(sessions, config, object_storage))
+    application.include_router(create_voice_guide_router(config, raw_storage, authenticate=authenticate_owner,
+        adapter=guarded_guide_adapter()))
     application.include_router(create_progress_router(sessions, config))
     application.include_router(create_report_router(sessions, config, object_storage))
     application.include_router(create_upload_router(sessions, config, object_storage))
@@ -81,6 +91,7 @@ def create_app(
         allow_origins=config.cors_origins,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Authorization", "Content-Type", "Idempotency-Key"],
+        expose_headers=["X-Voice-Provenance", "X-Voice-Label", "X-Voice-Cache"],
     )
 
     @application.get("/health")

@@ -100,7 +100,8 @@ class ReportService:
                     or snapshot.rendered_at is None):
                 raise ValueError("ready snapshot is incomplete")
             dto = assemble_report(snapshot, scope)
-            dto = dto.model_copy(update={'vehicle_label': owner.vehicle_label, 'findings': tuple(f.model_copy(update={'evidence_available':
+            dto = dto.model_copy(update={'vehicle_label': owner.vehicle_label,
+                'session_id': owner.id if owner_id is not None else None, 'findings': tuple(f.model_copy(update={'evidence_available':
                 approved_for(db, owner.id, revision.id, f.id) is not None}) for f in dto.findings)})
             if isinstance(dto, PaidReport):
                 dto = dto.model_copy(update={'candidates': tuple(f.model_copy(update={'evidence_available':
@@ -143,6 +144,42 @@ class ReportService:
             _owner, report = self._owned_report(db, slug, token)
             report.share_enabled = False
             return ShareDisableResponse(share_enabled=False)
+
+    def narration_media(self, slug: str, authorization: str | None = None) -> tuple[bytes, str]:
+        """Synthesized narration of a PAID, ready report. Any other state answers 404 and reveals nothing."""
+        if self.storage is None:
+            raise not_found()
+        with self.factory.begin() as db:
+            result = self._get(db, slug, authorization)
+            dto = result.dto
+            if not isinstance(dto, PaidReport) or dto.narration_audio is None or dto.state != ReportState.READY:
+                raise not_found()
+            report = db.scalar(select(Report).where(Report.share_slug == slug))
+            revision = None if report is None or report.current_revision_id is None else db.get(ReportRevision, report.current_revision_id)
+            if revision is None or revision.id != dto.revision_id:
+                raise not_found()
+            try:
+                briefing = load_snapshot(db, revision, slug).paid_narration.briefing  # type: ignore[union-attr]
+            except (ValueError, AttributeError):
+                raise not_found() from None
+            meta = None if briefing is None else briefing.narration_audio
+            if meta is None or not meta.storage_key.startswith(f"media/{report.session_id}/narration/{revision.id}/"):
+                raise not_found()
+            key, digest, mime, revision_id = meta.storage_key, meta.sha256, meta.content_type, revision.id
+        with tempfile.TemporaryDirectory(prefix="upclose-narration-") as scratch:
+            path = Path(scratch) / "audio.bin"
+            try:
+                downloaded = self.storage.download_to(key, path, 8 * 1024 * 1024)
+            except StorageError:
+                raise not_found() from None
+            if downloaded.sha256 != digest:
+                raise not_found()
+            data = path.read_bytes()
+        with self.factory.begin() as db:  # entitlement and revision are rechecked after the external read
+            current = self._get(db, slug, authorization).dto
+            if not isinstance(current, PaidReport) or current.revision_id != revision_id:
+                raise not_found()
+        return data, mime
 
     def source_media(self, slug: str, which: str, authorization: str | None = None) -> tuple[bytes, str]:
         """Engine-audio clip or spectrogram of a PAID report: bytes, content type. Free scope and every other

@@ -39,6 +39,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession, sessionmaker
 
+from app.adapters.storage import ObjectStorage
 from app.contracts.enums import ReportState
 from app.contracts.evidence import ClaimResult, NarratedStatement
 from app.contracts.scoring import ScoringInput
@@ -47,7 +48,11 @@ from app.domain.narration import (NarrationInputError, NarrationOutcome, Narrati
                                   resolve_full_narration, resolve_part1_narration)
 from app.jobs.queue import Failure, JobSpec, Lease
 from app.jobs.worker import Publication, StageFailure
-from app.models import Claim, ClaimEvidence, Report, ReportRevision
+from app.contracts.briefing import NarrationAudioMeta, StoredBriefing
+from app.contracts.reports import PaidReport
+from app.contracts.sources import RigTelemetryData
+from app.models import Claim, ClaimEvidence, EvidenceSource, Report, ReportRevision
+from app.pipeline.briefing import build_briefing
 from app.pipeline.orchestration import canonical_hash
 from app.report import render_report
 from app.services.snapshots import (ClaimsMeta, Provenance, ReportConfig, ReportManifest,
@@ -78,8 +83,9 @@ def stage_spec(session_id: UUID, revision_id: UUID, stage: str, manifest_hash: s
 
 class ReportStages:
     def __init__(self, factory: sessionmaker[DBSession], settings: Settings, config: ReportConfig | None = None, *,
-                 claims_model: ClaimsModel | None = None, narration_model: NarrationModel | None = None) -> None:
-        self.factory, self.settings = factory, settings
+                 claims_model: ClaimsModel | None = None, narration_model: NarrationModel | None = None,
+                 storage: ObjectStorage | None = None) -> None:
+        self.factory, self.settings, self.storage = factory, settings, storage
         self.config = config or load_report_config()
         self.claims_model, self.narration_model = claims_model, narration_model
         self.default_provenance = _DEFAULT_PROVENANCE[settings.model_mode]
@@ -230,8 +236,9 @@ class ReportStages:
             free, paid = self._narrations(manifest, score, claims)
         except NarrationInputError:
             raise _terminal() from None
+        briefing = paid_in.briefing or self._briefing(manifest)  # a retry keeps the first provider answers
         free_payload = StoredFreeNarration(manifest_hash=digest, outcome=free).model_dump(mode="json")
-        paid_payload = paid_in.model_copy(update={"narration": paid}).model_dump(mode="json")
+        paid_payload = paid_in.model_copy(update={"narration": paid, "briefing": briefing}).model_dump(mode="json")
 
         def publish(db: DBSession) -> None:
             revision = self._locked_for_publish(db, lease)
@@ -252,6 +259,23 @@ class ReportStages:
                 raise SnapshotIntegrityError("stored paid narration differs from the recomputed narration")
 
         return Publication(publish=publish, downstream=(stage_spec(manifest.session_id, manifest.revision_id, "render", digest, manifest),))
+
+    def _briefing(self, manifest: ReportManifest) -> StoredBriefing:
+        """Advisory, VIN check and vibration series. Provider calls happen here, outside any transaction."""
+        rig = None
+        if any(row.kind == "rig_telemetry" for row in manifest.sources):
+            with self.factory() as db:
+                row = db.scalar(select(EvidenceSource).where(EvidenceSource.session_id == manifest.session_id,
+                                                             EvidenceSource.kind == "rig_telemetry"))
+                if row is not None and canonical_hash(row.data) == row.data_sha256:
+                    try:
+                        rig = RigTelemetryData.model_validate(row.data)
+                    except ValidationError:
+                        rig = None
+        return build_briefing(manifest.sources, rig, str(manifest.session_id), self.settings)
+
+    def _narration_audio(self, snapshot: RevisionSnapshot) -> NarrationAudioMeta | None:
+        return _narration_audio_for(snapshot, self.storage)
 
     def _narrations(self, manifest: ReportManifest, score: StoredScore, claims: Sequence[ClaimResult]) -> tuple[NarrationOutcome, NarrationOutcome]:
         config = self.config.narration
@@ -291,17 +315,45 @@ class ReportStages:
             except (SnapshotIntegrityError, SnapshotIncomplete, ValidationError, ValueError):
                 raise _terminal() from None
             digest = str(revision.manifest_hash)
+            snapshot = load_snapshot(db, revision, config=self.config)
+        audio_meta = self._narration_audio(snapshot)  # provider call outside the read transaction
 
         def publish(db: DBSession) -> None:
             revision = self._locked_for_publish(db, lease)
             if revision is None:
                 return
             self._expect(revision, digest)
+            if audio_meta is not None:
+                stored = StoredPaidNarration.model_validate(revision.paid_narration)
+                if stored.briefing is not None and stored.briefing.narration_audio is None:
+                    revision.paid_narration = stored.model_copy(update={"briefing": stored.briefing.model_copy(
+                        update={"narration_audio": audio_meta})}).model_dump(mode="json")
             _assemble(load_snapshot(db, revision, config=self.config), validate_html=False)  # re-validated against the locked rows
             revision.rendered_at = db.scalar(select(func.clock_timestamp()))
             revision.state = ReportState.READY
 
         return Publication(publish=publish)
+
+
+def _narration_audio_for(snapshot: RevisionSnapshot, storage: ObjectStorage | None) -> NarrationAudioMeta | None:
+    """Spoken version of the paid narration, cached by input hash. Never fails the report."""
+    from app.briefing.narration_audio import NarrationAudioError, build_narration_audio
+    from app.services.auxiliary_providers import LIVE_BUDGET_UNAVAILABLE, live_auxiliary_requested
+    briefing = None if snapshot.paid_narration is None else snapshot.paid_narration.briefing
+    if storage is None or briefing is None or briefing.narration_audio is not None:
+        return None
+    if live_auxiliary_requested("VOICE_PROVIDER"):
+        logging.warning(LIVE_BUDGET_UNAVAILABLE)
+        return None
+    try:
+        ready = replace(snapshot, state=ReportState.READY, rendered_at=datetime.now(timezone.utc))
+        paid = build_reports(ready)[1]
+        assert isinstance(paid, PaidReport)
+        return NarrationAudioMeta.model_validate(
+            build_narration_audio(paid, snapshot.session_id, storage, simulated=snapshot.manifest.provenance != "live").metadata())
+    except (NarrationAudioError, ValidationError, ValueError, OSError):
+        logging.warning("Narration audio unavailable; the report publishes without it")
+        return None
 
 
 def _assemble(snapshot: RevisionSnapshot, *, validate_html: bool) -> None:
@@ -329,9 +381,10 @@ def _write_claims(db: DBSession, revision: ReportRevision, manifest: ReportManif
 
 def install_report_handlers(registry, factory: sessionmaker[DBSession], settings: Settings,  # type: ignore[no-untyped-def]
                             config: ReportConfig | None = None, *, claims_model: ClaimsModel | None = None,
-                            narration_model: NarrationModel | None = None) -> ReportStages:
+                            narration_model: NarrationModel | None = None,
+                            storage: ObjectStorage | None = None) -> ReportStages:
     """Register claims, score, narrate and render. Offline by default: no model seam is installed."""
-    stages = ReportStages(factory, settings, config, claims_model=claims_model, narration_model=narration_model)
+    stages = ReportStages(factory, settings, config, claims_model=claims_model, narration_model=narration_model, storage=storage)
     for name in REPORT_STAGE_NAMES:
         registry.register(name, getattr(stages, name))
     return stages

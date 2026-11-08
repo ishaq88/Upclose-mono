@@ -1,0 +1,18 @@
+{
+  "version": "mechanical-v1-unvalidated",
+  "note": "Uncalibrated design defaults: every weight below is unvalidated and has not been checked against labeled vehicles. The Mechanical score is a provisional index, not a diagnosis.",
+  "validated": false,
+  "start": "100",
+  "weights": {
+    "anomaly_suspected": {"points": "25", "label": "unvalidated"},
+    "dtc_stored_or_permanent": {"points": "15", "label": "unvalidated"},
+    "dtc_pending": {"points": "8", "label": "unvalidated"},
+    "dtc_cap": {"points": "45", "label": "unvalidated"},
+    "mil_on": {"points": "10", "label": "unvalidated"},
+    "codes_recently_cleared": {"points": "10", "label": "unvalidated"},
+    "dash_mil_mismatch": {"points": "0", "label": "unvalidated"},
+    "dash_mil_not_visible": {"points": "0", "label": "unvalidated"}
+  },
+  "use_dash_deduction": true,
+  "blend": {"visual": "0.6", "mechanical": "0.4", "label": "unvalidated"}
+}

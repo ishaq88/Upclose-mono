@@ -24,11 +24,10 @@ export function saveVoicePreference(enabled: boolean): void {
 /** Catalog line spoken at the start of a guided zone. */
 export const zoneLineId = (zone: string): string => `zone_${zone}`;
 
-/**
- * Catalog line for each client-side quality warning. The current catalog has no line for these (its warnings are
- * too dark, too shaky, too fast, car not in frame, which need frame analysis), so nothing is spoken for them yet.
- */
-export const QUALITY_WARNING_LINE: Partial<Record<QualityHint['id'], string>> = {};
+/** Catalog line spoken for each client-side quality warning (the metadata-unavailable note is not spoken). */
+export const QUALITY_WARNING_LINE: Partial<Record<QualityHint['id'], string>> = {
+  too_short: 'clip_too_short', too_long: 'clip_too_long', low_resolution: 'low_resolution',
+};
 
 export type VoiceStatus = 'idle' | 'playing' | 'unavailable';
 

@@ -43,7 +43,7 @@
     {"part_number": 2, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
     {"part_number": 3, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
     {"part_number": 4, "mode": "stills", "purpose": "sam_image", "count": 8},
-    {"part_number": 5, "mode": "stills", "purpose": "dash_keyframes", "count": 3},
+    {"part_number": 5, "mode": "stills", "purpose": "dash_keyframes", "count": 5},
     {"part_number": 6, "mode": "video", "purpose": "sam_video", "sample_fps": 6},
     {"part_number": 7, "mode": "video", "purpose": "sam_video", "sample_fps": 4},
     {"part_number": 8, "mode": "stills", "purpose": "interior_keyframes", "count": 5}

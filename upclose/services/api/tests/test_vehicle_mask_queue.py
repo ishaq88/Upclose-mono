@@ -84,8 +84,10 @@ def test_all_enabled_zones_wait_for_mask_publication(factory, part_no):
 @pytest.mark.parametrize("part_no", [5, 8])
 def test_no_concept_parts_drain_without_mask_request(factory, part_no):
     session_id, part_id, _ = assessment(factory, part_no)
-    assert not rows(factory, Job, session_id)
-    assert rows(factory, Part, session_id, Part.id == part_id)[0].state == PartState.PROCESSED
+    # No mask request either way; the dashboard (part 5) alone enqueues its read_dash job.
+    assert [job.stage for job in rows(factory, Job, session_id)] == (["read_dash"] if part_no == 5 else [])
+    # Part 8 drains immediately; part 5 stays processing until its read_dash job publishes.
+    assert rows(factory, Part, session_id, Part.id == part_id)[0].state == (PartState.PROCESSING if part_no == 5 else PartState.PROCESSED)
 
 
 def test_missing_mask_job_rebuilt_once_without_damage_bypass(factory):

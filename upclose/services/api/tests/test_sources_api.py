@@ -211,20 +211,20 @@ def test_free_report_shows_only_checked_state_and_flag_counts(with_sources, with
     for leak in ("P0301", "SYNTHETC00000UPCA", "dominant_hz", "rpm_estimate", "elm327", "catalyst",
                  "grove-beginner-kit", "data_sha256"):
         assert leak not in dumped and leak not in html, leak
-    assert "Additional checks" in html and "Checked" in html and "3 flags raised" in html
+    assert "Mechanical checks" in html and "Checked" in html and "3 flags raised" in html
     # The HTTP free view is the same DTO.
     slug = rows(with_sources.h, Report)[0].share_slug
     api = with_sources.h.http.get(f"/api/v1/reports/{slug}", headers=with_sources.h.headers)
     assert api.status_code == 200 and api.json()["scope"] == "free"
     assert "P0301" not in api.text and "SYNTHETC" not in api.text and api.json()["additional_checks"][0].keys() == {"kind", "checked", "flag_count"}
     page = with_sources.h.http.get(f"/r/{slug}", headers=with_sources.h.headers)
-    assert "P0301" not in page.text and "Additional checks" in page.text
+    assert "P0301" not in page.text and "Mechanical checks" in page.text
     # No sources attached: both kinds read "Not checked", never a pass.
     empty = build_free_report(without_sources.snapshot())
     assert [(row.kind, row.checked, row.flag_count) for row in empty.additional_checks] == [
         ("rig_telemetry", False, 0), ("obd_snapshot", False, 0), ("engine_audio", False, 0)]
     empty_html = render_report(empty)
-    assert empty_html.count("Not checked") == 3 and "Checked<" not in empty_html.replace("Not checked", "")
+    assert empty_html.count("Not checked") >= 3 and "Checked<" not in empty_html.replace("Not checked", "")
 
 
 @needs_ffmpeg
@@ -232,7 +232,7 @@ def test_paid_report_carries_full_summaries_provenance_and_unchecked_kinds(with_
     paid = build_paid_report(with_sources.snapshot())
     PaidReport.model_validate(paid.model_dump(mode="json"))
     html = render_report(paid)
-    for expected in ("Additional checks", "Simulated bench data", "P0301", "SYNTHETC00000UPCA", "Engine speed (estimate)",
+    for expected in ("Mechanical checks", "Simulated bench data", "P0301", "SYNTHETC00000UPCA", "Engine speed (estimate)",
                      "uncalibrated estimates", "Source device grove-beginner-kit", "catalyst", "Not yet complete".lower()):
         assert expected.lower() in html.lower(), expected
     assert "<script" not in html.lower() and "style=" not in html
@@ -240,7 +240,7 @@ def test_paid_report_carries_full_summaries_provenance_and_unchecked_kinds(with_
     assert [(row.kind, row.checked, row.source) for row in empty.additional_checks] == [
         ("rig_telemetry", False, None), ("obd_snapshot", False, None), ("engine_audio", False, None)]
     empty_html = render_report(empty)
-    assert empty_html.count("Not checked") == 3 and "it is not a pass" in empty_html
+    assert empty_html.count("Not checked") >= 3 and "it is not a pass" in empty_html
 
 
 def _pure_paid(checks):

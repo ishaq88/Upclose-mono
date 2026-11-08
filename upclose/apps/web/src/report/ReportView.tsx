@@ -1,4 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
+import { CategoryScores } from './CategoryScores';
+import { ReportExtras, type MediaResolver } from './ReportExtras';
 import { EvidenceFrame, EvidencePrint, SeverityPips } from './EvidencePrint';
 import {
   findingTitle, formatDollars, formatIndex, isSerious, lowestZone, notChecked, OPTIONAL_ZONES, orderFindings,
@@ -14,11 +16,12 @@ interface Props {
   frameUrl?: (id: string) => string;
   /** Owner view: resolves a frame to a data URL on demand, so no token is ever put in an address. Wins over `frameUrl`. */
   resolveFrame?: (id: string) => Promise<string>;
+  resolveMedia?: MediaResolver;
 }
 
 const SECTIONS = [
   ['r-summary', 'Summary'], ['r-found', 'What we found'], ['r-missing', 'Not checked'], ['r-listing', 'The listing'],
-  ['r-costs', 'Repair costs'], ['r-next', 'Checklist'], ['r-zones', 'All zones'],
+  ['r-mechanical', 'Mechanical checks'], ['r-costs', 'Repair costs'], ['r-next', 'Checklist'], ['r-zones', 'All zones'],
 ] as const;
 
 const VERDICT_LABEL = { contradicted: "Doesn't match", supported: 'Matches', not_visible: "Can't tell" } as const;
@@ -46,7 +49,7 @@ function useActiveSection(): string {
   return active;
 }
 
-export function ReportView({ report, frameUrl, resolveFrame }: Props): ReactElement {
+export function ReportView({ report, frameUrl, resolveFrame, resolveMedia }: Props): ReactElement {
   const findings = useMemo(() => orderFindings(report.findings), [report.findings]);
   const numberOf = useMemo(() => new Map(findings.map((f, i) => [f.id, i + 1])), [findings]);
   const possible = report.candidates?.length ?? 0;
@@ -93,6 +96,7 @@ export function ReportView({ report, frameUrl, resolveFrame }: Props): ReactElem
                   <div><div className="label">Lowest zone</div><div className="idx-zone">{ZONE_LABEL[lowest.zone]} <span className="num">{formatIndex(lowest.score)}</span></div></div>
                 )}
               </div>
+              {report.categories && <CategoryScores categories={report.categories} />}
               <p className="muted small">Based on the {scored.length} of {scorable} zones we fully checked. It measures how much visible damage we found, not whether the vehicle is a good buy.</p>
             </div>
             <div className="summary-side">
@@ -114,6 +118,8 @@ export function ReportView({ report, frameUrl, resolveFrame }: Props): ReactElem
             </div>
           </div>
         </section>
+
+        <ReportExtras key={report.revision_id} report={report} resolveMedia={resolveMedia} />
 
         <section className="rsec" id="r-found" aria-labelledby="found-h">
           <h2 id="found-h">What we found</h2>

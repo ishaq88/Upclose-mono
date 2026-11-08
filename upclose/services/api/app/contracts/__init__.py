@@ -13,6 +13,7 @@ from .accounts import (
     PasswordResetConfirmRequest, PasswordResetRequest, RegisterRequest,
 )
 from .base import ContractModel, FixtureMetadata
+from .audio import CreateAudioUploadRequest, AudioUploadResponse, AudioAcceptedResponse
 from .video import (VideoRange, CreateVideoUploadRequest, CreateVideoUploadResponse,
                     VideoUploadResponse, VideoSourceResponse, VideoAcceptedResponse)
 from .enums import (
@@ -24,6 +25,8 @@ from .evidence import (
     Artifact, BoundingBox, ClaimGroup, ClaimResult, ConceptRun, Coverage, EvidenceRef,
     Finding, NarratedStatement, VerificationGroup, VerificationVerdict,
 )
+from .briefing import FreeVehicleCheck, FrozenVibration, FrozenVin, NarrationAudioMeta, NarrationAudioView, StoredBriefing
+from .mechanical import CategoryScore, CategoryScores, FrozenDash, MechanicalBreakdown, MechanicalDeduction, OverallScore
 from .reports import (
     FreeFinding, FreeReport, LockedZoneSummary, PaidFinding, PaidReport, Part1Verdict, PublicCoverage,
     PublicFinding, PublicClaim, ReportStatus, ShareDisableResponse, ShareEnableResponse,

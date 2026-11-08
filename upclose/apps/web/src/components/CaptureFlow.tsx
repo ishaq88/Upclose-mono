@@ -187,6 +187,11 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
             </nav>
             <div className="cap-main">
               {singleVideo && <p className="hint">After source preparation, add short clips for available missing areas. You can finish without filming every area; missing and unverified areas remain unassessed.</p>}
+              {current?.zone === 'dash_electrical' && capturing && (
+                <p className="notice" data-testid="engine-check-prompt">
+                  This zone is filmed with the engine running. <a href="#engine-check">Do the engine check first</a>, or alongside it.
+                </p>
+              )}
               {current && (() => {
                 const part = current;
                 const guide = guideFor(part.part_no) ?? GUIDE_STEPS[0]!;

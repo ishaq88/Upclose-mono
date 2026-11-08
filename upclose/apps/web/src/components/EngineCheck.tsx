@@ -62,7 +62,7 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
   };
 
   return (
-    <section aria-labelledby="engine-heading" className="card engine-check">
+    <section id="engine-check" aria-labelledby="engine-heading" className="card engine-check" data-testid="engine-check">
       <h2 id="engine-heading">Engine check</h2>
       <p className="hint">Follow the steps with the sensor pod and OBD reader. Each step is shown as text and can also be spoken.</p>
       <ol className="engine-steps">
@@ -74,7 +74,7 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
         ))}
       </ol>
       {index < 0 && (
-        <button type="button" className="btn btn-sm" disabled={!capturing} onClick={() => go(0)}>Start engine check</button>
+        <button type="button" className="btn btn-sm" disabled={!capturing} data-testid="engine-check-start" onClick={() => go(0)}>Start engine check</button>
       )}
       {step && (
         <div className="stack" data-testid="engine-current">
@@ -82,9 +82,9 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
           {status(step.kit)}
           {step.countdown && remaining !== null && <p role="timer" className="num" data-testid="engine-countdown">{remaining} s of {learningSeconds} s</p>}
           <div className="cap-actions">
-            {step.countdown && remaining === null && <button type="button" className="btn btn-sm" onClick={startLearning}>Start {learningSeconds} s learning</button>}
+            {step.countdown && remaining === null && <button type="button" className="btn btn-sm" data-testid="engine-check-learn" onClick={startLearning}>Start {learningSeconds} s learning</button>}
             {!step.countdown && (
-              <button type="button" className="btn btn-sm" onClick={() => go(index + 1)}>{index === ENGINE_STEPS.length - 1 ? 'Finish engine check' : 'Next step'}</button>
+              <button type="button" className="btn btn-sm" data-testid="engine-check-next" onClick={() => go(index + 1)}>{index === ENGINE_STEPS.length - 1 ? 'Finish engine check' : 'Next step'}</button>
             )}
             {voice.enabled && <button type="button" className="btn btn-ghost btn-sm" onClick={() => voice.play(step.lineId, step.text)}>Hear this step again</button>}
           </div>

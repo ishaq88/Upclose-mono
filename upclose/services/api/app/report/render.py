@@ -23,6 +23,7 @@ from markupsafe import Markup
 
 from app.contracts.enums import PART_ZONES, ComponentId, CoverageState, ReportState, Zone
 from app.contracts.reports import FreeReport, PaidReport, PublicFinding, ReportStatus
+from app.contracts.mechanical import CategoryScores, MechanicalBreakdown
 from app.contracts.sources import EngineAudioSummary, FreeSourceCheck, ObdSummary, PaidSourceCheck, RigTelemetrySummary, SourceRecord
 from app.domain.dedup import INTERNAL_FLAGS
 
@@ -409,6 +410,7 @@ def _free_context(report: FreeReport, evidence_url: EvidenceUrl | None, unlock_h
     else:
         no_findings = "No findings are shown, and the driver side was not fully assessed, so this is not a clean result."
     context = _common_context(report, None)
+    context["dashboard"] = report.dashboard
     context.update({
         "part1_score": None if report.part1_score is None else _score_text(report.part1_score),
         "part1_reason": part1_reason,
@@ -420,8 +422,101 @@ def _free_context(report: FreeReport, evidence_url: EvidenceUrl | None, unlock_h
         "locked_rows": locked_rows,
         "unlock_href": unlock_href,
         "check_rows": _free_check_rows(report.additional_checks),
+        "categories": _category_context(report.categories),
+        "vehicle": _free_vehicle_context(report),
     })
     return context
+
+
+def _category_context(categories: CategoryScores | None, breakdown: MechanicalBreakdown | None = None) -> dict[str, object] | None:
+    """Visual, Mechanical and Overall as display text. A missing number is "Not checked", never a pass."""
+    if categories is None:
+        return None
+
+    def text(score: object, state: str) -> str:
+        return _score_text(score) if state == "assessed" and score is not None else "Not checked"  # type: ignore[arg-type]
+
+    rows = [{"label": "Visual", "text": text(categories.visual.score, categories.visual.state),
+             "note": categories.visual.reason or ""},
+            {"label": "Mechanical", "text": text(categories.mechanical.score, categories.mechanical.state),
+             "note": categories.mechanical.reason or ""},
+            {"label": "Overall", "text": text(categories.overall.score, categories.overall.state),
+             "note": categories.overall.note}]
+    return {"rows": rows, "label": categories.label,
+            "deductions": [] if breakdown is None else [{"label": row.label, "points": f"-{_score_text(row.points)}"}
+                                                       for row in breakdown.deductions],
+            "flags": [] if breakdown is None else [_FLAG_LABELS.get(flag, _words(flag).capitalize()) for flag in breakdown.flags]}
+
+
+def _advisory_context(report: PaidReport) -> dict[str, object] | None:
+    block = report.advisory
+    if block is None:
+        return None
+    return {"label": block.label, "available": block.status == "available", "reason": block.reason, "summary": block.summary,
+            "synthetic": block.provenance == "fixture", "vehicle": block.vehicle,
+            "questions": [{"text": row.text, "cites": ", ".join(row.cites)} for row in block.questions_for_seller],
+            "checks": [{"text": row.text, "cites": ", ".join(row.cites)} for row in block.mechanic_checks]}
+
+
+def _narration_context(report: PaidReport, media_url: Callable[[str], str | None] | None) -> dict[str, object] | None:
+    audio = report.narration_audio
+    if audio is None or media_url is None:
+        return None
+    src = _safe_path(media_url("narration"))
+    if src is None:
+        return None
+    return {"src": src, "label": audio.label, "synthetic": audio.provenance == "synthetic"}
+
+
+_MATCH_TEXT = {"match": "Entered VIN matches the VIN the car reported.", "mismatch": "Entered VIN does NOT match the VIN the car reported.",
+               "not_checked": "VIN match not checked."}
+
+
+def _vehicle_text(make: str | None, model: str | None, year: int | None) -> str:
+    return " ".join(str(part) for part in (year, make, model) if part) or "Vehicle details not decoded"
+
+
+def _vehicle_context(report: PaidReport) -> dict[str, object] | None:
+    vin = report.vehicle_check
+    if vin is None:
+        return None
+    decode = vin.decode
+    rows = [("Vehicle", _vehicle_text(None if decode is None else decode.make, None if decode is None else decode.model,
+                                      None if decode is None else decode.model_year)),
+            ("VIN", vin.vin), ("VIN check digit", vin.check_digit.replace("_", " ")),
+            ("VIN match", _MATCH_TEXT[vin.match])]
+    if decode is not None:
+        rows.append(("Decoded by", "NHTSA vPIC" if decode.source == "nhtsa-vpic" else "Local fixture (synthetic)"))
+    elif vin.decode_reason:
+        rows.append(("Decode", f"Not available ({vin.decode_reason})"))
+    return {"rows": rows, "mismatch": vin.match == "mismatch"}
+
+
+def _free_vehicle_context(report: FreeReport) -> dict[str, object] | None:
+    check = report.vehicle_check
+    if check is None:
+        return None
+    return {"rows": [("Vehicle", _vehicle_text(check.make, check.model, check.model_year)), ("VIN match", _MATCH_TEXT[check.match])],
+            "mismatch": check.match == "mismatch"}
+
+
+def _vibration_svg(report: PaidReport) -> Markup | None:
+    """Server-rendered chart from the frozen series (paid only), so the bytes are deterministic per revision."""
+    frozen = report.vibration
+    if frozen is None:
+        return None
+    from app.domain.vibration_series import SeriesPoint, VibrationSeries
+    from app.report.vibration_chart import render_vibration_svg
+    check = next((row for row in report.additional_checks if row.kind == "rig_telemetry" and row.source is not None), None)
+    if check is None:
+        return None
+    summary = check.source.summary
+    runs = tuple(summary.model_verdict.anomalous_runs) if getattr(summary, "model_verdict", None) is not None else ()
+    series = VibrationSeries(state=frozen.state, reason=frozen.reason, sample_count=frozen.sample_count,
+                             duration_s=frozen.duration_s,
+                             points=tuple(SeriesPoint(t_s=p.t_s, n_accel=p.n_accel, accel_rms=p.accel_rms,
+                                                      sound_mean=p.sound_mean, sound_max=p.sound_max) for p in frozen.points))
+    return Markup(render_vibration_svg(series, runs, check.source.provenance, frozen.series_source))
 
 
 def _refs(ids: Sequence[UUID], numbers: dict[UUID, int]) -> list[int]:
@@ -526,6 +621,12 @@ def _paid_context(report: PaidReport, evidence_url: EvidenceUrl | None,
         } for claim in sorted(report.claims, key=lambda row: row.claim_index)],
         "repairs": _repairs_context(report, numbers),
         "check_rows": _paid_check_rows(report.additional_checks, media_url),
+        "categories": _category_context(report.categories, report.mechanical_breakdown),
+        "dashboard": report.dashboard,
+        "advisory": _advisory_context(report),
+        "narration": _narration_context(report, media_url),
+        "vehicle": _vehicle_context(report),
+        "vibration_svg": _vibration_svg(report),
         "narration_rows": [{"text": row.text, "refs": _refs(row.finding_ids, numbers)} for row in report.narration],
     })
     if report.scores.headline is None and assessed >= 3:

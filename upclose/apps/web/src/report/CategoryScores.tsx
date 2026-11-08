@@ -1,42 +1,39 @@
 import type { ReactElement } from 'react';
-
-/**
- * Category scores for a report. PLACEHOLDER shape until the API ships the field: a category with no score is `null`,
- * which is never shown as a number. Overall with no Mechanical score is the Visual-only variant.
- */
-export interface CategoryScoresView {
-  visual: number | null;
-  mechanical: number | null;
-  overall: number | null;
-}
+import type { CategoryScores as Categories } from '../api/client';
 
 const NOT_CHECKED = 'Not checked';
 
-function show(score: number | null): string {
-  return score === null || !Number.isFinite(score) ? NOT_CHECKED : String(Math.round(score));
+function show(category: Categories['visual']): string {
+  return category.state === 'assessed' && category.score !== null && Number.isFinite(category.score) ? String(Math.round(category.score)) : NOT_CHECKED;
 }
 
-export function CategoryScores({ scores }: { scores: CategoryScoresView }): ReactElement {
-  const visualOnly = scores.visual !== null && scores.mechanical === null;
-  const items: ReadonlyArray<{ id: string; label: string; value: number | null; note?: string }> = [
-    { id: 'visual', label: 'Visual', value: scores.visual },
-    { id: 'mechanical', label: 'Mechanical', value: scores.mechanical },
-    { id: 'overall', label: 'Overall', value: scores.overall, note: visualOnly && scores.overall !== null ? 'Visual only' : undefined },
-  ];
+/**
+ * Visual, Mechanical and Overall. A category without evidence reads "Not checked" and never shows a number. When only the
+ * visual inspection was done the API gives no overall number, and this shows "Visual only" with the server's note.
+ */
+export function CategoryScores({ categories }: { categories: Categories }): ReactElement {
+  const { visual, mechanical, overall } = categories;
+  const overallScored = overall.state === 'assessed' && overall.score !== null;
+  const visualOnly = !overallScored && overall.basis === 'visual_only';
   return (
     <section aria-label="Category scores" className="category-scores" data-testid="category-scores">
       <dl className="category-list">
-        {items.map((item) => (
-          <div key={item.id} className="category" data-testid={`category-${item.id}`}>
-            <dt>{item.label}</dt>
-            <dd className={item.value === null ? 'category-none' : 'category-score num'}>
-              {show(item.value)}
-              {item.note && <span className="tag tag-quiet">{item.note}</span>}
-            </dd>
-          </div>
-        ))}
+        <div className="category" data-testid="category-visual">
+          <dt>Visual</dt>
+          <dd className={show(visual) === NOT_CHECKED ? 'category-none' : 'category-score num'}>{show(visual)}</dd>
+        </div>
+        <div className="category" data-testid="category-mechanical">
+          <dt>Mechanical</dt>
+          <dd className={show(mechanical) === NOT_CHECKED ? 'category-none' : 'category-score num'}>{show(mechanical)}</dd>
+        </div>
+        <div className="category" data-testid="category-overall">
+          <dt>Overall</dt>
+          {overallScored
+            ? <dd className="category-score num">{Math.round(overall.score!)}</dd>
+            : <dd className="category-none">{visualOnly ? 'Visual only' : NOT_CHECKED}</dd>}
+        </div>
       </dl>
-      {visualOnly && <p className="hint">Mechanical checks were not done, so the overall score reflects the visual inspection only.</p>}
+      {visualOnly && <p className="hint">{overall.note || 'Mechanical was not checked, so there is no overall score.'}</p>}
     </section>
   );
 }

@@ -30,7 +30,9 @@ export type ReportState = Schemas['ReportState'];
 export type CheckoutResponse = Schemas['CheckoutResponse'];
 export type PaidReport = Schemas['PaidReport'];
 export type FreeReport = Schemas['FreeReport'];
+export type CategoryScores = Schemas['CategoryScores'];
 export type ReportStatus = Schemas['ReportStatus'];
+export type ReportMedia = 'narration' | 'audio' | 'spectrogram';
 export type ShareEnableResponse = Schemas['ShareEnableResponse'];
 export type ProblemCode = Schemas['Problem']['code'];
 export type SourceKind = 'rig_telemetry' | 'obd_snapshot' | 'engine_audio';
@@ -46,14 +48,11 @@ export interface CaptureSource {
   summary: { state: 'assessed' | 'not_assessed'; flag_count?: number } & Record<string, unknown>;
 }
 
-/**
- * Engine-audio upload wire format. PLACEHOLDER shapes mirroring the API contract draft; switch to the generated
- * `Schemas[...]` types once they exist. The create response carries no chunk size: pieces are 8 MiB.
- */
-export type AudioContentType = 'audio/wav' | 'audio/x-wav' | 'audio/mpeg' | 'audio/mp4' | 'audio/x-m4a';
-export interface CreateAudioUploadRequest { content_type: AudioContentType; content_length: number }
-export interface AudioUploadResponse { upload_id: string; chunk_count: number }
-export interface AudioAcceptedResponse { upload_id: string; state: 'accepted' }
+/** The create response carries no chunk size: pieces are 8 MiB. */
+export type CreateAudioUploadRequest = Schemas['CreateAudioUploadRequest'];
+export type AudioContentType = CreateAudioUploadRequest['content_type'];
+export type AudioUploadResponse = Schemas['AudioUploadResponse'];
+export type AudioAcceptedResponse = Schemas['AudioAcceptedResponse'];
 
 /** Spoken-guide catalog served by GET /voice-guide (PLACEHOLDER shape matching the current API; no generated type yet). */
 export interface VoiceGuideLine { id: string; kind: string; zone: string | null; caption: string; approx_seconds: number }
@@ -109,6 +108,7 @@ export interface Api {
   createSession(consentVersion: string, listingText: string | null, captureMode?: CaptureMode, accountToken?: string | null): Promise<CreateSessionResponse>;
   /** Owner (or linked account) report JSON: free, paid or still-building status. */
   getReport(slug: string): Promise<FreeReport | PaidReport | ReportStatus>;
+  getReportMedia(slug: string, which: ReportMedia, signal?: AbortSignal): Promise<Blob>;
   /** Owner-only. Sets the vehicle name shown on the report and in My reports. */
   updateLabel(sessionId: string, label: string): Promise<SessionResponse>;
   /** Owner-only. Turns on the read-only share link for a paid report. */
@@ -191,6 +191,19 @@ export function createApi(options: ApiOptions): Api {
   }
 
   return {
+    getReportMedia: async (slug, which, signal) => {
+      const token = options.getToken();
+      const path = which === 'narration' ? 'narration' : `sources/engine_audio/${which}`;
+      let response: Response;
+      try {
+        response = await doFetch(`${base}/reports/${encodeURIComponent(slug)}/${path}`, {
+          headers: { Accept: which === 'spectrogram' ? 'image/*' : 'audio/*', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', redirect: 'error', signal,
+        });
+      } catch { throw new ApiError(0, 'NETWORK', 'The report media could not be reached.'); }
+      if (!response.ok) throw await toApiError(response, now());
+      return response.blob();
+    },
     getReportHtml: async (slug, signal) => {
       const token = options.getToken();
       let response: Response;

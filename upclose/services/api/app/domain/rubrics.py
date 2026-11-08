@@ -33,8 +33,14 @@ PromptText = Annotated[str, Field(min_length=1, max_length=48, pattern=r"^[a-z][
 
 class PromptEntry(ContractModel):
     prompt_id: PromptId
-    concept: Concept
+    concept: Concept | None
     text: PromptText  # short noun phrase, not an instruction
+
+    @model_validator(mode="after")
+    def mechanical_prompt(self) -> Self:
+        if self.concept is None and self.prompt_id != "dash_cluster":
+            raise ValueError("only the dashboard localization prompt has no visual concept")
+        return self
 
 
 class PartPlan(ContractModel):
@@ -80,6 +86,9 @@ class PromptConfig(HashedConfig):
             raise ValueError("plan requires parts 1..8 once, in order")
         if any(prompt_id not in set(ids) for row in self.parts for prompt_id in row.prompt_ids):
             raise ValueError("part plan references unknown prompt")
+        if any((prompt_id == "dash_cluster") != (row.part_no == 5)
+               for row in self.parts for prompt_id in row.prompt_ids):
+            raise ValueError("dashboard localization is separate from visual damage prompts")
         return self
 
     def part(self, part_no: int) -> PartPlan:
@@ -92,7 +101,9 @@ class PromptConfig(HashedConfig):
         """Planned prompt ids by concept; empty for deferred or conceptless parts."""
         result: dict[Concept, list[str]] = {}
         for prompt_id in self.part(part_no).prompt_ids:
-            result.setdefault(self.prompt(prompt_id).concept, []).append(prompt_id)
+            concept = self.prompt(prompt_id).concept
+            if concept is not None:
+                result.setdefault(concept, []).append(prompt_id)
         return {concept: tuple(sorted(ids)) for concept, ids in sorted(result.items())}
 
 

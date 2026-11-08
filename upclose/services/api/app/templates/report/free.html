@@ -18,6 +18,10 @@
 {%- endif %}
 </section>
 
+{%- if categories %}
+{{ m.category_block(categories) }}
+{%- endif %}
+
 <section aria-labelledby="coverage-h">
 <h2 id="coverage-h">Coverage</h2>
 {{ m.coverage_table(coverage_rows) }}
@@ -27,6 +31,28 @@
 <h2 id="map-h">Defect map</h2>
 {% include "_diagram.html" %}
 </section>
+
+{%- if check_rows or vehicle %}
+<section aria-labelledby="extra-h">
+<h2 id="extra-h">Mechanical checks</h2>
+{%- if vehicle %}
+{{ m.vehicle_block(vehicle) }}
+{%- endif %}
+<table>
+<thead><tr><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Flags</th></tr></thead>
+<tbody>
+{%- for row in check_rows %}
+<tr><th scope="row">{{ row.label }}</th><td>{{ row.status }}</td><td>{{ row.flags }}</td></tr>
+{%- endfor %}
+{%- if dashboard %}
+<tr><th scope="row">Dashboard</th><td>{{ 'Checked' if dashboard.checked else 'Not checked' }}</td><td>{{ dashboard.flag_count }}</td></tr>
+{%- endif %}
+</tbody>
+</table>
+<p class="note">{% if categories %}Mechanical checks feed the Mechanical score. {% endif %}A check that was not made is not a pass. Details are in the full report.</p>
+</section>
+{%- endif %}
+
 
 <section aria-labelledby="findings-h">
 <h2 id="findings-h">Driver side findings</h2>
@@ -40,21 +66,6 @@
 <p>{{ no_findings_text }}</p>
 {%- endif %}
 </section>
-
-{%- if check_rows %}
-<section aria-labelledby="extra-h">
-<h2 id="extra-h">Additional checks</h2>
-<table>
-<thead><tr><th scope="col">Check</th><th scope="col">Status</th><th scope="col">Flags</th></tr></thead>
-<tbody>
-{%- for row in check_rows %}
-<tr><th scope="row">{{ row.label }}</th><td>{{ row.status }}</td><td>{{ row.flags }}</td></tr>
-{%- endfor %}
-</tbody>
-</table>
-<p class="note">Additional checks do not change the score. A check that was not made is not a pass. Details are in the full report.</p>
-</section>
-{%- endif %}
 
 <section aria-labelledby="locked-h">
 <h2 id="locked-h">Locked zones</h2>

@@ -26,7 +26,12 @@ const FRAME_ID = SAMPLE_REPORT.findings[0]!.id;
 const json = (body: unknown, status = 200): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 const problem = (status: number, code: string): Response => json({ code, detail: '', status, title: code, request_id: 'r' }, status);
-const image = (): Response => new Response(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), { status: 200 });
+// response.blob() returns Node's Blob, which jsdom's FileReader rejects on some Node versions; hand back jsdom's own Blob.
+const image = (): Response => {
+  const response = new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'Content-Type': 'image/png' } });
+  response.blob = async () => new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' });
+  return response;
+};
 
 const FREE = {
   slug: 'owner-slug', revision_id: '11111111-1111-4111-8111-111111111111', scope: 'free', state: 'ready', vehicle_label: null,
@@ -57,6 +62,107 @@ function apiFor(routes: Route[], calls: Call[] = []) {
 const REPORT_URL = /\/api\/v1\/reports\/owner-slug$/;
 const FRAMES = { match: /\/frames\//, respond: image };
 
+const WITH_KITS = {
+  ...SAMPLE_REPORT, session_id: 'report-session',
+  additional_checks: [
+    { kind: 'rig_telemetry', checked: true, source: { device: 'Synthetic pod', provenance: 'synthetic', summary: { kind: 'rig_telemetry', state: 'assessed', flags: ['rough_idle'], sample_count: 20, duration_s: 2, rpm_estimate: 800, dominant_hz: 30, irregular_windows: [] } } },
+    { kind: 'obd_snapshot', checked: false, source: null },
+    { kind: 'engine_audio', checked: true, source: { device: 'Synthetic clip', provenance: 'synthetic', summary: { kind: 'engine_audio', state: 'assessed', flags: [], duration_s: 3, rms_db: -20, peak_db: -3, spectrogram_sha256: 'synthetic-hash' } } },
+  ],
+  vibration: { state: 'assessed', reason: null, series_source: 'computed', duration_s: 2, sample_count: 20, points: [{ t_s: 0, accel_rms: 10 }, { t_s: 1, accel_rms: null }, { t_s: 2, accel_rms: 20 }] },
+  mechanical_breakdown: { deductions: [{ code: 'rough_idle', label: 'Rough idle', points: '5' }], flags: [] },
+  narration_audio: { label: 'Spoken synthetic report', provenance: 'synthetic', content_type: 'audio/mpeg' },
+  advisory: { label: 'AI advisory, not a finding', provenance: 'fixture', status: 'available', questions_for_seller: [{ text: 'Ask about maintenance.', cites: ['rig_telemetry'] }], mechanic_checks: [], summary: 'Have a mechanic check the idle.' },
+  dashboard: { assessment: { state: 'assessed', provenance: 'synthetic', lit: [{ indicator: 'check_engine', severity: 'warning', confidence: 4 }], flags: [], reason: null }, evidence_available: false, note: 'Dashboard crop withheld pending privacy review.' },
+} as unknown as PaidReport;
+
+describe('paid report kit integration', () => {
+  it('renders frozen evidence, advisory and protected blob media, and revokes every blob on unmount', async () => {
+    const create = vi.fn(() => `blob:private-${Math.random()}`);
+    const revoke = vi.fn();
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
+    const calls: Call[] = [];
+    const view = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(WITH_KITS) }, FRAMES, { match: /\/(narration|audio|spectrogram)$/, respond: image }], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    expect(await screen.findByRole('heading', { name: 'Mechanical checks' })).toBeTruthy();
+    expect(within(screen.getByTestId('check-obd_snapshot')).getByText('Not checked')).toBeTruthy();
+    expect(screen.getByTestId('advisory').textContent).toContain('AI advisory, not a finding');
+    expect(screen.getByTestId('advisory').textContent).toContain('Synthetic');
+    expect(screen.getByTestId('dashboard-check').textContent).toContain('check engine');
+    expect(screen.getByTestId('mechanical-breakdown').textContent).toContain('5 points deducted');
+    expect(screen.getByTestId('vibration-chart').querySelector('svg')).toBeTruthy();
+    expect(screen.getByTestId('vibration-chart').querySelectorAll('path')[1]!.getAttribute('d')).not.toContain('L');
+    await screen.findByAltText(/Spectrogram of/);
+    expect(screen.getByTestId('narration-audio').getAttribute('src')).toMatch(/^blob:/);
+    const media = calls.filter((c) => /\/(narration|audio|spectrogram)$/.test(c.url));
+    expect(media).toHaveLength(3);
+    for (const call of media) {
+      expect(call.url).not.toContain(TOKEN);
+      expect(call.init).toMatchObject({ cache: 'no-store', credentials: 'omit', redirect: 'error', headers: { Authorization: `Bearer ${TOKEN}` } });
+    }
+    expect(calls.some((c) => /crop|dashboard\//.test(c.url))).toBe(false);
+    view.unmount();
+    expect(revoke).toHaveBeenCalledTimes(3);
+    expect(media.every((c) => c.init?.signal?.aborted)).toBe(true);
+  });
+
+  it('shows unavailable and not-checked states without requesting absent media', async () => {
+    const calls: Call[] = [];
+    const audio = WITH_KITS.additional_checks.find((check) => check.kind === 'engine_audio')!;
+    const report = { ...WITH_KITS, additional_checks: [{ ...audio, source: { ...audio.source!, summary: { ...audio.source!.summary, state: 'not_assessed', reason: 'clip_too_short' } } }], vibration: null, narration_audio: null, advisory: { ...WITH_KITS.advisory!, status: 'not_available', reason: 'provider_unavailable' } };
+    render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(report) }, FRAMES], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    await screen.findByRole('heading', { name: 'Mechanical checks' });
+    for (const kind of ['rig_telemetry', 'obd_snapshot', 'engine_audio']) expect(within(screen.getByTestId(`check-${kind}`)).getByText('Not checked')).toBeTruthy();
+    expect(screen.getByText(/Vibration chart: Not checked/)).toBeTruthy();
+    expect(screen.getByTestId('advisory').textContent).toContain('Advisory unavailable');
+    expect(screen.getByTestId('check-engine_audio').textContent).toContain('clip too short');
+    expect(calls.some((c) => /\/(narration|audio|spectrogram)$/.test(c.url))).toBe(false);
+  });
+
+  it('never fetches paid media for a free result, and displays only dashboard counts', async () => {
+    const calls: Call[] = [];
+    render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...FREE, dashboard: { checked: true, flag_count: 2 } }) }], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    expect((await screen.findByTestId('dashboard-summary')).textContent).toContain('Checked · 2 flags');
+    expect(screen.queryByTestId('advisory')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Mechanical checks' })).toBeNull();
+    expect(calls).toHaveLength(1);
+  });
+
+  it('keeps written evidence when protected media fails', async () => {
+    render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(WITH_KITS) }, FRAMES, { match: /\/(narration|audio|spectrogram)$/, respond: () => problem(403, 'TOKEN_INVALID') }])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    expect(await screen.findByText(/Spectrogram unavailable. The written report/)).toBeTruthy();
+    expect(screen.getByTestId('advisory').textContent).toContain('Ask about maintenance.');
+    expect(document.querySelector('audio[src]')).toBeNull();
+  });
+
+  it('aborts pending media and never creates a blob URL after unmount', async () => {
+    const create = vi.fn(() => 'blob:late');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }));
+    const api = apiFor([{ match: REPORT_URL, respond: () => json(WITH_KITS) }, FRAMES]);
+    const pending: Array<(blob: Blob) => void> = [];
+    const signals: AbortSignal[] = [];
+    vi.spyOn(api, 'getReportMedia').mockImplementation((_slug, _which, signal) => {
+      signals.push(signal!);
+      return new Promise((resolve) => { pending.push(resolve); });
+    });
+    const view = render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    await waitFor(() => expect(pending).toHaveLength(3));
+    view.unmount();
+    await act(async () => { pending.forEach((resolve) => resolve(new Blob(['synthetic']))); });
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it.each([['report-session', 'report-session'], [null, 'legacy-session']])('renames with report session %s and legacy fallback', async (session, expected) => {
+    const api = apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, session_id: session }) }, FRAMES]);
+    const rename = vi.spyOn(api, 'updateLabel').mockResolvedValue({ vehicle_label: 'New name' } as never);
+    render(<OwnerReport api={api} slug="owner-slug" sessionId="legacy-session" onUnauthorized={noop} onRefresh={noop} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename' }));
+    fireEvent.change(screen.getByLabelText('Inspection name'), { target: { value: 'New name' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    await waitFor(() => expect(rename).toHaveBeenCalledWith(expected, 'New name'));
+  });
+});
+
 describe('owner report (JSON)', () => {
   it('renders a paid report from JSON, loading frames lazily with the token in a header only', async () => {
     const calls: Call[] = [];
@@ -73,6 +179,24 @@ describe('owner report (JSON)', () => {
     expect(document.documentElement.outerHTML).not.toContain(TOKEN);
     expect(sessionStorage.length + localStorage.length).toBe(0);
     expect(screen.getByRole('button', { name: 'Share with mechanic' })).toBeTruthy();
+  });
+
+  it('shows category scores on the paid and the free report when the API sends them, and none otherwise', async () => {
+    const categories = {
+      config_hash: 'h', label: 'Provisional index, not a diagnosis',
+      visual: { state: 'assessed', score: 90, reason: null }, mechanical: { state: 'not_checked', score: null, reason: null },
+      overall: { state: 'not_checked', score: null, basis: 'visual_only', note: 'Visual only: mechanical not checked.' },
+    };
+    const paid = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, categories }) }, FRAMES])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    expect(within(await screen.findByTestId('category-overall')).getByText('Visual only')).toBeTruthy();
+    expect(within(screen.getByTestId('category-mechanical')).getByText('Not checked')).toBeTruthy();
+    paid.unmount();
+    const free = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...FREE, categories }) }])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    expect(within(await screen.findByTestId('category-visual')).getByText('90')).toBeTruthy();
+    free.unmount();
+    render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT }) }, FRAMES])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    await screen.findByRole('heading', { name: '1 serious issue' });
+    expect(screen.queryByTestId('category-scores')).toBeNull();
   });
 
   it('offers an inline Rename for the owner, and renames the visible title', async () => {

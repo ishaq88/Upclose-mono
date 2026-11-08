@@ -6,7 +6,7 @@ import report from './report.json';
  * from GET /api/v1/reports/{slug} (owner, paid scope) and put one approved frame per finding and
  * candidate at public/sample/frames/<id>.jpg. HERO_POINTS only applies to the bundled van photo.
  */
-export const SAMPLE_REPORT = report as PaidReport;
+export const SAMPLE_REPORT = report as unknown as PaidReport; // the bundled snapshot predates newer optional-in-practice fields
 
 export function sampleFrameUrl(id: string): string {
   return `/sample/frames/${id}.jpg`;

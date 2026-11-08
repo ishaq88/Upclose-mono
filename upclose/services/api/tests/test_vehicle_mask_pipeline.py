@@ -146,8 +146,11 @@ def test_unsupported_zones_have_no_mask_or_damage_calls(make, media_dir, scratch
     pipe = pipe_for(h, provider)
     upload(h, media_dir, part_no)
     pipe.drain()
+    # Part 5 (dashboard) makes no mask or segmentation call, but its read_dash job runs before it is processed.
     assert not provider.calls and not jobs(h, "vehicle_mask") and not jobs(h, "segment")
-    assert part(h, part_no).state == PartState.PROCESSED
+    assert (part_no == 5) == bool(jobs(h, "read_dash")), [(j.state, j.last_error) for j in jobs(h)]
+    # Part 8 drains at ingest; part 5 waits for its read_dash job, which this mask-only registry does not run.
+    assert part(h, part_no).state == (PartState.PROCESSING if part_no == 5 else PartState.PROCESSED)
 
 
 @pytest.mark.parametrize("shape", ["missing", "ambiguous"])

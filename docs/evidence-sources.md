@@ -1,6 +1,14 @@
 # Evidence sources
 
-Capture kits attach evidence to an UpClose inspection **while it is capturing**, before it is finalized. Evidence shows up in the report as **Additional checks**. It never changes the condition score, and a kit that wasn't used shows as "Not checked".
+Capture kits attach evidence to an UpClose inspection **while it is capturing**, before it is finalized. Evidence shows up in the report as **Mechanical checks** and feeds a separate **Mechanical** score next to the **Visual** one. A kit that wasn't used shows as "Not checked" and never counts as clean.
+
+## How the scores combine
+
+- **Visual** is the existing inspection score from the footage.
+- **Mechanical** starts at 100 and loses points for the evidence: an engine-anomaly verdict (25), each stored or permanent trouble code (15) and each pending one (8, codes capped at 45 together), the check-engine light (10), codes that look recently cleared (10), and a dashboard warning-light reading when one was assessed. Every weight is an unvalidated design default, listed in `services/api/config/mechanical.v1.json`.
+- Mechanical exists only with an assessed OBD snapshot or an assessed engine-pod verdict. An unassessed verdict is never treated as clean.
+- **Overall** blends the two (0.6 Visual, 0.4 Mechanical) only when both exist. Otherwise it reads "Visual only: mechanical not checked" (or the reverse) and carries no number.
+- Scores appear in the free view too; codes, times, features and the point-by-point breakdown stay in the paid report. Reports built before this change keep their original bytes and hashes.
 
 ## API
 

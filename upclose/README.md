@@ -15,7 +15,7 @@ The public site is the static landing page and a sample report. The inspection a
 3. **Attach capture kits (optional).** Before you finish, other capture kits can add their own evidence to the inspection: engine vibration and temperature from the sensor pod, the engine-anomaly verdict, and an OBD snapshot. The capture screen shows which kits are attached.
 4. **Assess.** The backend normalizes the media, identifies the vehicle first, and only then looks for damage on the vehicle-masked media. Candidate findings are verified and deduplicated before anything is shown.
 5. **Score.** A deterministic scoring engine turns verified findings into a condition score that accounts for coverage: areas that were not filmed, were too blurry, or could not be assessed are reported as uncovered rather than treated as clean.
-6. **Report.** You get a private report (HTML and JSON) where every displayed finding links back to its persisted evidence — the frame and location it came from. Capture-kit evidence appears as **Additional checks**. A free preview shows the headline result; the full evidence report is unlocked with a payment.
+6. **Report.** You get a private report (HTML and JSON) where every displayed finding links back to its persisted evidence — the frame and location it came from. Capture-kit evidence appears as **Mechanical checks** and feeds a Mechanical score beside the Visual one. A free preview shows the headline result; the full evidence report is unlocked with a payment.
 
 ## Key features
 
@@ -25,7 +25,7 @@ The public site is the static landing page and a sample report. The inspection a
 - **Coverage-aware deterministic scoring:** the same inputs always produce the same score. Missing, failed, or unsupported coverage lowers completeness instead of inflating the result.
 - **Evidence-linked reports:** every finding in the paid report points to its source evidence. Free previews cannot access paid evidence through the page, the API, image routes, or caches.
 - **Private by default:** reports are owner-only and public sharing is disabled. Deleting an inspection immediately revokes access, and stored media is then purged and verified gone.
-- **Capture-kit evidence:** sensor-pod telemetry, engine-anomaly verdicts and OBD snapshots are validated, summarised deterministically and frozen into the report as Additional checks. They never change the condition score, and a kit that wasn't used reads "Not checked", never as a pass. The free preview shows only whether each check ran and how many flags it raised. See [the capture kits](../upclose-rig/README.md) and [the evidence-source format](../docs/evidence-sources.md).
+- **Capture-kit evidence:** sensor-pod telemetry, engine-anomaly verdicts and OBD snapshots are validated, summarised deterministically and frozen into the report as Mechanical checks. They drive a separate Mechanical score (unvalidated weights, shown by category with the Visual score; Overall blends the two only when both exist), and a kit that wasn't used reads "Not checked", never as a pass. The free preview shows only whether each check ran and how many flags it raised. See [the capture kits](../upclose-rig/README.md) and [the evidence-source format](../docs/evidence-sources.md).
 - **Optional accounts:** dealers and frequent sellers can create an email/password account to claim inspections and revisit earlier reports. The anonymous one-off flow works without an account.
 - **Test-mode payments:** report unlock uses Stripe in test mode. Payment status is confirmed from verified provider state — simply returning to the site in the browser grants nothing.
 
@@ -104,6 +104,20 @@ The default stack is fully offline. To run real inference on your own footage, o
    ./scripts/approve-derivatives.ps1 -SessionId <session id>            # writes previews to .tools/previews
    ./scripts/approve-derivatives.ps1 -SessionId <session id> -Approve   # after checking every preview
    ```
+
+#### Real providers for the advisory, spoken report, voice guide, Tiger Data and VIN decode
+
+These are off by default (everything stays fixture). Provider keys live in `.env`, which compose does not read by itself, so pass it explicitly and never print it. From the `upclose/` folder:
+
+Live advisory and fresh ElevenLabs synthesis currently fail closed because their priced budget reservation and dispatch integration is incomplete. Advisory shows an unavailable reason; report narration and capture guidance keep their written captions. Fixture narration remains enabled. Setting provider variables alone does not make these live paths ready; the following overlay command configures the services but does not bypass this gate.
+
+```powershell
+docker compose --env-file .env -f infra/compose.yaml -f infra/compose.live-demo.yaml -f infra/compose.live-full.yaml up -d --no-deps --force-recreate worker api
+```
+
+Drop `compose.live-demo.yaml` to keep the vehicle and damage steps in fixture mode while still using the other providers. The worker receives `ADVISOR_PROVIDER`, `ADVISOR_META_MODEL`, `ADVISOR_GEMINI_MODEL`, `GEMINI_API_KEY`, `VOICE_PROVIDER`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `TIGER_DATABASE_URL` and `VIN_PROVIDER`; the API receives only the voice variables, for the spoken capture guide. Each defaults to its fixture value. Switching the advisory from Meta to Gemini is an environment change only (`ADVISOR_PROVIDER=gemini`).
+
+The live inference overlay also selects the Meta dashboard reader (`DASH_READER_PROVIDER=meta`), with SAM localizing the instrument panel before Spark reads its warning lights. Dashboard readings are uncalibrated, and unreadable footage stays not checked. Dashboard crops remain private while a dashboard-specific operator approval binding is unavailable; the paid report shows the reading and flags without the crop. The default compose file uses synthetic fixture readings and makes no provider calls. Keep `VOICE_PROVIDER=fixture` until you intend to synthesize real narration and capture guidance.
 
 Restart single services with `--no-deps`, and export the same environment each time: `docker compose up` on one service otherwise recreates its dependencies with default settings. Running `up -d worker` without the live overlay returns the worker to fixture mode, which is the spend kill-switch.
 

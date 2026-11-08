@@ -48,6 +48,8 @@ from app.contracts.base import ContractModel, ObjectKey, PartNumber
 from app.contracts.enums import (PART_ZONES, ConceptRunState, FindingStatus, PartState,
                                  ReportState, Zone)
 from app.contracts.evidence import ClaimResult, ConceptRun as ConceptRunContract, Coverage, Finding, NarratedStatement
+from app.contracts.briefing import FreeVehicleCheck, NarrationAudioView, StoredBriefing
+from app.contracts.mechanical import CategoryScores, FrozenDash, MechanicalBreakdown
 from app.contracts.reports import (CandidateFinding, FreeFinding, FreeReport, LockedZoneSummary, PaidFinding, PaidReport, PublicClaim,
                                    PublicCoverage)
 from app.contracts.scoring import RepairSummary, ScoreResult, ScoringInput
@@ -56,6 +58,7 @@ from app.contracts.video import VideoRange
 from app.domain.claims import ClaimsConfig, eligible_findings, load_claims_config, resolve_claims
 from app.domain.config import CostConfig, ScoringConfig, load_cost_config, load_scoring_config
 from app.domain.dedup import INTERNAL_FLAGS
+from app.domain.mechanical import MechanicalConfig, category_scores, load_mechanical_config, score_mechanical
 from app.domain.narration import NarrationConfig, NarrationOutcome, load_narration_config, part1_summary_text, narration_hash, resolve_part1_narration, resolve_full_narration
 from app.domain.repairs import estimate_repairs
 from app.domain.scoring import score_assessment
@@ -112,6 +115,7 @@ class ReportConfig:
     scoring: ScoringConfig
     costs: CostConfig
     frozen_identity: ManifestConfigs | None = None
+    mechanical: MechanicalConfig | None = None  # absent in manifests frozen before category scores
 
     def manifest_configs(self) -> ManifestConfigs:
         if self.frozen_identity is not None:
@@ -119,7 +123,8 @@ class ReportConfig:
         return ManifestConfigs(claims=self.claims.content_hash, narration=self.narration.content_hash,
                                scoring=self.scoring.content_hash, costs=self.costs.content_hash,
                                render=render_digest(), anchor_version=ANCHOR_VERSION,
-                               chain_version=REPORT_CHAIN_VERSION)
+                               chain_version=REPORT_CHAIN_VERSION,
+                               mechanical=None if self.mechanical is None else self.mechanical.content_hash)
 
 
 @lru_cache(maxsize=1)
@@ -128,7 +133,8 @@ def load_report_config() -> ReportConfig:
     return ReportConfig(claims=load_claims_config(directory / "claims.v1.json"),
                         narration=load_narration_config(directory / "narration.v1.json"),
                         scoring=load_scoring_config(directory / "scoring.v1.json"),
-                        costs=load_cost_config(directory / "costs.v1.json"))
+                        costs=load_cost_config(directory / "costs.v1.json"),
+                        mechanical=load_mechanical_config(directory / "mechanical.v1.json"))
 
 
 _API_ROOT = Path(__file__).resolve().parents[2]
@@ -178,6 +184,7 @@ class ManifestConfigs(ContractModel):
     render: Sha
     anchor_version: Annotated[str, Field(min_length=1, max_length=128)]
     chain_version: Annotated[str, Field(min_length=1, max_length=128)]
+    mechanical: Sha | None = None
 
 
 class ManifestConfigContent(ContractModel):
@@ -185,6 +192,7 @@ class ManifestConfigContent(ContractModel):
     narration: NarrationConfig
     scoring: ScoringConfig
     costs: CostConfig
+    mechanical: MechanicalConfig | None = None
 
 
 class ManifestCode(ContractModel):
@@ -343,6 +351,7 @@ class ReportManifest(ContractModel):
     code: ManifestCode
     source_video: ManifestSourceVideo | None = None
     sources: tuple[SourceRecord, ...] = ()
+    dash: FrozenDash | None = None
 
     @model_validator(mode="after")
     def complete_and_owned(self) -> Self:
@@ -351,6 +360,10 @@ class ReportManifest(ContractModel):
         for name in ("claims", "narration", "scoring", "costs"):
             if getattr(self.config_content, name).content_hash != getattr(self.configs, name):
                 raise ValueError("embedded configuration does not match its frozen hash")
+        if (self.config_content.mechanical is None) != (self.configs.mechanical is None) or (
+                self.config_content.mechanical is not None
+                and self.config_content.mechanical.content_hash != self.configs.mechanical):
+            raise ValueError("embedded mechanical configuration does not match its frozen hash")
         if hashlib.sha256((self.listing.text or "").encode("utf-8")).hexdigest() != self.listing.text_sha256:
             raise ValueError("listing does not match its frozen hash")
         kinds = [row.kind for row in self.sources]
@@ -498,6 +511,12 @@ def _manifest_sources(db: DBSession, session_id: UUID) -> tuple[SourceRecord, ..
     return tuple(records)
 
 
+def _manifest_dash(db: DBSession, session_id: UUID) -> FrozenDash | None:
+    """Persisted dashboard-light reading of this session, if the dash stage stored one."""
+    from app.pipeline.dash_store import load_frozen_dash
+    return load_frozen_dash(db, session_id)
+
+
 def build_manifest(db: DBSession, revision: ReportRevision, config: ReportConfig, default_provenance: Provenance) -> ReportManifest:
     """Read the persisted evidence into a manifest. Caller holds the session and revision locks.
 
@@ -526,7 +545,9 @@ def build_manifest(db: DBSession, revision: ReportRevision, config: ReportConfig
         listing=ManifestListing(version=owner.listing_version, text=text,
                                 text_sha256=hashlib.sha256((text or "").encode("utf-8")).hexdigest()),
         parts=tuple(record for record, _ in records), configs=config.manifest_configs(),
-        config_content=ManifestConfigContent(claims=config.claims, narration=config.narration, scoring=config.scoring, costs=config.costs),
+        dash=_manifest_dash(db, owner.id),
+        config_content=ManifestConfigContent(claims=config.claims, narration=config.narration, scoring=config.scoring,
+                                             costs=config.costs, mechanical=config.mechanical),
         code=ManifestCode(digest=source_digest(), method=CODE_DIGEST_METHOD))
 
 
@@ -537,6 +558,11 @@ def manifest_payload(manifest: ReportManifest) -> dict[str, object]:
         payload.pop("source_video", None)
     if not manifest.sources:
         payload.pop("sources", None)
+    if manifest.dash is None:
+        payload.pop("dash", None)
+    if manifest.configs.mechanical is None:  # pre-category-score manifests keep their exact bytes
+        payload["configs"].pop("mechanical", None)
+        payload["config_content"].pop("mechanical", None)
     for source in payload.get("sources", ()):
         if source["summary"].get("model_verdict") is None:
             source["summary"].pop("model_verdict", None)  # keeps frozen manifests from before model verdicts byte-identical
@@ -605,6 +631,8 @@ class StoredScore(ContractModel):
     cost_config_hash: Sha
     scores: ScoreResult
     repairs: RepairSummary
+    categories: CategoryScores | None = None
+    mechanical: MechanicalBreakdown | None = None
 
 
 def compute_score(manifest: ReportManifest, manifest_hash: str, config: ReportConfig) -> StoredScore:
@@ -612,13 +640,23 @@ def compute_score(manifest: ReportManifest, manifest_hash: str, config: ReportCo
     if canonical_hash(manifest_payload(manifest)) != manifest_hash:
         raise SnapshotIntegrityError("score manifest does not match its hash")
     inputs = evidence_input(manifest)
+    scores = score_assessment(inputs, config.scoring)
+    categories = breakdown = None
+    if manifest.config_content.mechanical is not None:
+        mechanical = score_mechanical(manifest.sources, manifest.dash, manifest.config_content.mechanical)
+        categories = category_scores(scores.headline, mechanical, manifest.config_content.mechanical)
+        breakdown = mechanical.breakdown
     return StoredScore(manifest_hash=manifest_hash, scoring_config_hash=config.scoring.content_hash,
-                       cost_config_hash=config.costs.content_hash,
-                       scores=score_assessment(inputs, config.scoring), repairs=estimate_repairs(inputs, config.costs))
+                       cost_config_hash=config.costs.content_hash, scores=scores,
+                       repairs=estimate_repairs(inputs, config.costs), categories=categories, mechanical=breakdown)
 
 
 def score_payload(score: StoredScore) -> dict[str, object]:
-    return score.model_dump(mode="json")
+    payload = score.model_dump(mode="json")
+    if score.categories is None:  # scores stored before category scores keep their exact bytes
+        payload.pop("categories", None)
+        payload.pop("mechanical", None)
+    return payload
 
 
 class StoredFreeNarration(ContractModel):
@@ -655,6 +693,7 @@ class StoredPaidNarration(ContractModel):
     manifest_hash: Sha
     claims: ClaimsMeta
     narration: NarrationOutcome | None = None
+    briefing: StoredBriefing | None = None  # advisory, VIN check, vibration series; narration audio is added at render
 
 
 # --------------------------------------------------------------------------- snapshot loading
@@ -690,7 +729,8 @@ def load_snapshot(db: DBSession, revision: ReportRevision, slug: str | None = No
     manifest = load_manifest(revision)
     if config is None:
         content = manifest.config_content
-        config = ReportConfig(content.claims, content.narration, content.scoring, content.costs, manifest.configs)
+        config = ReportConfig(content.claims, content.narration, content.scoring, content.costs, manifest.configs,
+                              content.mechanical)
     check_configs(manifest, config)
     if slug is None:
         report = db.get(Report, revision.report_id)
@@ -704,7 +744,9 @@ def load_snapshot(db: DBSession, revision: ReportRevision, slug: str | None = No
         if stored is not None and stored.manifest_hash != revision.manifest_hash:
             raise SnapshotIntegrityError("stage output was computed from a different manifest")
     claims = stored_claims(db, revision.id)
-    if score is not None and score != compute_score(manifest, str(revision.manifest_hash), config):
+    # Compare the stored (JSON, one-decimal) form: a fractional headline loses digits on the way to storage, so
+    # comparing the in-memory Decimals would reject every honestly stored fractional score.
+    if score is not None and score_payload(score) != score_payload(compute_score(manifest, str(revision.manifest_hash), config)):
         raise SnapshotIntegrityError("stored score does not replay from frozen evidence")
     findings = {row.id: row for row in manifest.all_findings}
     claim_inputs: list[ClaimResult] = []
@@ -783,6 +825,26 @@ def paid_source_checks(manifest: ReportManifest) -> tuple[PaidSourceCheck, ...]:
                                  source=by_kind.get(kind)) for kind in SOURCE_KINDS)
 
 
+def _free_vehicle_check(snapshot: RevisionSnapshot) -> FreeVehicleCheck | None:
+    """Free scope: make, model, year and the match status of the VIN check; never the VIN."""
+    briefing = None if snapshot.paid_narration is None else snapshot.paid_narration.briefing
+    if briefing is None or briefing.vin is None:
+        return None
+    decode = briefing.vin.decode
+    return FreeVehicleCheck(make=None if decode is None else decode.make, model=None if decode is None else decode.model,
+                            model_year=None if decode is None else decode.model_year, match=briefing.vin.match)
+
+
+def _paid_briefing_fields(snapshot: RevisionSnapshot) -> dict[str, object]:
+    briefing = None if snapshot.paid_narration is None else snapshot.paid_narration.briefing
+    if briefing is None:
+        return {}
+    audio = briefing.narration_audio
+    return dict(advisory=briefing.advisory, vehicle_check=briefing.vin, vibration=briefing.vibration,
+                narration_audio=None if audio is None else NarrationAudioView(
+                    label=audio.label, provenance=audio.provenance, content_type=audio.content_type))
+
+
 def build_free_report(snapshot: RevisionSnapshot) -> FreeReport:
     """Free scope: Part-1 findings, score, coverage and summary; other zones as locked totals only."""
     if snapshot.score is None or snapshot.free_narration is None:
@@ -793,12 +855,18 @@ def build_free_report(snapshot: RevisionSnapshot) -> FreeReport:
     findings = tuple(FreeFinding(**_fields(row, manifest)) for row in eligible_findings(evidence_input(manifest, (1,))))
     locked = tuple(LockedZoneSummary(zone=part.zone, finding_count=sum(
         row.duplicate_of is None for row in part.verified)) for part in manifest.parts[1:] if part.state == PartState.PROCESSED)
+    from app.contracts.mechanical import FreeDashCheck
+    dash = manifest.dash
     return FreeReport(slug=snapshot.slug, revision_id=snapshot.revision_id, state=snapshot.state,
                       coverage=(PublicCoverage(zone=zone_score.zone, state=zone_score.state,
                                                reason=public_coverage_reason(part1, zone_score.reason)),),
                       part1_score=zone_score.score, findings=findings, locked_zones=locked,
                       part1_summary=part1_summary_text(snapshot.free_narration.outcome.statements),
-                      additional_checks=free_source_checks(manifest))
+                      additional_checks=free_source_checks(manifest),
+                      categories=None if snapshot.score is None else snapshot.score.categories,
+                      dashboard=FreeDashCheck(checked=dash is not None and dash.state == "assessed",
+                          flag_count=0 if dash is None else len(dash.flags) + len(dash.lit)),
+                      vehicle_check=_free_vehicle_check(snapshot))
 
 
 def build_paid_report(snapshot: RevisionSnapshot) -> PaidReport:
@@ -814,12 +882,16 @@ def build_paid_report(snapshot: RevisionSnapshot) -> PaidReport:
         mapping_basis=None if snapshot.manifest.part(row.part_no).source_video is None else snapshot.manifest.part(row.part_no).source_video.mapping_basis) for row in sorted(
         (row for part in snapshot.manifest.parts for row in part.unverified if row.status == FindingStatus.UNVERIFIED and row.duplicate_of is None),
         key=lambda item: (item.part_no, str(item.id))))
+    from app.contracts.mechanical import PaidDashCheck
     return PaidReport(slug=snapshot.slug, revision_id=snapshot.revision_id, state=snapshot.state,
                       coverage=tuple(PublicCoverage(zone=row.zone, state=row.state,
                           reason=public_coverage_reason(snapshot.manifest.part(PART_ZONES.index(row.zone) + 1), row.reason)) for row in zones),
                       scores=snapshot.score.scores, findings=findings, candidates=candidates, repairs=snapshot.score.repairs, claims=snapshot.claims,
                       narration=snapshot.paid_narration.narration.statements, rendered_at=snapshot.rendered_at,
-                      additional_checks=paid_source_checks(snapshot.manifest))
+                      additional_checks=paid_source_checks(snapshot.manifest),
+                      categories=snapshot.score.categories, mechanical_breakdown=snapshot.score.mechanical,
+                      dashboard=PaidDashCheck(assessment=snapshot.manifest.dash),
+                      **_paid_briefing_fields(snapshot))
 
 
 def build_reports(snapshot: RevisionSnapshot) -> tuple[FreeReport, PaidReport]:

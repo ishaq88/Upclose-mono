@@ -1,8 +1,9 @@
 import type { ReactElement } from 'react';
-import type { FreeFinding, LockedZoneSummary, Part1Verdict, PartSummary, PublicCoverage } from '../api/client';
+import type { CategoryScores as CategoryScoresData, FreeReport, FreeFinding, LockedZoneSummary, Part1Verdict, PartSummary, PublicCoverage } from '../api/client';
 import type { UiError } from '../errors';
 import { conceptLabel, COVERAGE_LABEL, zoneTitle } from '../progress/labels';
 import { describeReason } from '../progress/reasons';
+import { CategoryScores } from '../report/CategoryScores';
 import { formatIndex } from '../report/model';
 import { freeVerdictLine, isSeriousFree, isSyntheticFree } from '../results/freeModel';
 import { ResultError } from '../results/ResultError';
@@ -12,7 +13,7 @@ import '../results/results.css';
 export const NO_FINDINGS_TEXT = 'No visible findings detected in assessed footage';
 
 /** The free (driver-side) data, as carried by both the progress verdict and the FreeReport. */
-export type FreeData = Pick<Part1Verdict, 'part1_score' | 'part1_summary' | 'findings' | 'coverage' | 'locked_zones'>;
+export type FreeData = Pick<Part1Verdict, 'part1_score' | 'part1_summary' | 'findings' | 'coverage' | 'locked_zones'> & { categories?: CategoryScoresData | null; dashboard?: FreeReport['dashboard'] };
 
 export interface UnlockControl {
   onUnlock: () => void;
@@ -98,6 +99,8 @@ export function FreeVerdictCard({ data, layout, unlock }: FreeVerdictCardProps):
       )}
       <p className="vline" data-testid="verdict-line"><span className={`k${line.serious ? ' k-risk' : ''}`} aria-hidden="true" />{line.text}</p>
       <ScoreBlock score={data.part1_score} coverage={coverage} />
+      {data.categories && <CategoryScores categories={data.categories} />}
+      {data.dashboard && <p data-testid="dashboard-summary">Dashboard: {data.dashboard.checked ? `Checked · ${data.dashboard.flag_count} flags` : 'Not checked. This is not a pass.'}</p>}
       <Findings findings={data.findings} coverage={coverage} />
       <p className="muted" data-testid="part1-summary">{data.part1_summary}</p>
       <p className="res-note">

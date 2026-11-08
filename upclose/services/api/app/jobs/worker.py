@@ -200,7 +200,7 @@ def build_registry(settings: Settings, factory: object) -> StageRegistry:
     register_source_video_handlers(registry, factory, S3Storage(settings), settings,  # type: ignore[arg-type]
                                    fanout=lambda outcome: plan_downstream(source_ctx, outcome))
     register_audio_handlers(registry, factory, S3Storage(settings), settings)  # type: ignore[arg-type]
-    install_report_handlers(registry, factory, settings)  # type: ignore[arg-type]
+    install_report_handlers(registry, factory, settings, storage=S3Storage(settings))  # type: ignore[arg-type]
     secret = settings.stripe_secret_key.get_secret_value() if settings.stripe_secret_key else None
     register_billing_handlers(registry, factory, build_gateway(settings.payments_mode, secret))  # type: ignore[arg-type]
     register_purge_handlers(registry, factory, S3Storage(settings), settings)  # type: ignore[arg-type]

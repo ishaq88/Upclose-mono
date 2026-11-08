@@ -1,3 +1,29 @@
+{% macro category_block(categories) -%}
+<section aria-labelledby="categories-h" data-testid="category-scores">
+<h2 id="categories-h">Scores by category</h2>
+<table class="categories">
+<thead><tr><th scope="col">Category</th><th scope="col">Score (0–100)</th><th scope="col">Note</th></tr></thead>
+<tbody>
+{%- for row in categories.rows %}
+<tr data-category="{{ row.label|lower }}"><th scope="row">{{ row.label }}</th><td class="num">{{ row.text }}</td><td>{{ row.note }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+<p class="note">{{ categories.label }}. The Mechanical weights are unvalidated defaults.</p>
+</section>
+{%- endmacro %}
+
+{% macro vehicle_block(vehicle) -%}
+<article class="card check" data-testid="vehicle-check">
+<h3>Vehicle identity{% if vehicle.mismatch %} <span class="badge">VIN mismatch</span>{% endif %}</h3>
+<table><tbody>
+{%- for label, value in vehicle.rows %}
+<tr><th scope="row">{{ label }}</th><td>{{ value }}</td></tr>
+{%- endfor %}
+</tbody></table>
+</article>
+{%- endmacro %}
+
 {% macro finding_card(card) -%}
 <article class="card{% if card.high_risk %} risk{% endif %}" id="finding-{{ card.number }}">
 <h3><span class="card-number">{{ card.number }}</span>{{ card.concept_label }} — {{ card.zone_label }}</h3>

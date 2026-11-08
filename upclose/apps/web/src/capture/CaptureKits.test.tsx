@@ -55,7 +55,7 @@ describe('Capture kits card', () => {
     const view = render(<App />);
     fireEvent.click(await screen.findByText('Connect the sensor pod'));
     expect(screen.getByText(/This key controls this inspection/)).toBeTruthy();
-    expect(screen.getByText(`python -m upclose_rig post --recording <file> --provenance synthetic --session ${backend.sessionId}`)).toBeTruthy();
+    expect(screen.getByText(`python -m upclose_rig demo-run --session ${backend.sessionId} --api http://localhost:8000 --port COM3 --audio synth`)).toBeTruthy();
     expect(view.container.innerHTML).not.toContain(backend.token);
     expect(document.body.textContent).not.toContain(backend.token);
     fireEvent.click(screen.getByRole('button', { name: 'Copy owner token' }));

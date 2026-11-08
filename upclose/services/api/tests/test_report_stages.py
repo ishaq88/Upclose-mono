@@ -438,8 +438,15 @@ def test_free_dto_from_snapshot_has_no_other_zone_or_paid_content(make, media_di
     assert {f.zone.value for f in free.findings} == {"driver_side"} and free.scope == "free"
     assert [(z.zone.value, z.finding_count) for z in free.locked_zones] == [("passenger_side", 1)] and free.part1_score is not None
     assert set(json.loads(blob)) == {"scope", "slug", "revision_id", "state", "vehicle_label", "coverage", "part1_score", "findings",
-                                     "locked_zones", "part1_summary", "additional_checks"}
+                                     "locked_zones", "part1_summary", "additional_checks", "categories", "vehicle_check",
+                                         "session_id", "dashboard"}
+    assert free.dashboard is None or set(json.loads(blob)["dashboard"]) == {"checked", "flag_count"}  # no crop/indicators/confidence
     assert not {"scores", "repairs", "claims", "narration", "headline"} & set(json.loads(blob))
+    # category scores are public (visual, mechanical, overall); the breakdown, advisory and VIN facts are paid-only
+    assert set(json.loads(blob)["categories"]) == {"visual", "mechanical", "overall", "config_hash", "label"}
+    assert free.categories.mechanical.state == "not_checked" and free.categories.overall.score is None
+    assert free.categories.overall.basis in ("visual_only", "none")  # never a blend without a Mechanical score
+    assert not {"mechanical_breakdown", "advisory", "vibration", "narration_audio"} & set(json.loads(blob))
     assert [c.zone.value for c in free.coverage] == ["driver_side"]
     for text in (free.part1_summary, snap.free_narration.outcome.model_dump_json()):
         assert "Passenger" not in text and "$" not in text and "claim" not in text.lower() and "headline" not in text.lower()

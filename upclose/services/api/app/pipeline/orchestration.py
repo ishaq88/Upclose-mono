@@ -251,6 +251,9 @@ def create_assessment(db: DBSession, ctx: OrchestrationContext, part_id: UUID, i
     if ingested is None or ingested.part_id != part.id:
         raise ValueError("ingest run does not belong to this part")
     hashes = ctx.config_hashes
+    if part.part_no == 5 and "dash_cluster" in ctx.config.prompts.part(5).prompt_ids:
+        from app.domain.dash_lights import load_dash_config
+        hashes = {**hashes, "dash": load_dash_config().content_hash}
     config = ctx.config
     run = PipelineRun(id=uuid4(), session_id=part.session_id, part_id=part.id, subject_key=f"assess:{part.id}",
                       input_hash=canonical_hash({"raw_sha256": part.raw_sha256, "proxy": facts["proxy_sha256"],
@@ -425,6 +428,16 @@ def advance_part(db: DBSession, ctx: OrchestrationContext, part_id: UUID, comple
     run = assessment_run(db, part.id)
     if run is None:
         return False  # the reconciler rebuilds a missing assessment
+    if "dash" in run.config_hashes:
+        from app.pipeline.dash_store import DASH_ASSESSMENT, store_dash
+        from app.contracts.mechanical import FrozenDash
+        if not observations(db, run.id, DASH_ASSESSMENT):
+            job_id = enqueue(db, JobSpec(part.session_id, "part_run", str(run.id), "read_dash", run.input_hash, run.config_hash))
+            job = db.get(Job, job_id)
+            if job is None or job.state not in ("dead", "succeeded"):
+                return False
+            store_dash(db, part.session_id, run.id, FrozenDash(state="not_readable",
+                reason="dash_job_failed", config_hash=run.config_hashes["dash"]))
     concept_runs = list(db.scalars(select(ConceptRun).where(ConceptRun.run_id == run.id).order_by(ConceptRun.id).with_for_update()))
     if any(row.state in ("pending", "running") for row in concept_runs):
         return False
@@ -495,7 +508,7 @@ def advance_session(db: DBSession, session_id: UUID, completing_job: UUID | None
     parts = list(db.scalars(select(Part).where(Part.session_id == session_id).order_by(Part.part_no).with_for_update()))
     if any(part.state not in TERMINAL_PART_STATES for part in parts):
         return False
-    if db.scalar(select(Job.id).where(Job.session_id == session_id, Job.stage.in_(("vehicle_mask", "segment", "verify")),
+    if db.scalar(select(Job.id).where(Job.session_id == session_id, Job.stage.in_(("vehicle_mask", "segment", "verify", "read_dash")),
                                       Job.state.in_(OPEN_JOB_STATES), Job.id != completing_job).limit(1)) is not None:
         return False
     report = db.scalar(select(Report).where(Report.session_id == session_id).with_for_update())
@@ -547,4 +560,7 @@ def install_pipeline_handlers(registry, factory, storage, settings, ctx: Orchest
     register_segment_handler(registry, factory, storage, settings, ctx,
                              segmenter_factory=segmenter_factory or default_segmenter_factory, budget_service=budget_service)
     register_verify_handler(registry, factory, ctx, verifier=verifier)
+    from app.pipeline.dash_handler import DashHandler
+    registry.register("read_dash", DashHandler(factory, storage, settings, ctx,
+        segmenter_factory=segmenter_factory, budget_service=budget_service))
     return ctx

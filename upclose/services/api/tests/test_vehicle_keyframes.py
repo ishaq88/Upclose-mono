@@ -160,3 +160,22 @@ def test_mask_config_defaults_off_and_is_validated_against_the_plans():
 def test_the_mask_settings_are_part_of_the_media_content_hash():
     assert _config().content_hash != _config(vehicle_mask_long_edge=640).content_hash
     assert load_media_config().content_hash  # the committed config loads
+
+
+def test_marker_without_reduced_input_dumps_its_original_bytes():
+    # Frozen report manifests embed this marker and hash its canonical JSON: a marker written before
+    # the reduced-input fields existed must serialize exactly as it did, or every old report fails
+    # its integrity check.
+    from uuid import uuid4
+
+    from app.pipeline.vehicle_mask_contract import MaskedInput
+
+    base = {"kind": "video", "source_key": "media/s/p/r/a1/proxy.mp4", "source_sha256": "a" * 64,
+            "masked_key": "media/s/p/r/vehicle/a1/0.mp4", "masked_sha256": "b" * 64,
+            "mask_key": "media/s/p/r/vehicle/a1/0-masks.zip", "mask_sha256": "c" * 64,
+            "request_id": str(uuid4()), "provenance": "live", "frame_indices": [0, 1], "timestamps_ms": [0, 167]}
+    old = MaskedInput.model_validate(base)
+    assert set(old.model_dump(mode="json")) == set(base)
+    reduced = MaskedInput.model_validate({**base, "mask_keyframes": [0], "mask_input_size": [640, 360]})
+    assert reduced.model_dump(mode="json")["mask_keyframes"] == [0]
+    assert reduced.model_dump(mode="json")["mask_input_size"] == [640, 360]

@@ -31,8 +31,11 @@ class MaskedInput(ContractModel):
     timestamps_ms: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)]
     # Present only when SAM was sent a reduced video: the proxy frame indices it saw and its pixel
     # size. Every frame in frame_indices still has a mask (nearest keyframe in time).
-    mask_keyframes: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)] | None = None
-    mask_input_size: tuple[Count, Count] | None = None
+    # Absent stays absent when serialized: frozen report manifests embed this marker and hash its
+    # canonical bytes, so markers written before these fields existed must dump byte-identically.
+    mask_keyframes: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)] | None = Field(
+        default=None, exclude_if=lambda v: v is None)
+    mask_input_size: tuple[Count, Count] | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class VehicleMaskMarker(ContractModel):

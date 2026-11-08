@@ -9,10 +9,11 @@ import { useSession } from '../session/useSession';
 import { useSourceUpload } from '../upload/useSourceUpload';
 import { SingleVideoCapture } from './SingleVideoCapture';
 import { useUploads } from '../upload/useUploads';
-import { ErrorNotice, PartCard, STATE_LABEL, zoneStateLabel } from './PartCard';
+import { ErrorNotice, PartCard, zoneStateLabel } from './PartCard';
 import { Part1Slot } from './FreeVerdictCard';
 import { ProgressPanel } from './ProgressPanel';
 import { CaptureKits, MissingKitsNotice } from './CaptureKits';
+import { GuideViewer } from '../capture/GuideViewer';
 import { kitRows, missingKits } from '../capture/kits';
 import { useCaptureSources } from '../capture/useCaptureSources';
 import { useAudioUpload } from '../upload/audioUpload';
@@ -141,15 +142,21 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
   };
   const nextGuide = nextPending ? (guideFor(nextPending.part_no) ?? GUIDE_STEPS[0]!) : null;
 
+  const doneParts = parts.filter((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed').map((part) => part.part_no);
+  const currentGuide = current ? (guideFor(current.part_no) ?? GUIDE_STEPS[0]!) : null;
+  const finishState = ((): string | null => {
+    if (!capturing) return null;
+    if (uploadActive) return singleVideo && sourceUpload.blocksFinish && !uploads.anyActive && !audioUpload.busy ? 'Finish unlocks once the source video settles. You can discard an unfinished upload.' : 'An upload is still in progress. Finish unlocks when it completes or you cancel it.';
+    if (waitingVideos > 0) return `Waiting for ${waitingVideos} video${waitingVideos === 1 ? '' : 's'} to start processing. Finish unlocks as soon as ${waitingVideos === 1 ? 'it starts' : 'they start'}; the report keeps building in the background.`;
+    return null;
+  })();
+
   return (
     <div className="capture">
       {unauthorized && (
         <div role="alert" className="notice notice-error stack">
           <p className="notice-title">Your session has expired or was lost</p>
-          <p>
-            This browser tab no longer has valid access to its session. Sessions cannot be recovered from another tab or device, and closing the tab can lose them.
-            Start a new session to continue; videos from the old session cannot be reattached.
-          </p>
+          <p>This tab no longer has access to its session, and it cannot be recovered from another tab or device. Start a new one to continue.</p>
           <button type="button" onClick={onNewSession} className="btn btn-sm">Start a new session</button>
         </div>
       )}
@@ -164,45 +171,57 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
 
       {session && !unauthorized && !deleting && session.state !== 'deleting' && session.state !== 'deleted' && (
         <>
-          <VoiceGuideBar />
           {singleVideo && <SingleVideoCapture upload={sourceUpload} capturing={capturing && !confirmDelete} />}
 
-          <section aria-labelledby="steps-heading" className="cap">
+          <section aria-labelledby="steps-heading" className="cap2">
             <h2 id="steps-heading" className={singleVideo ? 'cap-heading' : 'sr-only'}>{singleVideo ? 'Guided follow-up clips' : 'Capture steps'}</h2>
-            <div className="cap-top hide-lg">
-              <span>{current ? `Zone ${currentIndex + 1} of ${display.length} · ${(guideFor(current.part_no) ?? GUIDE_STEPS[0]!).title}` : 'Zones'}</span>
-              <span className="muted">{filmed} filmed</span>
+            <div className="cap-left">
+              <div className="cap-side">
+                {currentGuide && <div className="cap-car"><GuideViewer guide={currentGuide} done={doneParts} position={`${currentIndex + 1}/${display.length}`} /></div>}
+                <nav aria-label="Zones" className="zones">
+                  <p className="zones-count">{filmed} of {display.length} filmed</p>
+                  <ol className="zones-list">
+                    {display.map((part, index) => {
+                      const guide = guideFor(part.part_no) ?? GUIDE_STEPS[0]!;
+                      return (
+                        <li key={part.id}>
+                          <button type="button" className={`zone zone-${part.state}`} aria-current={part.part_no === current?.part_no ? 'step' : undefined}
+                            onClick={() => openZone(part)}>
+                            <span className="zn" aria-hidden="true">{part.state === 'processed' || part.state === 'uploaded' || part.state === 'processing' ? <CheckIcon /> : index + 1}</span>
+                            <span className="zt">
+                              <span className="zt-name">{guide.title}{OPTIONAL_PARTS.has(part.part_no) && <span className="opt-tag">Optional</span>}</span>
+                              <MiniRail state={part.state} />
+                            </span>
+                            <span className="st" data-testid={`state-${part.part_no}`}>{zoneStateLabel(part.state, uploads.local[part.part_no])}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </nav>
+              </div>
+              <div className="cap-rail">
+                <ProgressPanel compact api={api} progress={progress} onRefresh={refresh} onUnauthorized={markUnauthorized} />
+                <p className="rail-note">You can keep going; we process in the background. Keep this tab open while uploading.</p>
+              </div>
             </div>
-            <nav aria-label="Zones" className="zones">
-              <p className="zones-count hide-sm">{filmed} of {display.length} filmed</p>
-              <ol className="zones-list">
-                {display.map((part, index) => {
-                  const guide = guideFor(part.part_no) ?? GUIDE_STEPS[0]!;
-                  return (
-                    <li key={part.id}>
-                      <button type="button" className={`zone zone-${part.state}`} aria-current={part.part_no === current?.part_no ? 'step' : undefined}
-                        onClick={() => openZone(part)}>
-                        <span className="zn" aria-hidden="true">{index + 1}</span>
-                        <span className="zt">{guide.title}{OPTIONAL_PARTS.has(part.part_no) && <span className="opt-tag">Optional</span>}</span>
-                        <span className="st" data-testid={`state-${part.part_no}`}>{zoneStateLabel(part.state, uploads.local[part.part_no])}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-            </nav>
+
             <div className="cap-main">
-              {singleVideo && <p className="hint">After source preparation, add short clips for available missing areas. You can finish without filming every area; missing and unverified areas remain unassessed.</p>}
+              <div className="cap-top">
+                <span className="cap-pos">{current ? `Zone ${currentIndex + 1} of ${display.length} · ${(guideFor(current.part_no) ?? GUIDE_STEPS[0]!).title}` : 'Zones'}</span>
+                <VoiceGuideBar />
+              </div>
+              {singleVideo && <p className="hint">Add short clips for areas the video missed. You can finish without filming every area; the rest stay unassessed.</p>}
               {current?.zone === 'dash_electrical' && capturing && (
                 <p className="notice" data-testid="engine-check-prompt">
-                  This zone is filmed with the engine running. <a href="#engine-check">Do the engine check first</a>, or alongside it.
+                  Filmed with the engine running. <a href="#engine-check">Do the engine check first</a>, or alongside it.
                 </p>
               )}
               {current && (() => {
                 const part = current;
                 const guide = guideFor(part.part_no) ?? GUIDE_STEPS[0]!;
                 return (
-                  <PartCard key={part.id} guide={guide} part={part} optional={OPTIONAL_PARTS.has(part.part_no)}
+                  <PartCard key={part.id} guide={guide} part={part} optional={OPTIONAL_PARTS.has(part.part_no)} showViewer={false}
                     local={uploads.local[part.part_no]} record={uploads.records[part.part_no]}
                     hasFile={uploads.getFile(part.part_no) !== undefined} sessionCapturing={capturing && !confirmDelete && (!singleVideo || sourceUpload.followupsAllowed)}
                     actionError={actionErrors[part.part_no]}
@@ -223,23 +242,20 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
                 );
               })()}
 
-              <div className="note-row">
-                <ClockIcon />
-                <span><b>Keep this tab open.</b> <span className="muted">Reloading is fine, but closing the tab may lose access to this session and its uploads, with no recovery from another device. An interrupted upload continues only if you select the same video file again; a clip recorded in the page cannot be recovered after a reload.</span></span>
-              </div>
-              <CaptureKits rows={kits} sessionId={sessionId} ownerToken={ownerToken} capturing={capturing && !confirmDelete} audio={audioUpload} />
-              <EngineCheck rows={kits} capturing={capturing && !confirmDelete} />
-              <SaveInspection sessionId={sessionId} ownerToken={ownerToken} />
+              <section aria-labelledby="engine-step-heading" className="card engine-panel">
+                <h2 id="engine-step-heading" className="step-title">Engine check</h2>
+                <CaptureKits rows={kits} sessionId={sessionId} ownerToken={ownerToken} capturing={capturing && !confirmDelete} audio={audioUpload} />
+                <EngineCheck rows={kits} capturing={capturing && !confirmDelete} />
+              </section>
 
               <Part1Slot part1={parts.find((part) => part.part_no === 1)} verdict={progress?.free_verdict} />
 
               <section aria-labelledby="finish-heading" className="card finish">
-                <h2 id="finish-heading">Finish</h2>
+                <h2 id="finish-heading" className="step-title">Finish</h2>
                 <ZoneSummary notFilmed={notFilmed} skipped={skipped} />
                 {capturing ? (
                   <>
-                    {uploadActive && <p className="notice notice-warn" role="status">{singleVideo && sourceUpload.blocksFinish ? 'Source status is loading, an upload is unfinished, or source preparation is pending. Finish becomes available after the source settles; you can discard an unfinished upload.' : 'An upload is still in progress. Finish is available once it completes or you cancel it.'}</p>}
-                    {!uploadActive && waitingVideos > 0 && <p className="notice notice-warn" role="status" data-testid="finish-waiting">Waiting for {waitingVideos} video{waitingVideos === 1 ? '' : 's'} to start processing. You can finish as soon as {waitingVideos === 1 ? 'it starts' : 'they start'}; the report keeps building in the background.</p>}
+                    {finishState && <p className="finish-state" role="status" data-testid={!uploadActive && waitingVideos > 0 ? 'finish-waiting' : undefined}>{finishState}</p>}
                     {finishError && <ErrorNotice error={finishError} onDismiss={() => setFinishError(null)} />}
                     {confirmFinish ? (
                       <div className="notice stack">
@@ -252,39 +268,37 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
                       </div>
                     ) : (
                       <div>
-                        <button type="button" className="btn btn-dark" disabled={!canFinish} aria-describedby="finish-help" onClick={() => setConfirmFinish(true)}>
+                        <button type="button" className="btn btn-dark btn-finish" disabled={!canFinish} onClick={() => setConfirmFinish(true)}>
                           Finish capture
                         </button>
                       </div>
                     )}
-                    <p id="finish-help" className="hint">Capture never finishes on its own. You choose when to finish.</p>
                   </>
                 ) : (
                   <p role="status">Capture is finished. The selection is frozen.</p>
                 )}
               </section>
 
-              <ProgressPanel api={api} progress={progress} onRefresh={refresh} onUnauthorized={markUnauthorized} />
-
-              <section className="card danger-zone">
-                <h2>Delete session media</h2>
-                <p className="hint">This removes access immediately and queues deletion of videos and report evidence. Previously downloaded copies cannot be recalled; issued image links can remain valid for up to 60 seconds.</p>
-                {deleteError && <ErrorNotice error={deleteError} />}
-                {confirmDelete ? <>
-                  <p>Delete this session and its media? You cannot undo this.</p>
-                  <div className="cap-actions">
-                    <button type="button" className="btn btn-rec" onClick={() => {
-                      setDeleting(true); setDeleteError(null);
-                      void Promise.all([uploads.stopTransfers(), sourceUpload.stopTransfers()]).then(() => api.deleteMedia(sessionId)).then(onNewSession).catch((caught: unknown) => {
-                        setDeleteError(describeError(caught)); setDeleting(false); setConfirmDelete(false);
-                        if (describeError(caught).action === 'new_session') markUnauthorized();
-                        refresh();
-                      });
-                    }}>Yes, delete session media</button>
-                    <button type="button" className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Keep session</button>
-                  </div>
-                </> : <div><button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(true)}>Delete session media</button></div>}
-              </section>
+              <div className="cap-foot">
+                <SaveInspection sessionId={sessionId} ownerToken={ownerToken} />
+                <section className="danger-zone" aria-label="Delete session media">
+                  {deleteError && <ErrorNotice error={deleteError} />}
+                  {confirmDelete ? <>
+                    <p>Delete this session and its media? You cannot undo this. Issued image links can stay valid for up to 60 seconds.</p>
+                    <div className="cap-actions">
+                      <button type="button" className="btn btn-rec" onClick={() => {
+                        setDeleting(true); setDeleteError(null);
+                        void Promise.all([uploads.stopTransfers(), sourceUpload.stopTransfers()]).then(() => api.deleteMedia(sessionId)).then(onNewSession).catch((caught: unknown) => {
+                          setDeleteError(describeError(caught)); setDeleting(false); setConfirmDelete(false);
+                          if (describeError(caught).action === 'new_session') markUnauthorized();
+                          refresh();
+                        });
+                      }}>Yes, delete session media</button>
+                      <button type="button" className="btn btn-ghost" onClick={() => setConfirmDelete(false)}>Keep session</button>
+                    </div>
+                  </> : <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirmDelete(true)}>Delete session media</button>}
+                </section>
+              </div>
             </div>
           </section>
         </>
@@ -293,22 +307,34 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
   );
 }
 
-function ClockIcon(): ReactElement {
-  return <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M10 6v4l3 2" /></svg>;
+function CheckIcon(): ReactElement {
+  return <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 7.5l3 3 6-7" /></svg>;
+}
+
+/** Four-step micro rail for one zone: Uploaded, Finding car, Checking damage, Done. Decorative; the state text beside it is the label. */
+function MiniRail({ state }: { state: PartSummary['state'] }): ReactElement | null {
+  const lit = state === 'uploaded' ? 1 : state === 'processing' ? 2 : state === 'processed' ? 4 : 0;
+  if (state === 'pending' || state === 'skipped') return null;
+  return (
+    <span className={`mini mini-${state}`} aria-hidden="true" title="Uploaded, finding car, checking damage, done">
+      {[0, 1, 2, 3].map((i) => <i key={i} className={i < lit ? 'on' : i === lit && (state === 'processing' || state === 'uploading') ? 'run' : undefined} />)}
+    </span>
+  );
 }
 
 function ZoneSummary({ notFilmed, skipped }: { notFilmed: PartSummary[]; skipped: PartSummary[] }): ReactElement {
+  const title = (part: PartSummary): string => guideFor(part.part_no)?.title ?? `Step ${part.part_no}`;
   return (
     <div className="zone-summary">
       <p>
         <span className="lead-in">Skipped zones: </span>
-        {skipped.length === 0 ? 'none' : skipped.map((part) => guideFor(part.part_no)?.title ?? `Step ${part.part_no}`).join(', ')}
-        {skipped.length > 0 && '. Skipped zones are not assessed and will appear as not assessed in the report.'}
+        {skipped.length === 0 ? 'none' : skipped.map(title).join(', ')}
+        {skipped.length > 0 && '. They will show as not assessed.'}
       </p>
       {notFilmed.length > 0 && (
         <p>
-          <span className="lead-in">Not filmed yet ({STATE_LABEL.pending.toLowerCase()}): </span>
-          {notFilmed.map((part) => guideFor(part.part_no)?.title ?? `Step ${part.part_no}`).join(', ')}. These become skipped if you finish now.
+          <span className="lead-in">Not filmed yet: </span>
+          {notFilmed.map(title).join(', ')}. These become skipped if you finish now.
         </p>
       )}
     </div>

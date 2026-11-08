@@ -16,7 +16,7 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
   const [checking, setChecking] = useState(false);
   const [sample, setSample] = useState(false);
 
-  if (attached) return <p className="hint" data-testid="audio-attached">Engine audio is attached to this inspection.</p>;
+  if (attached) return <p className="hint" data-testid="audio-attached">Engine audio is attached.</p>;
   if (!capturing) return null;
 
   const pick = async (event: ChangeEvent<HTMLInputElement>, recorded: boolean): Promise<void> => {
@@ -42,7 +42,7 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
 
   return (
     <div className="audio-upload stack" data-testid="engine-audio-upload">
-      <p className="hint">Add a WAV, MP3 or M4A clip of the engine, up to {MAX_AUDIO_SECONDS} seconds and 10 MiB. Not attached shows as Not checked.</p>
+      <p className="hint">WAV, MP3 or M4A, up to {MAX_AUDIO_SECONDS} s and 10 MiB.</p>
       {rejection && <p role="alert" className="notice notice-error" data-testid="audio-rejection">{rejection}</p>}
       {notice && !upload.error && <p role="status" className="hint">{notice}</p>}
       {upload.error && <ErrorNotice error={upload.error} onDismiss={upload.dismissError} />}
@@ -56,7 +56,7 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
           <button type="button" className="btn btn-ghost btn-sm" data-testid="engine-audio-cancel" onClick={() => { void upload.abort(); }}>Cancel upload</button>
         </div>
       )}
-      {upload.phase === 'attached' && <p role="status" className="hint">Attached. The clip is being checked.</p>}
+      {upload.phase === 'attached' && <p role="status" className="hint">Attached. Checking the clip...</p>}
       {upload.phase === 'failed' && upload.canRetry && (
         <div className="cap-actions">
           <button type="button" className="btn btn-sm" data-testid="engine-audio-retry" onClick={() => { void upload.retry(); }}>Try again</button>

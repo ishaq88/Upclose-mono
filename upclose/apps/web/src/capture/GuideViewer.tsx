@@ -16,7 +16,7 @@ function sceneLabel(guide: GuideStep): string {
 }
 
 /** The 3D viewer with its walk-instruction chip, or the text fallback when 3D cannot run. */
-export function GuideViewer({ guide }: { guide: GuideStep }): ReactElement {
+export function GuideViewer({ guide, done, position }: { guide: GuideStep; done?: readonly number[]; position?: string }): ReactElement {
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const onReady = useCallback(() => setStatus('ready'), []);
   const onFail = useCallback(() => setStatus('failed'), []);
@@ -28,12 +28,12 @@ export function GuideViewer({ guide }: { guide: GuideStep }): ReactElement {
     <div className="viewer">
       <div className="viewer-scene" role="img" aria-label={sceneLabel(guide)}>
         <Suspense fallback={null}>
-          <Guide3D partNo={guide.partNo} onReady={onReady} onFail={onFail} />
+          <Guide3D partNo={guide.partNo} done={done} onReady={onReady} onFail={onFail} />
         </Suspense>
       </div>
       {status === 'loading' && <div className="v-load" role="status">Loading 3D guide…</div>}
-      <p className="v-chip"><i aria-hidden="true" />{walkText(guide.partNo)}</p>
-      <span className="v-hint" aria-hidden="true">Drag to turn the car</span>
+      <p className="v-chip"><i aria-hidden="true" />{position && <b className="v-pos">{position}</b>}{walkText(guide.partNo)}</p>
+      <span className="v-hint" aria-hidden="true"><i className="v-key-now" />Now<i className="v-key-done" />Filmed · drag to turn</span>
     </div>
   );
 }

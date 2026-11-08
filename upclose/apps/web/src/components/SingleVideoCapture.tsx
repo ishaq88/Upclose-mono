@@ -54,9 +54,8 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
   return <section aria-labelledby="single-video-heading" className="svc">
     <div className="svc-head">
       <h2 id="single-video-heading" className="page-title">One video</h2>
-      <p className="muted">Record a continuous walkaround or upload a partial clip. MP4, MOV or WebM, up to 180 seconds and 200 MiB. A 30–60 second clip is welcome.</p>
+      <p className="muted">Record a walkaround or upload one. MP4, MOV or WebM, up to 180 s and 200 MiB.</p>
     </div>
-    <p className="notice notice-warn">Automatic area recognition is not connected — mark sections yourself or use guided clips. Your report labels whether findings are synthetic test data or real model output. Unmapped areas remain unassessed; no missing area is treated as damage-free.</p>
     <div className="prog">
       <div className="stack">
         <div className="card stack">
@@ -65,12 +64,11 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
           {source === undefined && <p role="status">Checking source video status…</p>}
           {accepted && <>
             <p role="status" className="svc-status">Video accepted. {source.processing_state === 'ready' ? 'Source preparation complete.' : source.processing_state === 'failed' ? 'Source preparation failed.' : 'Preparing source video…'}</p>
-            {source.processing_state === 'failed' && <p className="notice notice-error">This source could not be prepared. Its missing areas are not assessed. Add guided follow-up clips below or finish with missing coverage. Use a new session to replace the source.</p>}
-            {source.processing_state === 'ready' && <p>The video is stored, but this does not verify coverage. Marked ranges are user-declared hints only. Add a guided clip for any available missing area below, or Finish with missing coverage.</p>}
-            <p className="hint">An accepted source and its marked sections cannot be replaced in this session.</p>
+            {source.processing_state === 'failed' && <p className="notice notice-error">This video could not be prepared, so its areas are not assessed. Add follow-up clips or finish; start a new session to replace it.</p>}
+            {source.processing_state === 'ready' && <p>Add a clip for any area the video missed, or finish.</p>}
           </>}
-          {busy && <div role="status" className="stack"><p className="svc-status">{progress?.phase === 'completing' ? 'Confirming video upload with the server…' : 'Uploading source video…'}</p><progress aria-label="Source upload progress" className="meter" max={progress?.totalBytes ?? 1} value={progress?.uploadedBytes ?? 0} /><p className="hint">Keep this tab open until the upload finishes.</p></div>}
-          {picking && unfinished && <p className="notice notice-warn">An unfinished source upload exists. {record ? 'Select the same video to resume only missing pieces. Browser recordings are lost after reload.' : 'This tab has no resume details. Discard the unfinished upload before starting again.'}</p>}
+          {busy && <div role="status" className="stack"><p className="svc-status">{progress?.phase === 'completing' ? 'Confirming video upload with the server…' : 'Uploading source video…'}</p><progress aria-label="Source upload progress" className="meter" max={progress?.totalBytes ?? 1} value={progress?.uploadedBytes ?? 0} /><p className="hint">Keep this tab open until it finishes.</p></div>}
+          {picking && unfinished && <p className="notice notice-warn">Unfinished upload. {record ? 'Select the same video to resume. Browser recordings are lost after a reload.' : 'Discard it before starting again.'}</p>}
           {choosing && <>
             <div className="cap-actions svc-pick">
               {!unfinished && <label className="btn file-btn"><RecordIcon />Record one video with phone camera<input type="file" accept="video/*" capture="environment" className="sr-only" onChange={pickInto} /></label>}
@@ -91,7 +89,7 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
       {choosing && file && <div className="stack">
         {!unfinished && <fieldset className="marks stack">
           <legend>Mark where each zone starts <span className="optional">(optional)</span></legend>
-          <p className="muted">You can upload without marking anything. These are your hints, not verified coverage. Use seconds from the start of the video; one section per area, at most 60 seconds each, without overlaps.</p>
+          <p className="muted">Optional hints, in seconds from the start. One section per area, up to 60 s, no overlaps.</p>
           {ranges.map((range, index) => <div key={index} className="mark-row">
             <label>Area {index + 1}<select value={range.partNo} onChange={(event) => setRange(index, { partNo: Number(event.target.value) })}>{GUIDE_STEPS.map((guide) => <option key={guide.partNo} value={guide.partNo}>{guide.title}</option>)}</select></label>
             <label>Start seconds {index + 1}<input type="number" min="0" max="180" step="0.001" value={range.start} onChange={(event) => setRange(index, { start: event.target.value })} /></label>
@@ -106,7 +104,7 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
       </div>}
     </div>
     <details className="svc-guide"><summary>Optional filming guide</summary>
-      <p>Move slowly in good light, show wide views then details, and avoid people, plates and documents. You can follow this guide in one continuous recording or show just the areas available to you.</p>
+      <p>Move slowly in good light, wide views then details. Avoid people, plates and documents.</p>
       <ul>{GUIDE_STEPS.map((guide) => <li key={guide.partNo}><strong>{guide.title}: </strong>{guide.goal}{guide.partNo === 7 && ' Stay standing outside the car. Do not crawl, kneel under, lie down, or reach beneath the vehicle.'}</li>)}</ul>
     </details>
   </section>;

@@ -39,7 +39,7 @@ export function ConsentForm({ api, onCreated }: Props): ReactElement {
       <form onSubmit={(event) => { void submit(event); }} className="start" noValidate>
         <div>
           <h1 id="start-heading" className="page-title">New inspection</h1>
-          <p className="muted start-lede">How do you want to film the car? Partial footage is welcome; areas not shown or not identifiable remain unassessed.</p>
+          <p className="muted start-lede">How do you want to film the car? Partial footage is fine; anything not shown stays unassessed.</p>
         </div>
         <fieldset className="tiles">
           <legend className="sr-only">How would you like to capture?</legend>
@@ -47,42 +47,44 @@ export function ConsentForm({ api, onCreated }: Props): ReactElement {
             <input type="radio" name="capture-mode" value="single_video" checked={captureMode === 'single_video'} onChange={() => setCaptureMode('single_video')} />
             <span className="tile-top"><span className="tag">Quickest</span><span className="radio" aria-hidden="true" /></span>
             <strong>One video</strong>
-            <span className="muted">Walk around the car once. Record now or upload a walkaround or partial video, up to 3 minutes.</span>
+            <span className="muted">One walk around the car, up to 3 minutes.</span>
           </label>
           <label className="tile">
             <input type="radio" name="capture-mode" value="guided" checked={captureMode === 'guided'} onChange={() => setCaptureMode('guided')} />
             <span className="tile-top"><span className="tag tag-quiet">Most thorough</span><span className="radio" aria-hidden="true" /></span>
             <strong>Guided clips</strong>
-            <span className="muted">Short clips with a 3D guide for each zone. Skip any zone.</span>
+            <span className="muted">A short clip per zone, led by a 3D guide.</span>
           </label>
         </fieldset>
-        <p className="notice notice-warn">Automatic area recognition is not connected — mark sections yourself or use guided clips. Your report labels whether findings are synthetic test data or real model output.</p>
-        <div className="field">
-          <label htmlFor="listing">Seller listing text <span className="optional">(optional)</span></label>
-          <textarea id="listing" value={listing} onChange={(event) => setListing(event.target.value)} maxLength={MAX_LISTING_CHARS} rows={3}
-            placeholder="Paste the ad text" aria-describedby="listing-help" />
-          <span id="listing-help" className="hint">Plain text only, up to {MAX_LISTING_CHARS.toLocaleString()} characters. Avoid personal details.</span>
-        </div>
+        <details className="start-listing">
+          <summary>Add seller listing text <span className="optional">(optional)</span></summary>
+          <div className="field">
+            <label htmlFor="listing">Seller listing text</label>
+            <textarea id="listing" value={listing} onChange={(event) => setListing(event.target.value)} maxLength={MAX_LISTING_CHARS} rows={3}
+              placeholder="Paste the ad text" aria-describedby="listing-help" />
+            <span id="listing-help" className="hint">Plain text, up to {MAX_LISTING_CHARS.toLocaleString()} characters. No personal details.</span>
+          </div>
+        </details>
         <div className="consent">
-          <ul id="consent-terms" className="consent-list">
-            <li>Videos I record or select are uploaded to this prototype for processing. Findings are labeled in the report as synthetic test data or real model output.</li>
-            <li>Results are a screening aid only. They do not replace an inspection by a qualified mechanic.</li>
-            <li>I can request deletion from this session. Closing the tab may lose my access to those controls.</li>
-          </ul>
           <label className="check" htmlFor="consent">
             <input id="consent" type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-describedby="consent-terms" />
-            <span>I understand and agree. I have permission to record or upload this footage and will avoid filming people, number plates and private documents.</span>
+            <span>I understand and agree. I have permission to record or upload this footage, and results are a screening aid, not a mechanic's inspection.</span>
           </label>
+          <details className="consent-details">
+            <summary>What this means</summary>
+            <ul id="consent-terms" className="consent-list">
+              <li>Videos you record or select are uploaded for processing. The report labels findings as synthetic test data or real model output.</li>
+              <li>Avoid filming people, number plates and private documents.</li>
+              <li>You can delete the session's media at any time. Your session lives in this tab, so closing it can lose access to it.</li>
+            </ul>
+          </details>
         </div>
-        <p className="notice">
-          Your session lives in this browser tab only. Reloading this tab is fine, but closing it may lose access to the session and its uploads. There is no recovery from another device.
-        </p>
         {error && <ErrorNotice error={error} />}
         <div className="thumbbar">
           <button type="submit" disabled={!consent || busy} className="btn btn-block" aria-describedby="consent-hint">
             {busy ? 'Starting...' : captureMode === 'single_video' ? 'Continue with one video' : 'Continue with guided clips'}
           </button>
-          <p id="consent-hint" className="hint start-hint" aria-live="polite">{consent ? '' : 'Agree above to enable the button.'}</p>
+          <p id="consent-hint" className="hint start-hint" aria-live="polite">{consent ? '' : 'Tick the box to continue.'}</p>
         </div>
       </form>
     </section>

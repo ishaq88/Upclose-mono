@@ -56,15 +56,14 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
     if (!row) return null;
     return (
       <p className="hint" role="status" data-testid={`engine-kit-${row.id}`}>
-        {row.label}: {row.attached ? `attached${row.provenance ? ` (${PROVENANCE_LABEL[row.provenance]})` : ''}` : 'waiting for it to attach'}
+        {row.label}: {row.attached ? `attached${row.provenance ? ` (${PROVENANCE_LABEL[row.provenance]})` : ''}` : 'waiting'}
       </p>
     );
   };
 
   return (
-    <section id="engine-check" aria-labelledby="engine-heading" className="card engine-check" data-testid="engine-check">
-      <h2 id="engine-heading">Engine check</h2>
-      <p className="hint">Follow the steps with the sensor pod and OBD reader. Each step is shown as text and can also be spoken.</p>
+    <section id="engine-check" aria-labelledby="engine-heading" className="engine-check" data-testid="engine-check">
+      <h3 id="engine-heading" className="sub-title">Walkthrough</h3>
       <ol className="engine-steps">
         {ENGINE_STEPS.map((candidate, position) => (
           <li key={candidate.id} aria-current={position === index ? 'step' : undefined} className={position === index ? 'engine-step engine-step-current' : 'engine-step'}>
@@ -88,7 +87,7 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
             )}
             {voice.enabled && <button type="button" className="btn btn-ghost btn-sm" onClick={() => voice.play(step.lineId, step.text)}>Hear this step again</button>}
           </div>
-          {step.id === 'audio' && <p className="hint">Add the recording under Engine audio in Capture kits.</p>}
+          {step.id === 'audio' && <p className="hint">Add the recording under Engine audio above.</p>}
         </div>
       )}
       {finished && <p className="engine-caption" role="status" data-testid="engine-finished">{voice.caption(ENGINE_FINISH_LINE.lineId) ?? ENGINE_FINISH_LINE.text}</p>}

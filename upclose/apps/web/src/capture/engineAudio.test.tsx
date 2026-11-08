@@ -39,7 +39,7 @@ describe('engine audio upload', () => {
     expect(backend.calls.filter((call) => call.method === 'PUT' && call.url.startsWith('https://storage.test/audio-'))).toHaveLength(1);
     expect(audioCalls('POST', '/complete')).toHaveLength(1);
     expect(backend.calls.find((call) => call.url.endsWith('/audio'))?.body).toEqual({ content_type: 'audio/wav', content_length: 2000 });
-    await waitFor(() => expect(screen.getByTestId('kit-engine_audio').textContent).toContain('✓ Attached'));
+    await waitFor(() => expect(screen.getByTestId('kit-engine_audio').textContent).toContain('Attached'));
   });
 
   it('rejects a wrong type, an oversized clip and a clip over 120 s before any request', async () => {

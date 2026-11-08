@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { CategoryScores } from './CategoryScores';
-import { ReportExtras, type MediaResolver } from './ReportExtras';
+import { ReportAdvice, ReportMechanical, type MediaResolver } from './ReportExtras';
 import { EvidenceFrame, EvidencePrint, SeverityPips } from './EvidencePrint';
 import {
   findingTitle, formatDollars, formatIndex, isSerious, lowestZone, notChecked, OPTIONAL_ZONES, orderFindings,
@@ -20,8 +20,8 @@ interface Props {
 }
 
 const SECTIONS = [
-  ['r-summary', 'Summary'], ['r-found', 'What we found'], ['r-missing', 'Not checked'], ['r-listing', 'The listing'],
-  ['r-mechanical', 'Mechanical checks'], ['r-costs', 'Repair costs'], ['r-next', 'Checklist'], ['r-zones', 'All zones'],
+  ['r-summary', 'Summary'], ['r-found', 'What we found'], ['r-missing', 'Not checked'], ['r-mechanical', 'Mechanical checks'],
+  ['r-advice', 'Advice and audio'], ['r-listing', 'The listing'], ['r-costs', 'Repair costs'], ['r-next', 'Checklist'], ['r-zones', 'All zones'],
 ] as const;
 
 const VERDICT_LABEL = { contradicted: "Doesn't match", supported: 'Matches', not_visible: "Can't tell" } as const;
@@ -81,6 +81,7 @@ export function ReportView({ report, frameUrl, resolveFrame, resolveMedia }: Pro
           <h2 id="summary-h" className="sr-only">Summary</h2>
           <div className="summary">
             <div className="summary-main">
+              {report.categories && <CategoryScores categories={report.categories} />}
               <div className="verdict">
                 <span className={`k-ico ${v.serious ? 'k-risk' : 'k-ok'}`} aria-hidden="true" />
                 <div><h3>{v.headline}</h3><p>{v.advice}</p></div>
@@ -96,8 +97,7 @@ export function ReportView({ report, frameUrl, resolveFrame, resolveMedia }: Pro
                   <div><div className="label">Lowest zone</div><div className="idx-zone">{ZONE_LABEL[lowest.zone]} <span className="num">{formatIndex(lowest.score)}</span></div></div>
                 )}
               </div>
-              {report.categories && <CategoryScores categories={report.categories} />}
-              <p className="muted small">Based on the {scored.length} of {scorable} zones we fully checked. It measures how much visible damage we found, not whether the vehicle is a good buy.</p>
+              <p className="muted small">Based on {scored.length} of {scorable} zones fully checked. It measures visible damage, not whether the car is a good buy.</p>
             </div>
             <div className="summary-side">
               <h3>Things to know before you buy</h3>
@@ -119,11 +119,9 @@ export function ReportView({ report, frameUrl, resolveFrame, resolveMedia }: Pro
           </div>
         </section>
 
-        <ReportExtras key={report.revision_id} report={report} resolveMedia={resolveMedia} />
-
         <section className="rsec" id="r-found" aria-labelledby="found-h">
           <h2 id="found-h">What we found</h2>
-          <p className="sub">{findings.length} confirmed {findings.length === 1 ? 'finding' : 'findings'}{possible ? `, ${possible} possible ${possible === 1 ? 'issue' : 'issues'} to check yourself` : ''}, most serious first. Tap a frame to see it larger.</p>
+          <p className="sub">{findings.length} confirmed {findings.length === 1 ? 'finding' : 'findings'}{possible ? `, ${possible} possible to check yourself` : ''}, most serious first. Tap a frame to enlarge.</p>
           <div className="found">
             <div className="map-col">
               <Suspense fallback={<div className="map"><span className="map-status">Loading map…</span></div>}>
@@ -169,6 +167,9 @@ export function ReportView({ report, frameUrl, resolveFrame, resolveMedia }: Pro
             ))}
           </div>
         </section>
+
+        <ReportMechanical key={`m-${report.revision_id}`} report={report} resolveMedia={resolveMedia} />
+        <ReportAdvice key={`a-${report.revision_id}`} report={report} resolveMedia={resolveMedia} />
 
         <section className="rsec" id="r-listing" aria-labelledby="listing-h">
           <h2 id="listing-h">Does the listing hold up?</h2>

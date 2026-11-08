@@ -16,7 +16,7 @@ describe('ReportView', () => {
     render(<ReportView report={SAMPLE_REPORT} frameUrl={sampleFrameUrl} />);
     expect(screen.getByRole('heading', { name: '1 serious issue' })).toBeTruthy();
     expect(screen.getByText('94.9')).toBeTruthy();
-    expect(screen.getByText(/Based on the 3 of 6 zones we fully checked/)).toBeTruthy();
+    expect(screen.getByText(/Based on 3 of 6 zones fully checked/)).toBeTruthy();
   });
 
   it('numbers findings serious-first and gives every frame an accessible enlarge control', () => {

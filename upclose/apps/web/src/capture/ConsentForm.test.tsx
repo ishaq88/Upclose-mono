@@ -29,9 +29,8 @@ describe('ConsentForm account link', () => {
 
   it('shows provenance-neutral start copy without asserting findings are synthetic', () => {
     setup(null);
-    expect(screen.getByText(/Automatic area recognition is not connected — mark sections yourself or use guided clips/)).toBeTruthy();
-    expect(screen.getByText(/Your report labels whether findings are synthetic test data or real model output/)).toBeTruthy();
-    expect(screen.getByText(/Findings are labeled in the report as synthetic test data or real model output/)).toBeTruthy();
+    expect(screen.queryByText(/not connected/)).toBeNull();
+    expect(screen.getByText(/The report labels findings as synthetic test data or real model output/)).toBeTruthy();
     expect(screen.queryByText(/Current findings are synthetic test data/)).toBeNull();
   });
 

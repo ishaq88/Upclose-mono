@@ -17,7 +17,7 @@ import '../capture/capture.css';
 export const STATE_LABEL: Record<PartState, string> = {
   pending: 'Not filmed yet',
   uploading: 'Uploading',
-  uploaded: 'Uploaded, waiting for processing',
+  uploaded: 'Uploaded, queued',
   processing: 'Processing',
   processed: 'Processed',
   failed: 'Failed',
@@ -47,6 +47,8 @@ export interface PartCardProps {
   /** An in-memory copy of the file exists in this tab (so "Try again" needs no reselection). */
   hasFile: boolean;
   sessionCapturing: boolean;
+  /** False when the page shows the 3D car itself (the laptop layout keeps one car beside the steps). */
+  showViewer?: boolean;
   actionError: UiError | undefined;
   /** Jump to the next zone that still needs footage, when there is one. */
   next: { title: string; go: () => void } | null;
@@ -65,7 +67,7 @@ export function PartCard(props: PartCardProps): ReactElement {
   const headingId = `part-${part.part_no}-heading`;
   return (
     <article className="guide" aria-labelledby={headingId} data-part={part.part_no}>
-      <GuideViewer guide={guide} />
+      {props.showViewer !== false && <GuideViewer guide={guide} />}
       <div className="guide-body">
         <div className="guide-lead">
           <div className="guide-head">
@@ -80,7 +82,7 @@ export function PartCard(props: PartCardProps): ReactElement {
         </ol>
       </div>
       {part.state === 'failed' && part.reason && <p className="notice notice-error guide-note">{describeReason(part.reason)}</p>}
-      {part.state === 'skipped' && <p className="notice guide-note">This zone was skipped and will not be assessed. Its report coverage will say so.</p>}
+      {part.state === 'skipped' && <p className="notice guide-note">Skipped. This zone will show as not assessed.</p>}
       <Actions {...props} />
     </article>
   );
@@ -111,7 +113,7 @@ function Actions(props: PartCardProps): ReactElement | null {
       {!local && part.state === 'pending' && <CaptureControls {...props} />}
       {!local && part.state === 'uploading' && <InterruptedControls {...props} record={record} />}
       {accepted && (
-        <p className="hint">Your video was accepted. Replacing an accepted clip is not supported in this session; use a new session to start over.</p>
+        <p className="hint">Clip accepted. To replace it, start a new session.</p>
       )}
       {props.next && part.state !== 'pending' && !busy && (
         <button type="button" className="btn btn-ghost btn-sm next-zone" onClick={props.next.go}>Next zone: {props.next.title}</button>
@@ -140,7 +142,6 @@ function UploadProgress({ local, onCancel }: { local: LocalUpload; onCancel: () 
         {label}
         <progress className="meter" max={100} value={percent} aria-label="Upload progress" />
       </label>
-      <p className="hint">Keep this tab open until the upload finishes.</p>
       <button type="button" onClick={onCancel} className="btn btn-ghost btn-sm">Cancel and retake</button>
     </div>
   );
@@ -164,20 +165,17 @@ function InterruptedControls({ record, ...props }: PartCardProps): ReactElement 
   if (!record) {
     return (
       <div className="notice notice-warn stack">
-        <p>
-          This zone has an upload in progress that this tab has no details for (for example the browser lost its saved state), so it cannot be continued here.
-          Discard it to free this zone, then film or choose the video again.
-        </p>
+        <p>This zone has an upload this tab cannot continue. Discard it, then film or choose the video again.</p>
         {props.part.active_upload_id
           ? <button type="button" onClick={props.onDiscardStranded} className="btn btn-ghost btn-sm">Discard stranded upload</button>
-          : <p>The service did not report an upload to discard; unfinished uploads are closed automatically after 24 hours.</p>}
+          : <p>Nothing to discard; unfinished uploads close on their own after 24 hours.</p>}
       </div>
     );
   }
   return (
     <div className="notice notice-warn stack">
       <p>
-        An upload for this zone was interrupted ({formatBytes(record.size)}{record.fileName ? `, ${record.fileName}` : ''}). To continue, select the same video file again; only missing pieces are sent. A clip recorded in the browser cannot be recovered after a reload, so use Start this zone over.
+        An upload for this zone was interrupted ({formatBytes(record.size)}{record.fileName ? `, ${record.fileName}` : ''}). Select the same video file again to continue; only missing pieces are sent. A clip recorded in the browser cannot be recovered, so use Start this zone over.
       </p>
       <ReselectFile label="Select the same video to continue" onFile={props.onResumeWith} />
       <div><button type="button" onClick={props.onRetake} className="textlink">Start this zone over</button></div>
@@ -249,7 +247,7 @@ function CaptureControls(props: PartCardProps): ReactElement {
           </button>
           <button type="button" className="btn btn-ghost" onClick={discard}>Retake</button>
         </div>
-        <p className="hint">Quality hints are advice only. You can keep any clip; weak footage may be marked as not fully assessed.</p>
+        <p className="hint">Hints are advice only; weak footage may be marked as not fully assessed.</p>
       </div>
     );
   }
@@ -259,7 +257,7 @@ function CaptureControls(props: PartCardProps): ReactElement {
       <div className="thumbbar">
         {confirmSkip ? (
           <div className="skip-confirm">
-            <p>Skip {guide.title}? Skipping cannot be undone in this session, and the report will show this zone as not assessed.</p>
+            <p>Skip {guide.title}? This cannot be undone, and the zone will show as not assessed.</p>
             <div className="cap-actions">
               <button type="button" className="btn btn-dark" onClick={() => { setConfirmSkip(false); props.onSkip(); }}>Yes, skip {guide.title}</button>
               <button type="button" className="btn btn-ghost" onClick={() => setConfirmSkip(false)}>Keep it</button>
@@ -299,7 +297,7 @@ function UploadIcon(): ReactElement {
 
 function HintList({ hints }: { hints: QualityHint[] | null }): ReactElement {
   if (hints === null) return <p className="hint" role="status">Checking video details...</p>;
-  if (hints.length === 0) return <p className="hint">No obvious length or size problems. Blur and lighting are checked after upload.</p>;
+  if (hints.length === 0) return <p className="hint">No length or size problems. Blur and light are checked after upload.</p>;
   return (
     <ul className="hints" aria-label="Quality hints">
       {hints.map((hint) => (

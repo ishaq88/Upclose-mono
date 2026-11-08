@@ -58,7 +58,7 @@ describe('consent and session creation', () => {
     expect((start as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(start);
     expect(backend.calls).toHaveLength(0);
-    expect(screen.getByText(/closing it may lose access to the session/i)).toBeTruthy();
+    expect(screen.getByText(/closing it can lose access/i)).toBeTruthy();
   });
 
   it('creates the session with the configured consent version and keeps the token out of the DOM and URLs', async () => {
@@ -113,8 +113,8 @@ describe('guide steps', () => {
     expect(screen.getByText(/Zone 6 of 8 \u00b7 Underbody, low sweep/)).toBeTruthy();
     expect(within(underbody).getByText(/Stay standing and keep your whole body outside the car/)).toBeTruthy();
     expect(within(underbody).getByText(/Do not crawl, kneel under, lie down, or reach beneath the vehicle/)).toBeTruthy();
-    expect(within(underbody).getByRole('img', { name: /never go under the car/ })).toBeTruthy();
-    expect(within(underbody).getByText(/Stay standing outside, phone low/)).toBeTruthy();
+    expect(screen.getByRole('img', { name: /never go under the car/ })).toBeTruthy();
+    expect(screen.getByText(/Stay standing outside, phone low/)).toBeTruthy();
   });
 
   it('offers part-specific file fallbacks that accept video and can open the phone camera', async () => {
@@ -198,9 +198,9 @@ describe('skip and finish', () => {
     seedSession();
     render(<App />);
     await pickAndUpload(1, video(5000));
-    await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Uploaded, waiting for processing'));
+    await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Uploaded, queued'));
     expect(backend.callsTo('POST', '/complete')).toHaveLength(1);
-    expect(screen.getByText(/Replacing an accepted clip is not supported/)).toBeTruthy();
+    expect(screen.getByText(/Clip accepted/)).toBeTruthy();
   });
 
   it('finishes only on an explicit confirmed action and then lists skipped zones', async () => {
@@ -247,7 +247,7 @@ describe('resume after reload', () => {
 
     fireEvent.click(within(card).getByRole('button', { name: 'Dismiss' }));
     fireEvent.change(within(card).getByLabelText('Select the same video to continue'), { target: { files: [video(3000, 1)] } });
-    await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Uploaded, waiting for processing'));
+    await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Uploaded, queued'));
   });
 });
 
@@ -260,7 +260,7 @@ describe('stranded upload', () => {
     seedSession(); // no upload record in sessionStorage
     render(<App />);
     const card = await zoneCard('Driver side');
-    await within(card).findByText(/no details for/);
+    await within(card).findByText(/cannot continue/);
     expect((screen.getByRole('button', { name: 'Finish capture' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(within(card).getByRole('button', { name: 'Discard stranded upload' }));
     await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Not filmed yet'));

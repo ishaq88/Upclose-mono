@@ -7,9 +7,12 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { zoneSpec, type CarDims } from './zones';
 
 const ORANGE = new THREE.Color('#ff5a1f');
+const DONE = new THREE.Color('#1f6f8b');
 
 export interface GuideHandle {
   setZone: (partNo: number) => void;
+  /** Zones already filmed: drawn as a quiet green wash on the car so progress reads at a glance. */
+  setDone: (partNos: readonly number[]) => void;
   dispose: () => void;
 }
 
@@ -81,9 +84,13 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   let disposed = false;
   let observer: ResizeObserver | null = null;
   const fx = new THREE.Group();
+  const doneFx = new THREE.Group();
+  const pulse: THREE.MeshBasicMaterial[] = [];
+  const doneDisposables: { dispose: () => void }[] = [];
   const fxDisposables: { dispose: () => void }[] = [];
   const clearFx = (): void => {
     fx.clear();
+    pulse.length = 0;
     for (const item of fxDisposables) item.dispose();
     fxDisposables.length = 0;
   };
@@ -94,6 +101,7 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
     observer?.disconnect();
     controls.dispose();
     clearFx();
+    for (const item of doneDisposables) item.dispose();
     ground.geometry.dispose();
     (ground.material as THREE.Material).dispose();
     envTarget.dispose();
@@ -113,6 +121,7 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   const { car, dims } = loaded;
   scene.add(car);
   scene.add(fx);
+  scene.add(doneFx);
 
   const reduceMotion = prefersReducedMotion();
   const wheels: THREE.Mesh[] = [];
@@ -132,7 +141,45 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   };
   const track = <T extends { dispose: () => void }>(item: T): T => { fxDisposables.push(item); return item; };
 
+  let activePart = initialPartNo;
+  let donePartsList: readonly number[] = [];
+  const drawDone = (): void => {
+    doneFx.clear();
+    for (const item of doneDisposables) item.dispose();
+    doneDisposables.length = 0;
+    for (const partNo of donePartsList) {
+      if (partNo === activePart) continue;
+      const zone = zoneSpec(partNo, dims);
+      for (const [x, y, zz, w, hh, d] of zone.boxes) {
+        const geo = new THREE.BoxGeometry(w, hh, d);
+        doneDisposables.push(geo);
+        let mesh: THREE.Object3D;
+        if (zone.onTop) {
+          const edges = new THREE.EdgesGeometry(geo);
+          const mat = new THREE.LineBasicMaterial({ color: DONE, depthTest: false, transparent: true, opacity: 0.8 });
+          doneDisposables.push(edges, mat);
+          mesh = new THREE.LineSegments(edges, mat);
+        } else {
+          const mat = new THREE.MeshBasicMaterial({ color: DONE, transparent: true, opacity: 0.3, depthWrite: false });
+          doneDisposables.push(mat);
+          mesh = new THREE.Mesh(geo, mat);
+        }
+        mesh.position.set(x, y, zz);
+        mesh.renderOrder = 1;
+        doneFx.add(mesh);
+      }
+    }
+  };
+  const setDone = (partNos: readonly number[]): void => {
+    const same = partNos.length === donePartsList.length && partNos.every((n, i) => n === donePartsList[i]);
+    if (same) return;
+    donePartsList = [...partNos];
+    drawDone();
+  };
+
   const setZone = (partNo: number): void => {
+    activePart = partNo;
+    drawDone();
     const z = zoneSpec(partNo, dims);
     clearFx();
     for (const [x, y, zz, w, hh, d] of z.boxes) {
@@ -142,7 +189,9 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
         const edges = track(new THREE.EdgesGeometry(geo));
         mesh = new THREE.LineSegments(edges, track(new THREE.LineBasicMaterial({ color: ORANGE, depthTest: false, transparent: true })));
       } else {
-        mesh = new THREE.Mesh(geo, track(new THREE.MeshBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.45, depthWrite: false })));
+        const glow = track(new THREE.MeshBasicMaterial({ color: ORANGE, transparent: true, opacity: 0.45, depthWrite: false }));
+        pulse.push(glow);
+        mesh = new THREE.Mesh(geo, glow);
       }
       mesh.position.set(x, y, zz);
       mesh.renderOrder = 2;
@@ -176,7 +225,8 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   };
 
   const ease = (x: number): number => 1 - Math.pow(1 - x, 3);
-  renderer.setAnimationLoop(() => {
+  renderer.setAnimationLoop((time) => {
+    if (!reduceMotion) for (const mat of pulse) mat.opacity = 0.4 + 0.16 * Math.sin(time / 380);
     if (tween < 1) {
       tween = Math.min(1, tween + 0.03);
       camera.position.lerpVectors(from.cam, to.cam, ease(tween));
@@ -194,5 +244,5 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   observer?.observe(el);
   fit();
   setZone(initialPartNo);
-  return { setZone, dispose };
+  return { setZone, setDone, dispose };
 }

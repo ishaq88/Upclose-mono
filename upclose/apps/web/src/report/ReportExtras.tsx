@@ -4,6 +4,7 @@ import type { PaidReport, ReportMedia } from '../api/client';
 export type MediaResolver = (which: ReportMedia, signal: AbortSignal) => Promise<Blob>;
 const words = (text: string): string => text.replaceAll('_', ' ');
 const provenance = (value: string): string => value === 'synthetic' || value === 'fixture' ? 'Synthetic sample data' : value === 'cached' ? 'Cached recording' : 'Live';
+const prov = (value: string): string => value === 'synthetic' || value === 'fixture' ? 'badge badge-sim' : 'badge';
 const LABELS = { rig_telemetry: 'Sensor pod', obd_snapshot: 'OBD snapshot', engine_audio: 'Engine audio' };
 
 function Media({ which, label, resolve }: { which: ReportMedia; label: string; resolve?: MediaResolver }): ReactElement {
@@ -43,7 +44,7 @@ function Vibration({ report }: { report: PaidReport }): ReactElement {
     const segment = `${connected ? 'L' : 'M'}${40 + p.t_s / maxT * 540},${160 - p.accel_rms / maxY * 130}`;
     connected = true; return segment;
   }).join(' ');
-  return <figure data-testid="vibration-chart">
+  return <figure data-testid="vibration-chart" className="check-card">
     <svg viewBox="0 0 600 200" role="img" aria-label="Vibration over time" style={{ width: '100%' }}>
       <path d="M40 20V160H580" fill="none" stroke="currentColor" />
       <path d={path} fill="none" stroke="currentColor" strokeWidth="2" />
@@ -54,17 +55,15 @@ function Vibration({ report }: { report: PaidReport }): ReactElement {
   </figure>;
 }
 
-export function ReportExtras({ report, resolveMedia }: { report: PaidReport; resolveMedia?: MediaResolver }): ReactElement {
-  const advisory = report.advisory;
+export function ReportMechanical({ report, resolveMedia }: { report: PaidReport; resolveMedia?: MediaResolver }): ReactElement {
   return <>
     <section className="rsec" id="r-mechanical" aria-labelledby="mechanical-h">
       <h2 id="mechanical-h">Mechanical checks</h2>
-      <p className="sub">These checks feed the Mechanical score using unvalidated weights. Missing evidence is not a pass. Values are uncalibrated estimates, not measurements.</p>
-      {report.dashboard && <article className="miss" data-testid="dashboard-check">
-        <h3>Dashboard</h3>
-        <p><strong>{report.dashboard.assessment?.state === 'assessed' ? 'Checked' : 'Not checked'}</strong></p>
+      <p className="sub">These feed the Mechanical score. Missing evidence is not a pass, and values are uncalibrated estimates.</p>
+      {report.dashboard && <article className="check-card" data-testid="dashboard-check">
+        <div className="check-head"><h3>Dashboard</h3><strong className={report.dashboard.assessment?.state === 'assessed' ? 'chip chip-ok' : 'chip'}>{report.dashboard.assessment?.state === 'assessed' ? 'Checked' : 'Not checked'}</strong></div>
         {report.dashboard.assessment && <>
-          <p>{provenance(report.dashboard.assessment.provenance)}</p>
+          <p><span className={prov(report.dashboard.assessment.provenance)}>{provenance(report.dashboard.assessment.provenance)}</span></p>
           {report.dashboard.assessment.reason && <p>{words(report.dashboard.assessment.reason)}</p>}
           {report.dashboard.assessment.lit.map((light, i) => <p key={i}>{words(light.indicator)} ({light.severity}; uncalibrated model confidence {light.confidence}/5)</p>)}
           {report.dashboard.assessment.flags.map((flag) => <p key={flag}>{words(flag)}</p>)}
@@ -76,9 +75,9 @@ export function ReportExtras({ report, resolveMedia }: { report: PaidReport; res
         const source = check?.source;
         const summary = source?.summary;
         const assessed = check?.checked && summary?.state === 'assessed';
-        return <article className="miss" key={kind} data-testid={`check-${kind}`}>
-          <h3>{label}</h3>
-          <p><strong>{assessed ? 'Checked' : 'Not checked'}</strong>{source && ` · ${provenance(source.provenance)} · ${source.device}`}</p>
+        return <article className="check-card" key={kind} data-testid={`check-${kind}`}>
+          <div className="check-head"><h3>{label}</h3><strong className={assessed ? 'chip chip-ok' : 'chip'}>{assessed ? 'Checked' : 'Not checked'}</strong></div>
+          {source && <p><span className={prov(source.provenance)}>{provenance(source.provenance)}</span> <span className="muted">{source.device}</span></p>}
           {!assessed && <p>{words(summary?.reason ?? 'No assessed data was attached.')} This is not a pass.</p>}
           {assessed && summary && <>
             <p>Flags: {summary.flags.length ? summary.flags.map(words).join(', ') : 'None reported'}</p>
@@ -100,13 +99,21 @@ export function ReportExtras({ report, resolveMedia }: { report: PaidReport; res
           </>}
         </article>;
       })}
-      {report.mechanical_breakdown && <div data-testid="mechanical-breakdown">
+      {report.mechanical_breakdown && <div data-testid="mechanical-breakdown" className="check-card">
         <h3>How the Mechanical score was reached</h3>
         <ul>{report.mechanical_breakdown.deductions.map((d) => <li key={d.code}>{d.label}: {d.points} points deducted</li>)}</ul>
         {report.mechanical_breakdown.flags.map((f) => <p key={f}>{words(f)}</p>)}
       </div>}
       <Vibration report={report} />
     </section>
+  </>;
+}
+
+/** Narration player and generated advice: the last thing a reader needs, so it sits after the evidence. */
+export function ReportAdvice({ report, resolveMedia }: { report: PaidReport; resolveMedia?: MediaResolver }): ReactElement | null {
+  const advisory = report.advisory;
+  if (!report.narration_audio && !advisory) return null;
+  return <div id="r-advice" className="advice-group">
     {report.narration_audio && <section className="rsec" aria-label="Spoken report">
       <h2>Listen to your report</h2>
       <p>{provenance(report.narration_audio.provenance)}</p>
@@ -124,5 +131,5 @@ export function ReportExtras({ report, resolveMedia }: { report: PaidReport; res
       </> : <p>Advisory unavailable. {advisory.reason && words(advisory.reason)}</p>}
       <p className="muted">This is generated advice, not a finding, and it does not affect any score.</p>
     </section>}
-  </>;
+  </div>;
 }

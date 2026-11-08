@@ -30,19 +30,19 @@ describe('Capture kits card', () => {
   it('renders attached, provenance and not-assessed status from mocked sources', async () => {
     backend.sources = [pod, obd];
     render(<App />);
-    await waitFor(() => expect(row('rig_telemetry').getByText('✓ Attached')).toBeTruthy());
+    await waitFor(() => expect(row('rig_telemetry').getByText('Attached')).toBeTruthy());
     expect(row('rig_telemetry').getByText('Simulated')).toBeTruthy();
     expect(row('obd_snapshot').getByText('Replayed')).toBeTruthy();
     expect(row('obd_snapshot').getByText('Not assessed')).toBeTruthy();
-    expect(row('engine_audio').getByText('Not attached')).toBeTruthy();
-    expect(row('phone_video').getByText('Not attached')).toBeTruthy();
+    expect(row('engine_audio').getByText('Waiting')).toBeTruthy();
+    expect(row('phone_video').getByText('Waiting')).toBeTruthy();
   });
 
   it('treats a 404 from an API without the route as no sources', async () => {
     backend.sourcesStatus = 404;
     render(<App />);
     await screen.findByTestId('kit-rig_telemetry');
-    expect(row('rig_telemetry').getByText('Not attached')).toBeTruthy();
+    expect(row('rig_telemetry').getByText('Waiting')).toBeTruthy();
     const api = createApi({ getToken: () => backend.token, fetchImpl: backend.fetch });
     await expect(api.listSources(backend.sessionId)).resolves.toEqual([]);
     backend.unauthorized = true;
@@ -54,7 +54,7 @@ describe('Capture kits card', () => {
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     const view = render(<App />);
     fireEvent.click(await screen.findByText('Connect the sensor pod'));
-    expect(screen.getByText(/This key controls this inspection/)).toBeTruthy();
+    expect(screen.getByText(/Paste it only into your own rig/)).toBeTruthy();
     expect(screen.getByText(`python -m upclose_rig demo-run --session ${backend.sessionId} --api http://localhost:8000 --port COM3 --audio synth`)).toBeTruthy();
     expect(view.container.innerHTML).not.toContain(backend.token);
     expect(document.body.textContent).not.toContain(backend.token);
@@ -67,12 +67,12 @@ describe('Capture kits card', () => {
   it('lists the kits that are not attached in the finish confirmation', async () => {
     backend.sources = [pod];
     render(<App />);
-    await waitFor(() => expect(row('rig_telemetry').getByText('✓ Attached')).toBeTruthy());
+    await waitFor(() => expect(row('rig_telemetry').getByText('Attached')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
     const notice = screen.getByTestId('missing-kits');
     expect(notice.textContent).toContain('Phone video, OBD, Engine audio');
     expect(notice.textContent).not.toContain('Sensor pod');
-    expect(notice.textContent).toContain('These will appear as Not checked in your report.');
+    expect(notice.textContent).toContain('They will show as not checked in the report.');
   });
 });
 

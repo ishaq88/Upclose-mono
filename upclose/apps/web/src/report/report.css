@@ -15,18 +15,18 @@
   .toc a.on { background: var(--ink); color: #fff; box-shadow: none; }
 }
 
-.rsec { scroll-margin-top: 80px; padding-top: 64px; display: flex; flex-direction: column; gap: 20px; }
+.rsec { scroll-margin-top: 80px; padding-top: 48px; display: flex; flex-direction: column; gap: 16px; }
 .rsec:first-child { padding-top: 0; }
-.rsec h2 { font-size: clamp(30px, 3.4vw, 40px); font-weight: 800; line-height: 1; }
+.rsec h2 { font-size: clamp(28px, 3vw, 36px); font-weight: 800; line-height: 1; }
 .rsec .sub { color: var(--ink-2); max-width: 42em; margin-top: -8px; }
 .small { font-size: 15px; }
 .label { font-size: 14px; font-weight: 600; color: var(--ink-2); }
 
-.summary { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: 32px; background: var(--surface); border-radius: 22px; padding: 32px; }
+.summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; background: var(--surface); border-radius: 22px; padding: 28px; }
 @container (max-width: 760px) { .summary { grid-template-columns: 1fr; padding: 22px; gap: 24px; } }
-.summary-main { display: flex; flex-direction: column; gap: 18px; }
+.summary-main { display: flex; flex-direction: column; gap: 16px; }
 .verdict { display: flex; gap: 14px; align-items: flex-start; }
-.verdict h3 { font-size: 34px; font-weight: 800; line-height: 1; }
+.verdict h3 { font-size: 32px; font-weight: 800; line-height: 1; }
 .verdict p { font-size: 17px; margin-top: 6px; }
 .verdict .k-ico { width: 38px; height: 38px; }
 .summary-nums { display: flex; flex-wrap: wrap; gap: 12px 32px; border-top: 1px solid var(--line); padding-top: 16px; }
@@ -129,3 +129,37 @@
 .about { border-top: 1px solid var(--line-2); padding-top: 8px; }
 .about summary { cursor: pointer; min-height: 52px; display: flex; align-items: center; font-weight: 600; }
 .about p { color: var(--ink-2); font-size: 15px; max-width: 46em; padding-bottom: 12px; }
+
+/* Report polish: scores first, one card style for every mechanical check, readable on a projector. */
+.rep-scope { font-size: 17px; }
+.summary-main .category-scores { order: -1; }
+.category-scores .category-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.category-scores .category { background: var(--bg); border-radius: 16px; padding: 14px 16px; gap: 4px; }
+.category-scores .category[data-testid="category-overall"] { background: var(--ink); color: #fff; }
+.category-scores .category[data-testid="category-overall"] dt { color: #c9cdd2; }
+.category-scores .category[data-testid="category-overall"] .category-none { color: #e1e3e6; }
+.category-scores .category dt { font-size: 14px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.category-scores .category-score { font: 800 52px/1 var(--display); letter-spacing: -0.02em; }
+.category-scores .category-none { font-size: 18px; line-height: 1.2; }
+@container (max-width: 520px) { .category-scores .category-score { font-size: 40px; } .category-scores .category { padding: 12px; } }
+
+.rsec > .check-card, .rsec > [data-testid="mechanical-breakdown"] { max-width: none; }
+.check-card { background: var(--surface); border-radius: 16px; padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.check-card h3 { font-size: 22px; font-weight: 700; }
+.check-card p { font-size: 16px; }
+.check-card ul { margin: 0; padding-left: 20px; }
+.check-card audio { width: 100%; }
+.check-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chip { font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: #eceef0; color: var(--ink-2); white-space: nowrap; }
+.chip-ok { background: var(--ok-soft); color: #155f36; }
+.badge { font-size: 13px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #eceef0; color: var(--ink-2); }
+.badge-sim { background: var(--part-soft); color: #6f4700; }
+.check-card figcaption { font-size: 14px; color: var(--ink-2); }
+.advice-group { display: flex; flex-direction: column; }
+.advice-group .rsec:first-child { padding-top: 48px; }
+.advice-group .rsec > p, .advice-group .rsec li { max-width: 46em; }
+[data-testid="advisory"] ul { background: var(--surface); border-radius: 16px; padding: 14px 20px 14px 38px; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+[data-testid="advisory"] h3 { font-size: 20px; font-weight: 700; }
+.narration-player { background: var(--surface); border-radius: 16px; padding: 14px 18px; }
+.narration-player audio { width: 100%; }
+.narration-player > p { font-weight: 600; margin-bottom: 8px; }

@@ -20,10 +20,25 @@ export interface ProgressPanelProps {
   onUnauthorized: () => void;
   /** Injectable for tests; defaults to a full-page navigation. */
   navigate?: (url: string) => void;
+  /** Rail mode for the capture page: stage bar, one-line summary, problem zones and the report state only. */
+  compact?: boolean;
 }
 
 /** Server-reported processing state and authenticated owner report access. */
-export function ProgressPanel({ api, progress, onRefresh, onUnauthorized, navigate = defaultNavigate }: ProgressPanelProps): ReactElement {
+export function ProgressPanel({ api, progress, onRefresh, onUnauthorized, navigate = defaultNavigate, compact = false }: ProgressPanelProps): ReactElement {
+  if (compact) {
+    const parts = progress ? orderedParts(progress.parts) : [];
+    const problems = parts.filter((p) => p.state === 'failed');
+    return (
+      <section aria-labelledby="progress-heading" className="rail">
+        <h2 id="progress-heading" className="rail-title">Processing and report</h2>
+        <Stages progress={progress} />
+        <RailSummary progress={progress} />
+        {problems.length > 0 && <ul className="zrows zrows-flat" aria-label="Zones that could not be checked">{problems.map((part) => <ZoneRow key={part.id} part={part} capturing={progress?.state === 'capturing'} />)}</ul>}
+        <ReportStatus api={api} progress={progress} onRefresh={onRefresh} onUnauthorized={onUnauthorized} navigate={navigate} />
+      </section>
+    );
+  }
   return (
     <section aria-labelledby="progress-heading" className="res-col">
       <h2 id="progress-heading" style={{ margin: 0, fontSize: 28, fontWeight: 800, lineHeight: 1.05 }}>Processing and report</h2>
@@ -35,6 +50,27 @@ export function ProgressPanel({ api, progress, onRefresh, onUnauthorized, naviga
         <ReportStatus api={api} progress={progress} onRefresh={onRefresh} onUnauthorized={onUnauthorized} navigate={navigate} />
       </div>
     </section>
+  );
+}
+
+function RailSummary({ progress }: { progress: ProgressResponse | null }): ReactElement {
+  if (!progress) return <p role="status" className="muted rail-line">Loading status...</p>;
+  const count = (states: string[]): number => progress.parts.filter((p) => states.includes(p.state)).length;
+  const waiting = count(['uploaded']);
+  const checking = count(['processing']);
+  const done = count(['processed']);
+  const failed = count(['failed']);
+  const bits = [
+    waiting > 0 ? `${waiting} queued` : '',
+    checking > 0 ? `${checking} checking` : '',
+    done > 0 ? `${done} done` : '',
+    failed > 0 ? `${failed} could not be checked` : '',
+  ].filter(Boolean);
+  return (
+    <>
+      <p role="status" className="rail-line">{bits.length > 0 ? bits.join(' · ') : 'Nothing uploaded yet.'}</p>
+      <p className="sr-only" role="status">{count(['processed', 'failed', 'skipped'])} of {progress.parts.length} zones finished.</p>
+    </>
   );
 }
 
@@ -53,7 +89,7 @@ function Stages({ progress }: { progress: ProgressResponse | null }): ReactEleme
 }
 
 function ZoneStatus({ progress }: { progress: ProgressResponse | null }): ReactElement {
-  if (!progress) return <p role="status" className="muted">Processing status has not been loaded yet. A missing status is not a clean result.</p>;
+  if (!progress) return <p role="status" className="muted">Status not loaded yet. A missing status is not a clean result.</p>;
   const finished = progress.parts.filter((p) => p.state === 'processed' || p.state === 'failed' || p.state === 'skipped').length;
   return (
     <>
@@ -86,8 +122,8 @@ function ZoneRow({ part, capturing }: { part: PartSummary; capturing: boolean })
 function ZonePill({ part, capturing }: { part: PartSummary; capturing: boolean }): ReactElement {
   switch (part.state) {
     case 'processed': return <span className="pill p-ok">Done</span>;
-    case 'processing':
-    case 'uploaded': return <span className="pill p-run"><span className="spin" aria-hidden="true" />Checking</span>;
+    case 'processing': return <span className="pill p-run"><span className="spin" aria-hidden="true" />Checking damage</span>;
+    case 'uploaded': return <span className="pill p-wait">Queued</span>;
     case 'uploading': return <span className="pill p-run"><span className="spin" aria-hidden="true" />Uploading</span>;
     case 'skipped': return <span className="pill p-not">Skipped</span>;
     case 'failed': return isQualityReason(part.reason)
@@ -106,13 +142,13 @@ function ReportStatus(props: ReportStatusProps): ReactElement {
   const { progress } = props;
   let body: ReactElement;
   if (!progress) body = <p className="muted">The report state is not known yet.</p>;
-  else if (progress.state === 'capturing') body = <p className="muted">Your report is created when you finish capture. Nothing is built until you choose Finish.</p>;
-  else if (progress.report === null) body = <p role="status" className="muted">Capture is finished. Your report is being prepared; this page keeps checking.</p>;
-  else if (progress.report.state === 'building') body = <p role="status" className="muted">Your report is being built. Zones are still processing in the background; this page keeps checking.</p>;
+  else if (progress.state === 'capturing') body = <p className="muted">The report is built when you finish capture.</p>;
+  else if (progress.report === null) body = <p role="status" className="muted">Capture is finished. Preparing your report...</p>;
+  else if (progress.report.state === 'building') body = <p role="status" className="muted">Your report is being built. Zones still processing finish in the background.</p>;
   else if (progress.report.state === 'failed') {
     body = (
       <p role="alert" className="notice notice-error">
-        The report could not be built, so there is nothing to open or unlock. Zones listed as failed or skipped were not assessed, which is not a clean result.
+        The report could not be built. Failed or skipped zones were not assessed, which is not a clean result.
       </p>
     );
   } else body = <ReadyReport {...props} slug={progress.report.slug} unlocked={progress.report.unlocked} />;
@@ -138,7 +174,7 @@ function ReadyReport({ api, slug, unlocked, onRefresh, onUnauthorized, navigate 
       </div>
       {unlock.error && <ResultError error={unlock.error}><button type="button" className="textlink" onClick={unlock.dismiss}>Dismiss</button></ResultError>}
       <p className="res-note">
-        Payment is handled by our payment provider. Returning from checkout does not unlock anything by itself; the report unlocks only after the server verifies the payment.
+        Unlocks only after the payment is verified.
       </p>
     </>
   );

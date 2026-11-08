@@ -30,8 +30,7 @@ describe('flexible capture', () => {
     expect(backend.callsTo('POST', '/sessions')[0]?.body).toMatchObject({ capture_mode: 'single_video' });
     view.unmount(); render(<App />);
     await screen.findByRole('heading', { name: 'One video' });
-    expect(screen.getByText(/Automatic area recognition is not connected — mark sections yourself or use guided clips/)).toBeTruthy();
-    expect(screen.getByText(/Your report labels whether findings are synthetic test data or real model output/)).toBeTruthy();
+    expect(screen.queryByText(/not connected/)).toBeNull();
     expect(screen.queryByText(/Findings are synthetic test data/)).toBeNull();
     expect((await screen.findByLabelText('Record one video with phone camera')).getAttribute('capture')).toBe('environment');
   });
@@ -47,7 +46,7 @@ describe('flexible capture', () => {
     backend.source!.processing_state = 'ready';
     await screen.findByText(/Source preparation complete/, {}, { timeout: 3500 });
     expect(finish().disabled).toBe(false);
-    expect(screen.getByText(/Marked ranges are user-declared hints only/)).toBeTruthy();
+    expect(screen.getByText(/Add a clip for any area the video missed/)).toBeTruthy();
     fireEvent.click(finish());
     fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' }));
     await screen.findByText(/Capture is finished/);
@@ -97,7 +96,7 @@ describe('flexible capture', () => {
     await screen.findByText(/Video accepted/);
     backend.source!.processing_state = 'failed';
     await screen.findByText(/Source preparation failed/, {}, { timeout: 3500 });
-    expect(screen.getByText(/Its missing areas are not assessed/)).toBeTruthy();
+    expect(screen.getByText(/could not be prepared/)).toBeTruthy();
     expect(finish().disabled).toBe(false);
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Zones' })).getByRole('button', { name: /^Passenger side/ }));
     const card = screen.getByRole('heading', { level: 3, name: /^Passenger side/ }).closest('article')!;
@@ -121,7 +120,7 @@ describe('flexible capture', () => {
     seed();
     await backend.fetch(`/api/v1/sessions/${backend.sessionId}/video`, { method: 'POST', headers: { Authorization: `Bearer ${backend.token}` }, body: JSON.stringify({ content_type: 'video/mp4', content_length: 20, segments: [] }) });
     render(<App />);
-    await screen.findByText(/This tab has no resume details/);
+    await screen.findByText(/Unfinished upload/);
     expect(finish().disabled).toBe(true);
     expect(screen.queryByLabelText('Choose one video from this device')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Discard unfinished source upload' }));

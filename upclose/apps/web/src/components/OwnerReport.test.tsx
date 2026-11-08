@@ -213,7 +213,8 @@ describe('owner report (JSON)', () => {
     free.unmount();
     render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT }) }, FRAMES])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     await screen.findByRole('heading', { name: '1 serious issue' });
-    expect(screen.queryByTestId('category-scores')).toBeNull();
+    expect(within(screen.getByTestId('category-visual')).getByText('94.9')).toBeTruthy();
+    expect(within(screen.getByTestId('category-overall')).getByText('visual only')).toBeTruthy();
   });
 
   it('offers an inline Rename for the owner, and renames the visible title', async () => {

@@ -7,7 +7,7 @@ import {
   findingTitle, formatDollars, formatIndex, isSerious, OPTIONAL_ZONES, orderFindings,
   scoredZones, sortedZones, verdict, ZONE_LABEL, type PaidReport, type ZoneScore,
 } from './model';
-import { Button, EvidenceFrame, PageHeader, Pill, ScoreLine, SeverityPips, type Crumb } from '../ui';
+import { Button, EvidenceFrame, PageHeader, Pill, ScoreBand, SeverityPips, type Crumb } from '../ui';
 import './report.css';
 
 /** The page header: crumbs, the vehicle label, a meta line, and the compact action row (Share, Listen, Rename). */
@@ -72,19 +72,14 @@ export function ReportView({ report, header, frameUrl, resolveFrame, resolveMedi
       )}
       {listening && <NarrationPlayer report={report} resolveMedia={resolveMedia} />}
 
+      <ScoreBand categories={report.categories} headline={report.scores.headline} zonesChecked={scored.length} />
+
       <section className="rsec rv-verdict" id="r-summary" aria-labelledby="summary-h">
         <h2 id="summary-h" className="sr-only">Summary</h2>
         <div className="verdict">
           <span className={`k-ico ${v.serious ? 'k-risk' : 'k-neutral'}`} aria-hidden="true" />
           <div><h3>{v.headline}</h3><p>{v.advice}</p></div>
         </div>
-        {report.categories
-          ? <ScoreLine categories={report.categories} zonesChecked={scored.length} />
-          : (
-            <p className="score-line-plain">
-              Condition index: {report.scores.headline === null ? `not available (needs 3 zones · ${scored.length} checked)` : <b className="num">{formatIndex(report.scores.headline)}</b>}
-            </p>
-          )}
       </section>
 
       <section className="rsec" id="r-found" aria-labelledby="found-h">

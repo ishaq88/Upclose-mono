@@ -11,7 +11,7 @@ export { Field, type FieldProps } from './Field';
 export { Notice, type NoticeProps, type NoticeTone } from './Notice';
 export { PageHeader, type Crumb, type PageHeaderProps } from './PageHeader';
 export { Pill, type PillTone } from './Pill';
-export { ScoreLine, type ScoreLineProps } from './ScoreLine';
+export { ScoreBand, type ScoreBandProps } from './ScoreBand';
 export { ScoreTiles, type ScoreTilesProps } from './ScoreTiles';
 export { Section, type SectionProps } from './Section';
 export { StatusChip, type StatusChipProps } from './StatusChip';

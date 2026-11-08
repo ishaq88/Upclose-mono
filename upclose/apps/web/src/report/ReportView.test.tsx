@@ -7,12 +7,26 @@ import { ReportView } from './ReportView';
 afterEach(cleanup);
 
 describe('ReportView (one column)', () => {
-  it('leads with the verdict and a red icon for serious, never a green check, and one index line', () => {
+  it('leads with the verdict and a red icon for serious, never a green check, and the scores once at the top', () => {
     const { container } = render(<ReportView report={SAMPLE_REPORT} frameUrl={sampleFrameUrl} />);
     expect(screen.getByRole('heading', { name: '1 serious issue' })).toBeTruthy();
-    expect(screen.getByText(/Condition index:/).textContent).toContain('94.9');
+    expect(screen.getAllByTestId('category-scores')).toHaveLength(1);
+    expect(screen.getByTestId('category-visual').textContent).toContain('94.9');
+    expect(screen.getByTestId('category-mechanical').textContent).toContain('Not checked');
+    expect(screen.getByTestId('category-mechanical').textContent).toContain('not recorded');
+    expect(screen.getByTestId('category-overall').textContent).toContain('visual only');
+    expect(screen.queryByText(/Condition index/)).toBeNull();
     expect(container.querySelector('.k-ok')).toBeNull();
     expect(container.querySelector('.rv-side, .toc, .map-col, .rv-chips')).toBeNull();
+  });
+
+  it('renders server categories and note as sent, one decimal, never rounded up', () => {
+    const categories = { visual: { state: 'assessed', score: 94.96, reason: null }, mechanical: { state: 'assessed', score: 64, reason: null }, overall: { state: 'assessed', score: 82.55, basis: 'blend', note: 'Server note.' } };
+    render(<ReportView report={{ ...SAMPLE_REPORT, categories } as never} frameUrl={sampleFrameUrl} />);
+    expect(screen.getByTestId('category-visual').textContent).toContain('94.9');
+    expect(screen.getByTestId('category-mechanical').textContent).toContain('64.0');
+    expect(screen.getByTestId('category-overall').textContent).toContain('82.5');
+    expect(screen.getByTestId('category-scores').textContent).toContain('Server note.');
   });
 
   it('shows a neutral, not green, icon when nothing is serious', () => {

@@ -6,7 +6,7 @@
     {"id": "zone_passenger_side", "kind": "zone", "zone": "passenger_side", "text": "Passenger side. Start at the front corner and walk to the rear."},
     {"id": "zone_front_rear_body", "kind": "zone", "zone": "front_rear_body", "text": "Front and rear. Arc around the front, then around the rear."},
     {"id": "zone_tires", "kind": "zone", "zone": "tires", "text": "Tires. Stop at each tire for three to five seconds."},
-    {"id": "zone_dash_electrical", "kind": "zone", "zone": "dash_electrical", "text": "Dash. From the driver's seat, hold steady on the dash."},
+    {"id": "zone_dash_electrical", "kind": "zone", "zone": "dash_electrical", "text": "Dashboard. With the engine running, hold the phone steady on the gauges for three seconds."},
     {"id": "zone_engine_bay", "kind": "zone", "zone": "engine_bay", "text": "Engine bay. Open the hood and film from the front."},
     {"id": "zone_underbody", "kind": "zone", "zone": "underbody", "text": "Underbody. Stay standing outside, keep the phone low, and sweep along the side."},
     {"id": "zone_interior", "kind": "zone", "zone": "interior", "text": "Interior. Film through the open doors."},

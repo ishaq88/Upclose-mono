@@ -48,6 +48,8 @@
     {"part_number": 7, "mode": "video", "purpose": "sam_video", "sample_fps": 4},
     {"part_number": 8, "mode": "stills", "purpose": "interior_keyframes", "count": 5}
   ],
+  "vehicle_mask_sample_fps": null,
+  "vehicle_mask_long_edge": 640,
   "quality": {
     "provisional": true,
     "source": "PRD 7.8.2 numeric thresholds are v1 design assumptions; unusable_* limits are not in the PRD and were added here as provisional fail-closed bounds",

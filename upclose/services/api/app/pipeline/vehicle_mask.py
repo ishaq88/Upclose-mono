@@ -21,13 +21,16 @@ from app.jobs.queue import Failure, Lease
 from app.jobs.worker import Publication, StageFailure
 from app.models import Artifact, Observation, Part, PipelineRun, Session
 from app.pipeline.ingest import PublicationRejected, scratch_root_for
-from app.pipeline.media import FrameManifest, MediaError, load_media_config, scratch_dir, sha256_file
+from app.pipeline.media import (FrameManifest, MediaError, build_manifest, load_media_config, scratch_dir,
+                                sha256_file)
 from app.pipeline.orchestration import (OrchestrationContext, fail_vehicle_mask, observations,
                                         release_masked_segments)
 from app.pipeline.sam_dispatch import run_sam_request
 from app.pipeline.segment import SegmenterFactory, SegmentHandler
+from app.pipeline.vehicle_keyframes import (derived_size, expand_to_proxy_frames, mask_keyframe_indices,
+                                            nearest_keyframe_positions)
 from app.pipeline.vehicle_mask_contract import MaskedInput, VehicleMaskMarker, load_vehicle_mask_marker
-from app.pipeline.vehicle_media import mask_vehicle_media
+from app.pipeline.vehicle_media import encode_mask_input, mask_vehicle_media
 from app.services.budgets import BudgetService
 from app.settings import Settings
 
@@ -191,13 +194,15 @@ class VehicleMaskHandler:
             if downloaded.sha256 != digest:
                 raise ValueError("changed source media")
             request_id = uuid5(NAMESPACE_URL, f"vehicle:{lease.job_id}:{lease.attempt}:{index}")
-            result = run_sam_request(lease, self.segmenter_factory(plan.part_no), media, request_id, "vehicle", self.budget)
+            prefix = f"media/{plan.session_id}/{plan.part_id}/{plan.run_id}/vehicle/a{lease.attempt}/"
+            input_key = f"media/{plan.session_id}/{plan.part_id}/{plan.run_id}/mask-input/a{lease.attempt}/{index}.mp4"
+            result, observations_, reduced = self._request_mask(
+                lease, plan, media, manifest, source, scratch, request_id, input_key, stored)
             if result.request_id != request_id or result.prompt_id != "vehicle" or result.limits_encountered:
                 raise ValueError("vehicle response identity or completeness invalid")
-            output = mask_vehicle_media(source, media, result.observations, scratch, self.media_config)
+            output = mask_vehicle_media(source, media, observations_, scratch, self.media_config)
             archive = scratch / f"mask-{index}.zip"
             persist_mask_response(archive, result)
-            prefix = f"media/{plan.session_id}/{plan.part_id}/{plan.run_id}/vehicle/a{lease.attempt}/"
             masked_key = prefix + f"{index}.{'mp4' if media.kind == 'video' else 'png'}"
             mask_key = prefix + f"{index}-masks.zip"
             self.storage.put_file(masked_key, output.path, "video/mp4" if media.kind == "video" else "image/png")
@@ -207,12 +212,53 @@ class VehicleMaskHandler:
             entries.append(MaskedInput(kind=media.kind, source_key=media.media_key, source_sha256=digest,
                 masked_key=masked_key, masked_sha256=output.sha256, mask_key=mask_key, mask_sha256=sha256_file(archive),
                 request_id=request_id, provenance=result.provenance, frame_indices=indices,
-                timestamps_ms=tuple(round(manifest.time_seconds(i)*1000) for i in indices)))
+                timestamps_ms=tuple(round(manifest.time_seconds(i)*1000) for i in indices),
+                **({} if reduced is None else {"mask_keyframes": reduced[0], "mask_input_size": reduced[1]})))
             source.unlink(missing_ok=True)
             output.path.unlink(missing_ok=True)
             archive.unlink(missing_ok=True)
         return VehicleMaskMarker(input_hash=plan.input_hash, config_hash=plan.config_hash,
             source_manifest_sha256=manifest.content_hash, source_manifest=json.loads(manifest.to_canonical_json()), media=tuple(entries))
+
+    def _request_mask(self, lease: Lease, plan: MaskPlan, media: MediaRef, manifest: FrameManifest, source: Path,
+                      scratch: Path, request_id: UUID, input_key: str, stored: list[str]):
+        """One SAM request. Full proxy unless the media config reduces the masking input.
+
+        Reduced: a derived video of keyframes and/or a smaller long edge is uploaded for the one
+        request, deleted after it, and the response is expressed on every proxy frame (nearest
+        keyframe in time; masks upsampled to the proxy size). Returns (response, observations on
+        proxy frames, (keyframes, size) or None when the full proxy was sent).
+        """
+        segmenter = self.segmenter_factory(plan.part_no)
+        fps, edge = self.media_config.vehicle_mask_sample_fps, self.media_config.vehicle_mask_long_edge
+        keyframes = mask_keyframe_indices(manifest, fps) if media.kind == "video" else ()
+        size = derived_size(manifest, edge)
+        if media.kind != "video" or (len(keyframes) == manifest.frame_count and size == (manifest.width, manifest.height)):
+            result = run_sam_request(lease, segmenter, media, request_id, "vehicle", self.budget)
+            return result, result.observations, None
+        rate = fps if fps is not None else manifest.frame_count / manifest.duration_seconds
+        derived_path = encode_mask_input(source, manifest, keyframes, size, scratch, self.media_config, frame_rate=rate)
+        try:
+            derived_manifest = build_manifest(derived_path, self.media_config, scratch)
+            derived = MediaRef(media_key=input_key, content_sha256=sha256_file(derived_path), kind="video",
+                stored_width=size[0], stored_height=size[1], frames=tuple(FrameRef(frame_index=position,
+                    timestamp_ms=round(derived_manifest.time_seconds(position)*1000), frame_key=f"pending/mask_frame_{position}")
+                    for position in range(len(keyframes))))
+            self.storage.put_file(input_key, derived_path, "video/mp4")
+            stored.append(input_key)
+        finally:
+            derived_path.unlink(missing_ok=True)
+        try:
+            result = run_sam_request(lease, segmenter, derived, request_id, "vehicle", self.budget)
+        finally:
+            try:
+                self.storage.delete_object(input_key)
+                stored.remove(input_key)
+            except StorageError:
+                logging.warning("Mask input object could not be deleted; it stays listed for failure cleanup")
+        expanded = expand_to_proxy_frames(media, derived, keyframes, nearest_keyframe_positions(manifest, keyframes),
+                                          result.observations)
+        return result, expanded, (keyframes, size)
 
     def _failure(self, plan: MaskPlan, job_id: UUID) -> Publication:
         def publish(db: DBSession) -> None:

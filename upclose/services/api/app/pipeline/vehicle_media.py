@@ -10,7 +10,7 @@ from PIL import Image
 
 from app.adapters.meta.types import MediaRef, SegmentObservation
 from app.pipeline.media import (
-    FrameManifest, MediaConfig, MediaError, MediaReason, build_manifest,
+    FrameManifest, MediaConfig, MediaError, MediaReason, _guarded_input_args, _tool, build_manifest,
     classify_failure, ensure_plain_file, extract_frames, probe, run_tool, sha256_file,
 )
 
@@ -34,6 +34,48 @@ class MaskedVehicleMedia:
 
 def _reject(detail: str) -> MediaError:
     return MediaError(MediaReason.INVALID_INPUT, detail)
+
+
+def encode_mask_input(
+    source: Path, manifest: FrameManifest, keyframes: Sequence[int], size: tuple[int, int],
+    scratch: Path, config: MediaConfig, *, frame_rate: float,
+) -> Path:
+    """Encode the proxy frames `keyframes`, scaled to `size`, as the video sent for masking.
+
+    Frames are chosen by decoded index (no seeking or interpolation) and re-timed to a constant
+    `frame_rate`. The caller owns the file and checks its manifest; the sandbox, rlimits and
+    wall-clock limit are the standard transcode ones.
+    """
+    src = ensure_plain_file(source)
+    if not keyframes or len(keyframes) > config.max_extract_frames or frame_rate <= 0:
+        raise MediaError(MediaReason.RESOURCE_LIMIT, "mask input frame bound exceeded")
+    scratch.mkdir(parents=True, exist_ok=True)
+    out = scratch / f"mask-input-{uuid.uuid4().hex}.mp4"
+    select = "select='" + "+".join(f"eq(n,{index})" for index in keyframes) + "'"
+    filters = [select, f"setpts=N/({frame_rate:.6f}*TB)"]
+    if size != (manifest.width, manifest.height):
+        filters.append(f"scale={size[0]}:{size[1]}:flags=area")
+    filters += ["setsar=1", "format=yuv420p"]
+    args = [
+        *_tool("ffmpeg"), "-nostdin", "-hide_banner", "-loglevel", "error",
+        "-threads", str(config.limits.transcode.threads), *_guarded_input_args(config, src),
+        "-map", "0:v:0", "-an", "-sn", "-dn", "-map_metadata", "-1", "-map_chapters", "-1",
+        "-vf", ",".join(filters), "-fps_mode", "passthrough", "-frames:v", str(len(keyframes) + 1),
+        "-c:v", "libx264", "-preset", config.x264_preset, "-crf", str(config.x264_crf),
+        "-profile:v", "high", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+        "-movflags", "+faststart", "-f", "mp4", "-y", str(out),
+    ]
+    try:
+        run = run_tool(args, limits=config.limits.transcode, cwd=scratch)
+        if run.returncode or run.timed_out:
+            raise classify_failure(run, MediaReason.TRANSCODE_FAILED, str(src), str(out))
+        made = build_manifest(out, config, scratch)
+        if made.frame_count != len(keyframes) or (made.width, made.height) != tuple(size):
+            raise MediaError(MediaReason.OUTPUT_INVALID, "mask input frame count or size changed")
+        return out
+    except BaseException:
+        out.unlink(missing_ok=True)
+        raise
 
 
 def _validate_masks(media: MediaRef, observations: Sequence[SegmentObservation]) -> dict[int, SegmentObservation]:

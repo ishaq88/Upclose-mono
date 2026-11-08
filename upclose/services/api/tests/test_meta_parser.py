@@ -270,3 +270,20 @@ def test_track_ids_cannot_escape_safe_sort_conversion() -> None:
     output = RESPONSES["image"].output_text.replace("<0f>7", "<0f>" + "9" * 129)
     with pytest.raises(ProviderFailure, match="invalid_track_id"):
         normalize_output(output, media(), "test", REQUEST, usage=ProviderUsage())
+
+
+def test_each_distinct_mask_is_decoded_once_and_the_parser_is_restored(monkeypatch: pytest.MonkeyPatch) -> None:
+    from meta_sam_parser import _segmentation as vendor
+
+    real, calls = vendor.decode_mask_to_raster, []
+
+    def counting(mask):  # type: ignore[no-untyped-def]
+        calls.append(mask.payload)
+        return real(mask)
+
+    monkeypatch.setattr(vendor, "decode_mask_to_raster", counting)
+    result = normalize_output("\n".join(_full_frame_line(index) for index in range(5)),
+                              _video_media(5), "vehicle", REQUEST, usage=ProviderUsage())
+    assert len(calls) == 1  # validated by the parser and reused for the raster; not decoded twice
+    assert [item.mask.pixels for item in result.observations] == [bytes([1] * 12)] * 5
+    assert vendor.decode_mask_to_raster is counting

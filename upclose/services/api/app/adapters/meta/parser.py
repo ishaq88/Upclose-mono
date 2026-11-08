@@ -1,12 +1,16 @@
 """Strict normalization over Meta's pinned public parser, not a guessed codec."""
 import logging
 import re
+import threading
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from uuid import UUID
 
 from meta_sam_parser import (
     CompletedOutcome, SegmentationBoxRecord, SegmentationMaskRecord,
-    decode_mask_to_raster, image_segmentation_format, video_segmentation_format,
+    image_segmentation_format, video_segmentation_format,
 )
+from meta_sam_parser import _segmentation as _vendor_segmentation
 
 from .types import MaskRaster, MediaRef, ProviderUsage, SegmentObservation, SegmentResult
 
@@ -110,6 +114,36 @@ def _preflight(output: str, media: MediaRef) -> None:
         raise ProviderFailure("malformed_record") from None
 
 
+_DECODE_LOCK = threading.RLock()
+
+
+@contextmanager
+def _decode_each_mask_once() -> Iterator[Callable[..., bytes]]:
+    """Yield a decoder that the official parser also uses, so each mask is decoded once.
+
+    The official parser decodes every mask to validate it and then drops the bytes; we need the
+    bytes as well. The lossless codec is pure Python (about 2-3 s per full-size mask), so decoding
+    twice doubled the response parse time (measured: 12 of 24 decodes were repeats). The parser's
+    own reference is swapped for a memoizing wrapper for the length of one call: same function,
+    same inputs, same bytes, same errors (failures are not cached), just no repeat work.
+    """
+    original = _vendor_segmentation.decode_mask_to_raster
+    cache: dict[tuple[object, str, int, int], bytes] = {}
+
+    def decode(mask):  # type: ignore[no-untyped-def]
+        key = (mask.encoding, mask.payload, mask.width, mask.height)
+        if key not in cache:
+            cache[key] = original(mask)
+        return cache[key]
+
+    with _DECODE_LOCK:
+        _vendor_segmentation.decode_mask_to_raster = decode
+        try:
+            yield decode
+        finally:
+            _vendor_segmentation.decode_mask_to_raster = original
+
+
 def normalize_output(
     output: str, media: MediaRef, prompt_id: str, request_id: UUID,
     *, usage: ProviderUsage, provenance: str = "synthetic", completed: bool = True,
@@ -118,6 +152,11 @@ def normalize_output(
         raise ProviderFailure("incomplete_response")
     _preflight(output, media)
     format_ = image_segmentation_format if media.kind == "image" else video_segmentation_format
+    with _decode_each_mask_once() as decode:
+        return _normalize_parsed(output, media, prompt_id, request_id, usage, provenance, format_, decode)
+
+
+def _normalize_parsed(output, media, prompt_id, request_id, usage, provenance, format_, decode_mask):  # type: ignore[no-untyped-def]
     parser = format_().create_parser()
     try:
         parser.push(output)
@@ -161,7 +200,7 @@ def normalize_output(
         # resampled onto the box, never placed on another frame or offset.
         box_width, box_height = box.right - box.left, box.bottom - box.top
         try:
-            raster = decode_mask_to_raster(mask.mask)
+            raster = decode_mask(mask.mask)
             if (mask.mask.width, mask.mask.height) != (box_width, box_height):
                 logging.warning("SAM mask resampled onto box: raster=%dx%d box=%dx%d frame=%dx%d",
                                 mask.mask.width, mask.mask.height, box_width, box_height, width, height)

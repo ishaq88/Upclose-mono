@@ -29,6 +29,10 @@ class MaskedInput(ContractModel):
     # Original proxy indices, including for still requests whose transport index is zero.
     frame_indices: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)]
     timestamps_ms: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)]
+    # Present only when SAM was sent a reduced video: the proxy frame indices it saw and its pixel
+    # size. Every frame in frame_indices still has a mask (nearest keyframe in time).
+    mask_keyframes: Annotated[tuple[Count, ...], Field(min_length=1, max_length=2000)] | None = None
+    mask_input_size: tuple[Count, Count] | None = None
 
 
 class VehicleMaskMarker(ContractModel):
@@ -93,7 +97,10 @@ def load_vehicle_mask_marker(db: DBSession, run: PipelineRun) -> VehicleMaskMark
             digest, indices = expected[item.source_key]
             times = tuple(round(manifest.time_seconds(i) * 1000) for i in indices)
             if (item.source_sha256 != digest or item.frame_indices != indices or item.timestamps_ms != times
-                    or any(i < 0 or i >= manifest.frame_count for i in indices)):
+                    or any(i < 0 or i >= manifest.frame_count for i in indices)
+                    or (item.mask_keyframes is not None and (
+                        list(item.mask_keyframes) != sorted(set(item.mask_keyframes))
+                        or item.mask_keyframes[-1] >= manifest.frame_count))):
                 raise ValueError("vehicle mask frame binding changed")
             for key in (item.masked_key, item.mask_key):
                 if not key.startswith(prefix) or key in used or ".." in key.split("/"):

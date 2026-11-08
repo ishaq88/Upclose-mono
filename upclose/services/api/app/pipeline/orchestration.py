@@ -92,13 +92,25 @@ FIXTURE_PROVIDERS: Mapping[str, str] = {
 
 
 
+def _vehicle_mask_identity() -> str:
+    """Identity of how vehicles are masked. Reduced masking input (keyframes / smaller long edge)
+    yields different masks, so it is part of the identity; the full-proxy default keeps the old hash."""
+    from app.pipeline.media import load_media_config
+
+    media = load_media_config()
+    spec: dict[str, object] = {"version": "vehicle-mask-v1", "prompt": "car", "policy": "masked-only"}
+    if media.vehicle_mask_sample_fps is not None or media.vehicle_mask_long_edge is not None:
+        spec["input"] = {"sample_fps": media.vehicle_mask_sample_fps, "long_edge": media.vehicle_mask_long_edge}
+    return canonical_hash(spec)
+
+
 # Live-mode provider identities: frozen into live assessment runs so report provenance
 # derives `live` and never replays as fixture. Demo (non-Standard) runs use the same
 # identities; the non-Standard disclosure lives in the demo exception receipt + ledger.
 MASKED_LIVE_PROVIDERS: Mapping[str, str] = {
     "segmenter": canonical_hash({"provider": "meta-sam-live", "model": "sam-3.1", "provenance": "live", "version": 3,
                                  "vehicle_mask": {"prompt": "car", "policy": "masked-only"}}),
-    "vehicle_mask": canonical_hash({"version": "vehicle-mask-v1", "prompt": "car", "policy": "masked-only"}),
+    "vehicle_mask": _vehicle_mask_identity(),
     "verifier": canonical_hash({"provider": "live-pending-verifier", "provenance": "live", "version": 1}),
 }
 
@@ -116,7 +128,7 @@ MASKED_FIXTURE_PROVIDERS: Mapping[str, str] = {
     **FIXTURE_PROVIDERS,
     "segmenter": canonical_hash({"provider": "fixture-segmenter", "provenance": "synthetic",
                                   "version": 2, "policy": "masked-only"}),
-    "vehicle_mask": canonical_hash({"version": "vehicle-mask-v1", "prompt": "car", "policy": "masked-only"}),
+    "vehicle_mask": _vehicle_mask_identity(),
 }
 
 

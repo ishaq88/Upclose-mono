@@ -168,6 +168,11 @@ class MediaConfig(HashedConfig):
     limits: ToolLimits
     frame_plans: tuple[FramePlan, ...]
     quality: QualityConfig
+    # Vehicle masking only (never the damage stages). Null keeps the full proxy: every frame at
+    # proxy resolution. Set, the masking request carries a derived video of keyframes (at most
+    # this rate) and/or a downscaled long edge; masks are mapped back onto every proxy frame.
+    vehicle_mask_sample_fps: Annotated[float, Field(gt=0, le=60)] | None = None
+    vehicle_mask_long_edge: Annotated[int, Field(strict=True, ge=16)] | None = None
 
     @model_validator(mode="after")
     def complete_plans(self) -> Self:
@@ -175,6 +180,11 @@ class MediaConfig(HashedConfig):
             raise ValueError("frame_plans requires each part number 1..8 exactly once")
         if not self.allowed_containers or not self.allowed_video_codecs or not self.demuxer_whitelist:
             raise ValueError("container, codec and demuxer allowlists must be non-empty")
+        video_rates = [plan.sample_fps for plan in self.frame_plans if plan.sample_fps is not None]
+        if self.vehicle_mask_sample_fps is not None and self.vehicle_mask_sample_fps > min(video_rates):
+            raise ValueError("vehicle_mask_sample_fps cannot exceed any video frame plan's sample_fps")
+        if self.vehicle_mask_long_edge is not None and self.vehicle_mask_long_edge > self.proxy_long_edge:
+            raise ValueError("vehicle_mask_long_edge cannot exceed proxy_long_edge")
         return self
 
     def plan_for(self, part_number: int) -> FramePlan:

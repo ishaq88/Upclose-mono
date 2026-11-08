@@ -185,7 +185,9 @@ class S3Storage:
             if marker is not None:
                 params["ContinuationToken"] = marker
             page = self._call(lambda: self.internal.list_objects_v2(**params))
-            keys.update(str(item["Key"]) for item in page.get("Contents", []))
+            # Enforce the prefix ourselves: some S3-compatible stores ignore it.
+            keys.update(str(item["Key"]) for item in page.get("Contents", [])
+                        if str(item["Key"]).startswith(prefix))
             if not page.get("IsTruncated"):
                 return tuple(sorted(keys))
             next_marker = page.get("NextContinuationToken")
@@ -202,6 +204,10 @@ class S3Storage:
                 params.update(KeyMarker=marker[0], UploadIdMarker=marker[1])
             page = self._call(lambda: self.internal.list_multipart_uploads(**params))
             for item in page.get("Uploads", []):
+                # Some S3-compatible stores (the local emulator) ignore Prefix on this call and return
+                # every open upload in the bucket. Callers abort what is returned, so filter here.
+                if not str(item["Key"]).startswith(prefix):
+                    continue
                 upload = MultipartObject(str(item["Key"]), str(item["UploadId"]))
                 uploads[(upload.key, upload.provider_upload_id)] = upload
             if not page.get("IsTruncated"):

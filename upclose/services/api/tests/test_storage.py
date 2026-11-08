@@ -181,3 +181,59 @@ def test_unsigned_put_cannot_overwrite_an_accepted_key(emulator: S3Storage) -> N
     bare = put(signed.url.split("?")[0], b"B" * 50)
     assert bare.status_code in (401, 403)
     assert emulator.head_size(key) == 10
+
+
+class PrefixIgnoringClient:
+    """Fake boto client that, like some S3-compatible stores, ignores Prefix on both listings."""
+
+    def __init__(self, keys: list[str], uploads: list[tuple[str, str]]) -> None:
+        self.keys, self.uploads = sorted(keys), sorted(uploads)
+
+    def list_objects_v2(self, **params: object) -> dict[str, object]:
+        start = int(str(params.get("ContinuationToken", "0")))
+        size = int(str(params["MaxKeys"]))
+        page = self.keys[start:start + size]
+        more = start + size < len(self.keys)
+        return {"Contents": [{"Key": key} for key in page], "IsTruncated": more,
+                **({"NextContinuationToken": str(start + size)} if more else {})}
+
+    def list_multipart_uploads(self, **params: object) -> dict[str, object]:
+        rows = self.uploads
+        if "KeyMarker" in params:
+            marker = (str(params["KeyMarker"]), str(params["UploadIdMarker"]))
+            rows = [row for row in rows if row > marker]
+        size = int(str(params["MaxUploads"]))
+        page, more = rows[:size], len(rows) > size
+        out: dict[str, object] = {"Uploads": [{"Key": key, "UploadId": uid} for key, uid in page],
+                                  "IsTruncated": more}
+        if more:
+            out |= {"NextKeyMarker": page[-1][0], "NextUploadIdMarker": page[-1][1]}
+        return out
+
+
+def fake_storage(client: PrefixIgnoringClient) -> S3Storage:
+    class FakeBackedStorage(S3Storage):
+        internal = client  # type: ignore[assignment]
+
+    return FakeBackedStorage(Settings())
+
+
+def test_list_multipart_keeps_only_matching_keys_when_the_backend_ignores_prefix(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    uploads = [("raw/a/one", "u1"), ("raw/b/two", "u2"), ("raw/a/three", "u3"), ("media/a/x", "u4"),
+               ("raw/a/one", "u5"), ("raw/ab/four", "u6"), ("raw/a/five", "u7")]
+    storage = fake_storage(PrefixIgnoringClient([], uploads))
+    expected = (("raw/a/five", "u7"), ("raw/a/one", "u1"), ("raw/a/one", "u5"), ("raw/a/three", "u3"))
+    for page_size in (100, 2, 1):  # foreign rows straddle page boundaries when paging
+        monkeypatch.setattr("app.adapters.storage._LIST_PAGE_SIZE", page_size)
+        found = storage.list_multipart("raw/a/")
+        assert tuple((item.key, item.provider_upload_id) for item in found) == expected
+    assert storage.list_multipart("no-such-prefix/") == ()
+
+
+def test_list_keys_keeps_only_matching_keys_when_the_backend_ignores_prefix(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    storage = fake_storage(PrefixIgnoringClient(["raw/a/1", "raw/b/2", "raw/a/3", "media/a/4"], []))
+    monkeypatch.setattr("app.adapters.storage._LIST_PAGE_SIZE", 2)
+    assert storage.list_keys("raw/a/") == ("raw/a/1", "raw/a/3")
+    assert storage.list_keys("none/") == ()

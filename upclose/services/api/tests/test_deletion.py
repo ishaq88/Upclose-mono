@@ -67,6 +67,31 @@ def test_purge_prefixes_recorded_keys_multipart_and_content(make, tmp_path):
     assert delete(h).json() == {"state": "deleted"}
 
 
+def test_purge_never_aborts_another_sessions_open_upload_even_if_prefix_is_ignored(make, monkeypatch):
+    h = make()
+    other_key = f"raw/{uuid4()}/live-upload"
+    other_id = h.storage.create_multipart(other_key, "video/mp4")
+    own_key = f"media/{h.session_id}/unfinished"
+    h.storage.create_multipart(own_key, "video/mp4")
+    real = h.storage.internal.list_multipart_uploads
+
+    def ignore_prefix(**params):
+        return real(**{name: value for name, value in params.items() if name != "Prefix"})
+
+    monkeypatch.setattr(h.storage.internal, "list_multipart_uploads", ignore_prefix)
+    try:
+        assert delete(h).status_code == 202
+        queue = JobQueue(h.db)
+        lease = queue.claim("purge", ["purge"])
+        assert lease is not None
+        assert queue.complete(lease, PurgeHandler(h.db, h.storage)(lease).publish)
+        survivors = {(item["Key"], item["UploadId"]) for item in real(Bucket=h.storage.bucket).get("Uploads", [])}
+        assert (other_key, other_id) in survivors
+        assert own_key not in {key for key, _ in survivors}
+    finally:
+        h.storage.abort(other_key, other_id)
+
+
 def test_partial_failure_retries_and_exhausted_recovery(make, tmp_path):
     h = make()
     source = tmp_path / "synthetic.bin"

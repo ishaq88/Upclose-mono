@@ -1,0 +1,30 @@
+{
+  "version": "dash-lights-v1",
+  "note": "Uncalibrated design defaults: severity classes, deductions, thresholds and the cluster prompt have not been validated against labeled media. A dash reading is optional evidence and never a mechanical diagnosis.",
+  "validated": false,
+  "indicators": [
+    {"id": "check_engine", "severity": "serious"},
+    {"id": "oil_pressure", "severity": "urgent"},
+    {"id": "battery_charging", "severity": "serious"},
+    {"id": "coolant_temp", "severity": "urgent"},
+    {"id": "brake_system", "severity": "urgent"},
+    {"id": "abs", "severity": "serious"},
+    {"id": "airbag", "severity": "serious"},
+    {"id": "tpms", "severity": "advisory"},
+    {"id": "traction_stability", "severity": "advisory"},
+    {"id": "other", "severity": "advisory"}
+  ],
+  "deductions": {"urgent": "20", "serious": "15", "advisory": "5"},
+  "deduction_cap": "40",
+  "frames": {
+    "min_frames": 2,
+    "min_cluster_area_fraction": "0.02",
+    "area_target_fraction": "0.25",
+    "sharpness_reference": "300",
+    "min_sharpness": "20",
+    "area_weight": "0.5",
+    "sharpness_weight": "0.5",
+    "crop_margin_fraction": "0.08"
+  },
+  "sam_prompt": {"prompt_id": "dash_cluster", "text": "instrument panel"}
+}

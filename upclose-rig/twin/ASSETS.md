@@ -1,0 +1,18 @@
+# Asset attribution and provenance
+
+All output from this scene is **synthetic**. No vehicle photographs, private media, model-provider calls, or generated-photo models are included.
+
+| Local asset | Title / author | Source | License and modifications |
+|---|---|---|---|
+| `public/assets/ferrari.glb` | Ferrari 458 Italia / **vicent091036** | [Original model](https://sketchfab.com/models/57bf6cc56931426e87494f554df1dab6), [three.js r180 distribution](https://raw.githubusercontent.com/mrdoob/three.js/r180/examples/models/gltf/ferrari.glb) | **[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)**. License recorded by the distributing project's [asset license audit](https://github.com/mrdoob/three.js/issues/23089), entry `gltf/ferrari.glb`; author credited in its [car example](https://github.com/mrdoob/three.js/blob/r180/examples/webgl_materials_car.html). GLB bytes unchanged. Runtime changes: normalize to 4.53 m, center/ground model, blue-gray body material, glass material, add synthetic decals. Original Sketchfab page/API is unavailable (403/404 at verification on 2026-11-07); the distributor's explicit CC-BY record is the available license evidence. |
+| `public/assets/studio_small_09_1k.hdr` | Studio Small 09 / **Sergej Majboroda** | [Poly Haven asset and author/license](https://polyhaven.com/a/studio_small_09), [1K HDR download](https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr) | **[CC0](https://polyhaven.com/license)**. Unmodified local HDR; used for environment lighting/reflections. |
+| Runtime scratch, dent shading, rust RGBA textures | UpClose procedural damage set / **UpClose team** | Original source: `src/textures.ts` | **CC0-1.0**, dedicated by this project for these original procedural textures. Created with deterministic canvas drawing / seeded noise during this task, no external images. Dent is shading, not physical deformation. |
+| Ground plane / lighting / markers | UpClose twin primitives / **UpClose team** | Original source: `src/main.ts` | Original project code and procedural geometry; no external artwork. |
+| Instrument cluster, gauges and warning lamps | UpClose procedural instrument panel / **UpClose team** | Original source: `src/cluster.ts` | **CC0-1.0**, dedicated by this project for the original canvas artwork. Gauges, check-engine outline, oil can/drop and tire-pressure outline are drawn from primitives. Warning icons are emissive decals; values and lights are synthetic fixtures. No external icon artwork. |
+| `public/draco/*` (generated, ignored) | Draco decoder / **Google** | Copied by `scripts/prepare.mjs` from pinned three.js `examples/jsm/libs/draco/gltf` | Apache-2.0; bundled decoder notices copied by postinstall. Software dependency, not artwork. |
+
+Additional runtime material changes: rubber, cockpit, plastic, chrome and taillights are retuned from the original FBX conversion to physically based material values; geometry and GLB bytes remain unchanged. The Draco Apache-2.0 license is retained at `public/assets/draco-LICENSE.txt` and copied alongside its decoder on install.
+
+Keep this attribution with redistributed renders. The viewer shows the artist and licenses; rendered MP4 frames show attribution and a SYNTHETIC label, and each output directory receives this file. Model trademarks do not imply endorsement. A replacement model must have its own consent/license recorded here before distribution.
+
+Retrieved 2026-11-07. Each render records SHA-256 hashes of the asset bytes, configs, lockfile and rendering source in `ground_truth.json`. Dependencies and transitive software licenses remain in their npm packages.

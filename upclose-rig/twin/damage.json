@@ -1,0 +1,5 @@
+[
+  {"id":"scratch-driver-door","type":"scratch","zone":"driver_side","position":[-0.92,0.65,-0.15],"normal":[-1,0,0],"size":[0.78,0.23,0.28]},
+  {"id":"rust-passenger-quarter","type":"rust","zone":"passenger_side","position":[0.92,0.77,1.22],"normal":[1,0,0],"size":[0.48,0.36,0.3]},
+  {"id":"dent-front-hood","type":"dent","zone":"front_rear_body","position":[-0.30,0.70,-1.62],"normal":[0,1,0],"size":[0.48,0.40,0.45]}
+]

@@ -1,0 +1,15 @@
+{
+  "model": {
+    "url": "/assets/ferrari.glb",
+    "lengthMeters": 4.53,
+    "rotationY": 0,
+    "bodyMesh": "body",
+    "paint": "#8cabb4"
+  },
+  "environment": "/assets/studio_small_09_1k.hdr",
+  "durationSeconds": 36,
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "fovDegrees": 42
+}

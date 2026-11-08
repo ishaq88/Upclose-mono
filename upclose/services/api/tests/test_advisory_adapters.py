@@ -21,6 +21,10 @@ HASH = "0" * 64
 KEY = "sk_test_SECRET123"
 VIN = "SYNTHETC00000UPCA"
 META_ENV = {"ADVISOR_PROVIDER": "meta", "MODEL_API_KEY": KEY, "ADVISOR_META_MODEL": "muse-spark-1.3"}
+def ALLOW(_prepared):
+    return True
+
+
 GEMINI_ENV = {"ADVISOR_PROVIDER": "gemini", "GEMINI_API_KEY": KEY, "ADVISOR_GEMINI_MODEL": "gemini-3.6-flash"}
 
 
@@ -58,6 +62,8 @@ def meta_ok(text):
         assert headers["Authorization"] == "Bearer " + KEY
         assert timeout <= 30.0
         return 200, json.dumps({"status": "completed", "model": "muse-spark-1.3",
+                                "id": "resp_1", "usage": {"input_tokens": 900, "output_tokens": 120,
+                                                  "input_tokens_details": {"cached_tokens": 0}},
                                 "output": [{"content": [{"type": "output_text",
                                                         "text": text}]}]}).encode()
     return run
@@ -74,7 +80,10 @@ def gemini_ok(text):
         assert payload["contents"][0]["parts"][0]["text"]
         assert headers["x-goog-api-key"] == KEY
         assert "key=" not in url  # key travels in the header, never the URL
-        return 200, json.dumps({"candidates": [{"content": {"parts": [{"text": text}]}}]}).encode()
+        return 200, json.dumps({"candidates": [{"content": {"parts": [{"text": text}]}}],
+                                "responseId": "g1", "usageMetadata": {"promptTokenCount": 900,
+                                                                       "candidatesTokenCount": 100,
+                                                                       "thoughtsTokenCount": 20}}).encode()
     return run
 
 
@@ -139,13 +148,13 @@ def test_fixture_output_carries_no_vin():
 
 
 def test_meta_request_body_and_valid_response():
-    wire = MetaAdvisor(load_env(META_ENV), CONFIG, meta_ok(valid_text())).advise(summaries())
+    wire = MetaAdvisor(load_env(META_ENV), CONFIG, meta_ok(valid_text())).advise(summaries(), grant=ALLOW)
     assert wire["provider"] == "meta" and wire["model"] == "muse-spark-1.3"
     assert wire["questions_for_seller"][0]["cites"] == ["obd_snapshot:dtc:P0301"]
 
 
 def test_gemini_request_body_and_valid_response():
-    wire = GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, gemini_ok(valid_text())).advise(summaries())
+    wire = GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, gemini_ok(valid_text())).advise(summaries(), grant=ALLOW)
     assert wire["provider"] == "gemini" and wire["model"] == "gemini-3.6-flash"
     assert wire["mechanic_checks"][0]["cites"] == ["rig_telemetry:irregular_windows"]
 
@@ -155,17 +164,16 @@ def test_gemini_malformed_model_id_rejected():
         GeminiAdvisor(load_env({**GEMINI_ENV, "ADVISOR_GEMINI_MODEL": "bad model!"}), CONFIG)
 
 
-def test_retry_once_on_500_then_success():
+def test_500_is_not_retried_inside_the_adapter():
     calls = []
 
     def run(url, body, headers, timeout):
         calls.append(url)
-        if len(calls) == 1:
-            return 500, b"{}"
-        return meta_ok(valid_text())(url, body, headers, timeout)
+        return 500, b"{}"
 
-    wire = MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries())
-    assert wire["provider"] == "meta" and len(calls) == 2
+    with pytest.raises(AdvisorProviderError, match="HTTP 500"):
+        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
+    assert len(calls) == 1
 
 
 def test_no_retry_on_400_and_no_secrets_in_error():
@@ -176,20 +184,21 @@ def test_no_retry_on_400_and_no_secrets_in_error():
         return 400, json.dumps({"error": f"bad key {KEY}"}).encode()
 
     with pytest.raises(AdvisorProviderError) as exc:
-        GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, run).advise(summaries())
+        GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
     assert len(calls) == 1
     assert "400" in str(exc.value) and KEY not in str(exc.value)
 
 
-def test_timeout_retries_once_then_surfaces_sanitized():
-    from app.adapters.advisor import AdvisorProviderError as ProviderError
+def test_timeout_surfaces_sanitized_after_one_attempt():
+    calls = []
 
     def run(url, body, headers, timeout):
-        raise ProviderError("timeout", retryable=True)
+        calls.append(1)
+        raise AdvisorProviderError("advisor provider request timed out", retryable=True)
 
     with pytest.raises(AdvisorProviderError) as exc:
-        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries())
-    assert "timed out" in str(exc.value)
+        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
+    assert "timed out" in str(exc.value) and len(calls) == 1
 
 
 def test_generic_transport_failure_sanitized_without_key_or_vin():
@@ -197,7 +206,7 @@ def test_generic_transport_failure_sanitized_without_key_or_vin():
         raise RuntimeError(f"boom {KEY} {VIN}")
 
     with pytest.raises(AdvisorProviderError) as exc:
-        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries())
+        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
     assert KEY not in str(exc.value) and VIN not in str(exc.value)
     assert "RuntimeError" in str(exc.value)
 
@@ -207,7 +216,7 @@ def test_meta_unauthorized_names_no_secrets():
         return 401, b"{}"
 
     with pytest.raises(AdvisorProviderError) as exc:
-        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries())
+        MetaAdvisor(load_env(META_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
     assert KEY not in str(exc.value)
 
 
@@ -221,7 +230,7 @@ def test_meta_incomplete_mismatched_or_malformed_rejected():
     for status, payload in cases:
         with pytest.raises(AdvisorProviderError):
             MetaAdvisor(load_env(META_ENV), CONFIG,
-                        lambda u, b, h, t: (status, json.dumps(payload).encode())).advise(summaries())
+                        lambda u, b, h, t: (status, json.dumps(payload).encode())).advise(summaries(), grant=ALLOW)
 
 
 def test_gemini_blocked_prompt_rejected():
@@ -229,11 +238,11 @@ def test_gemini_blocked_prompt_rejected():
         return 200, json.dumps({"promptFeedback": {"blockReason": "SAFETY"}}).encode()
 
     with pytest.raises(AdvisorProviderError, match="blocked"):
-        GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, run).advise(summaries())
+        GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, run).advise(summaries(), grant=ALLOW)
 
 
 def test_invalid_model_output_becomes_not_available_not_error():
     wire = MetaAdvisor(load_env(META_ENV), CONFIG,
                        meta_ok('{"questions_for_seller": [], "mechanic_checks": [], '
-                               '"summary": "nothing"}')).advise(summaries())
+                               '"summary": "nothing"}')).advise(summaries(), grant=ALLOW)
     assert wire["status"] == "not_available"

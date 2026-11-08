@@ -1,7 +1,8 @@
 """Buyer-advisory provider adapters. `ADVISOR_PROVIDER=fixture` (default), `meta`, or `gemini`.
 
-One call per request, timeout-ep-bounded, at most one retry on 5xx/timeout. Keys, VINs,
-and raw provider payloads never appear in errors or logs.
+Live providers make exactly one transport attempt per prepared request and only after a
+dispatch grant (see app.briefing.dispatch); there is no inner retry. Keys, VINs, and raw
+provider payloads never appear in errors or logs.
 """
 
 from __future__ import annotations
@@ -14,6 +15,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from app.briefing.dispatch import (DispatchError, DispatchGrant, PreparedRequest, PreparedUnits, Usage,
+                                   UsageRecorder, execute_once, prepare_request, sanitized_id,
+                                   MAX_ADVISORY_OUTPUT_TOKENS)
 from app.contracts.sources import SourceSummary
 from app.domain.advisory import AdvisoryConfig, load_advisory_config, redact_vins
 
@@ -22,16 +26,18 @@ Transport = Callable[[str, bytes, dict[str, str], float], tuple[int, bytes]]
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "advisory.v1.json"
 
 
-class AdvisorProviderError(RuntimeError):
+class AdvisorProviderError(DispatchError):
     """Provider failure; message never contains the key, a VIN, or a raw payload."""
 
-    def __init__(self, message: str, *, retryable: bool = False) -> None:
-        super().__init__(message)
+    def __init__(self, message: str, *, retryable: bool = False, code: str = "provider_error",
+                 http_status: int | None = None) -> None:
+        super().__init__(message, code=code, http_status=http_status)
         self.retryable = retryable
 
 
 class AdvisorAdapter(Protocol):
-    def advise(self, summaries: Sequence[SourceSummary]) -> dict: ...
+    def advise(self, summaries: Sequence[SourceSummary], *, grant: DispatchGrant | None = None,
+               record: UsageRecorder | None = None, deadline_seconds: float | None = None) -> dict: ...
 
 
 def urllib_transport(url: str, body: bytes, headers: dict[str, str], timeout: float) -> tuple[int, bytes]:
@@ -42,28 +48,7 @@ def urllib_transport(url: str, body: bytes, headers: dict[str, str], timeout: fl
     except urllib.error.HTTPError as error:
         return error.code, error.read()
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise AdvisorProviderError("advisor provider request timed out", retryable=True) from exc
-
-
-def post_with_retry(transport: Transport, url: str, body: bytes, headers: dict[str, str],
-                    timeout: float, max_attempts: int) -> tuple[int, bytes]:
-    """One POST plus at most one retry on 5xx/timeout. 4xx and payload errors never retry."""
-    last: tuple[int, bytes] | None = None
-    for _ in range(max(1, max_attempts)):
-        try:
-            status, raw = transport(url, body, headers, timeout)
-        except AdvisorProviderError as exc:
-            if not exc.retryable:
-                raise
-            last = None
-            continue
-        if status >= 500:
-            last = (status, raw)
-            continue
-        return status, raw
-    if last is not None:
-        raise AdvisorProviderError(f"advisor provider returned HTTP {last[0]}")
-    raise AdvisorProviderError("advisor provider request timed out")
+        raise AdvisorProviderError("advisor provider request timed out", retryable=True, code="timeout") from exc
 
 
 def _safe_error(prefix: str, detail: str = "") -> AdvisorProviderError:
@@ -98,3 +83,35 @@ def get_advisor_adapter(environ: Mapping[str, str] | None = None,
 def wire_json(result) -> str:
     """Serialize an advisory result for logs or tests without leaking secrets."""
     return json.dumps(result.to_dict())
+
+
+def effective_timeout(config: AdvisoryConfig, deadline_seconds: float | None) -> float:
+    """Single-attempt timeout: the configured bound, shortened to the remaining deadline."""
+    timeout = config.timeout_seconds if deadline_seconds is None else min(config.timeout_seconds, deadline_seconds)
+    if timeout <= 0.05:
+        raise AdvisorProviderError("advisory deadline already reached; nothing was sent", code="deadline")
+    return timeout
+
+
+def prepare_advisory(*, provider: str, model: str, url: str, body: bytes) -> PreparedRequest:
+    """Cap check: the body (prompt, schema, instructions) is the whole input, bounded in bytes."""
+    return prepare_request(kind="advisory", provider=provider, model=model, url=url, body=body,
+                           units=PreparedUnits(input_tokens=len(body), output_tokens=MAX_ADVISORY_OUTPUT_TOKENS))
+
+
+def int_or_none(value: object) -> int | None:
+    return value if type(value) is int and value >= 0 else None
+
+
+def dispatch_advisory(prepared: PreparedRequest, grant: DispatchGrant | None, record: UsageRecorder | None, *,
+                      transport: Transport, headers: dict[str, str], timeout: float,
+                      usage_of: Callable[[int, bytes], Usage | None],
+                      interpret: Callable[[int, bytes], tuple[dict, bool]], label: str) -> dict:
+    """One transport attempt behind the grant; never retries."""
+    return execute_once(prepared, grant, record,
+                        send=lambda: transport(prepared.url, prepared.body, headers, timeout),
+                        usage_of=usage_of, interpret=interpret, fail_label=label,
+                        error_type=AdvisorProviderError)
+
+
+__all__ = ["AdvisorAdapter", "AdvisorProviderError", "Transport", "get_advisor_adapter", "sanitized_id"]

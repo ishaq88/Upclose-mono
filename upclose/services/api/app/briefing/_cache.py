@@ -28,9 +28,10 @@ def _lock_for(key: str) -> threading.Lock:
 
 
 def fetch_or_store(storage: ObjectStorage, key: str, content_type: str,
-                   synthesize: Callable[[], bytes]) -> tuple[bytes, bool]:
+                   synthesize: Callable[[], bytes], *, strict: bool = False) -> tuple[bytes, bool]:
     """Return (audio, cache_hit). A hit never calls `synthesize`. Storage trouble on read
-    falls through to synthesis; a failed write still returns the audio (next call retries)."""
+    falls through to synthesis, unless `strict` (paid providers): then the StorageError propagates,
+    so an unreadable cache can never trigger a paid call. A failed write still returns the audio."""
     with _lock_for(key):
         with tempfile.TemporaryDirectory(prefix="upclose-audio-") as scratch:
             path = Path(scratch) / "audio"
@@ -41,7 +42,8 @@ def fetch_or_store(storage: ObjectStorage, key: str, content_type: str,
                     if data:
                         return data, True
             except (StorageError, OSError):
-                pass
+                if strict:
+                    raise StorageError("audio cache is unavailable") from None
             data = synthesize()
             try:
                 path.write_bytes(data)

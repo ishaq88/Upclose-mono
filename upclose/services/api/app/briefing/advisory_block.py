@@ -9,16 +9,18 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Mapping, Sequence
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
-from typing import Annotated, Literal, Self
+from typing import TYPE_CHECKING, Annotated, Literal, Self
 
 from pydantic import Field, ValidationError, model_validator
 
-from app.adapters.advisor import AdvisorAdapter, AdvisorProviderError, get_advisor_adapter
 from app.adapters.advisor.config import AdvisorConfigError
+from app.briefing.dispatch import DispatchError, DispatchGrant, UsageRecorder
 from app.contracts.base import ContractModel
 from app.contracts.sources import SourceSummary
 from app.domain.advisory import AdvisoryError, citable_keys, plain_text, redact_vins
+
+if TYPE_CHECKING:  # the adapter package imports contracts, which import this module
+    from app.adapters.advisor import AdvisorAdapter
 
 ADVISORY_LABEL = "AI advisory, not a finding"
 DEFAULT_DEADLINE_SECONDS = 45.0
@@ -115,12 +117,18 @@ def build_advisory_block(source_summaries: Sequence[SourceSummary], vin_info: Ma
                          settings, *, environ: Mapping[str, str] | None = None,
                          adapter: AdvisorAdapter | None = None,
                          budget_ok: Callable[[], bool] | None = None,
+                         grant: DispatchGrant | None = None, record: UsageRecorder | None = None,
                          deadline_seconds: float = DEFAULT_DEADLINE_SECONDS) -> AdvisoryBlock:
     """Build the advisory block. `adapter`/`environ` are injection points for tests and wiring.
 
-    `budget_ok` is an optional guard evaluated before any non-fixture provider call
-    (False -> not_available). `settings.model_mode == "replay"` makes no provider call.
+    A non-fixture provider is only called with a dispatch `grant` (the server's reserve-then-mark-
+    dispatched callback); without one, or with a denied one, nothing is sent and the block is
+    `not_available`. The adapter makes one transport attempt bounded by `deadline_seconds` (no
+    background thread) and reports sanitized usage to `record`, even for an invalid answer.
+    `budget_ok` is an optional extra pre-check (False -> not_available).
+    `settings.model_mode == "replay"` makes no provider call.
     """
+    from app.adapters.advisor import AdvisorProviderError, get_advisor_adapter
     vehicle = _vehicle_label(vin_info)
     summaries = tuple(source_summaries)
     if not summaries or not citable_keys(summaries):
@@ -132,16 +140,17 @@ def build_advisory_block(source_summaries: Sequence[SourceSummary], vin_info: Ma
     try:
         chosen = adapter or get_advisor_adapter(environ)
         provider = type(chosen).__name__.removesuffix("Advisor").lower()
-        if provider != "fixture" and budget_ok is not None and not budget_ok():
-            return _not_available("advisory budget is exhausted", provider, "unknown", "advisory-v1", vehicle)
-        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="advisory")
-        try:
-            result = pool.submit(chosen.advise, summaries).result(timeout=max(0.1, deadline_seconds))
-        finally:
-            pool.shutdown(wait=False, cancel_futures=True)
-    except FutureTimeout:
-        return _not_available("advisor timed out", provider, "unknown", "advisory-v1", vehicle)
-    except (AdvisorProviderError, AdvisorConfigError, AdvisoryError) as exc:
+        if provider != "fixture":
+            if budget_ok is not None and not budget_ok():
+                return _not_available("advisory budget is exhausted", provider, "unknown", "advisory-v1", vehicle)
+            if grant is None:
+                return _not_available("advisory is not funded; no dispatch grant", provider, "unknown",
+                                      "advisory-v1", vehicle)
+            result = chosen.advise(summaries, grant=grant, record=record,
+                                   deadline_seconds=max(0.1, deadline_seconds))
+        else:
+            result = chosen.advise(summaries)
+    except (AdvisorProviderError, DispatchError, AdvisorConfigError, AdvisoryError) as exc:
         return _not_available(str(exc) or "advisor unavailable", provider, "unknown", "advisory-v1", vehicle)
     except Exception as exc:  # a report must never break on the advisory
         return _not_available(f"advisor failed ({type(exc).__name__})", provider, "unknown",

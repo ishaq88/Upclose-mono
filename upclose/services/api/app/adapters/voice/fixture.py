@@ -17,5 +17,6 @@ def silent_wav(seconds: float = 0.5, rate: int = 8000) -> bytes:
 
 
 class FixtureVoice:
-    def synthesize(self, text: str) -> VoiceAudio:
+    def synthesize(self, text: str, *, grant=None, record=None, kind="narration",
+                   deadline_seconds=None) -> VoiceAudio:
         return VoiceAudio(data=silent_wav(), content_type="audio/wav", extension="wav", provenance="synthetic")

@@ -175,7 +175,7 @@ class Job(Record, Base):
     session_id: Mapped[UUID | None] = mapped_column(ForeignKey("sessions.id"), index=True)
     subject_kind: Mapped[str] = mapped_column(states("job_subject", "part_run", "concept_run", "finding", "duplicate_group", "report_revision", "stripe_event", "session"))
     subject_id: Mapped[str] = mapped_column(String(255))
-    stage: Mapped[str] = mapped_column(states("job_stage", "ingest", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "source_ingest", "vehicle_mask", "audio_ingest"))
+    stage: Mapped[str] = mapped_column(states("job_stage", "ingest", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "source_ingest", "vehicle_mask", "audio_ingest", "voice_prewarm"))
     input_hash: Mapped[str] = hash_column()
     config_hash: Mapped[str] = hash_column()
     idempotency_key: Mapped[str] = mapped_column(String(64), unique=True)

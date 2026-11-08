@@ -73,6 +73,8 @@ class Settings(BaseSettings):
     model_daily_budget_cents: int = Field(default=5000, ge=0, le=1000000)
     model_standard_access_receipt: str | None = None
     model_allow_non_standard_demo: bool = False
+    # Operator acknowledgement of the ElevenLabs account rate ceiling; required before any live narration spend.
+    model_elevenlabs_access_receipt: str | None = None
     public_sharing_enabled: bool = False
     demo_session_id: UUID | None = None
     consent_version: str = "upclose-prototype-v1"
@@ -119,7 +121,7 @@ class Settings(BaseSettings):
     report_price_cents: Literal[1900] = 1900  # the purchases table check currently fixes $19.00
 
     @field_validator("stripe_secret_key", "stripe_webhook_secret", "stripe_report_price_id", "demo_session_id",
-                      "model_api_key", "model_standard_access_receipt", "email_from_address", "email_smtp_host",
+                      "model_api_key", "model_standard_access_receipt", "model_elevenlabs_access_receipt", "email_from_address", "email_smtp_host",
                       "email_smtp_username", "email_smtp_password", mode="before")
     @classmethod
     def blank_is_unset(cls, value: object) -> object:

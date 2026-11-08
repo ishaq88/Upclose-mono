@@ -42,6 +42,11 @@ class SessionService:
             db.add_all([Part(session_id=owner.id, part_no=number, zone=zone)
                         for number, zone in enumerate(PART_ZONES, start=1)])
             db.flush()
+            from app.jobs.queue import enqueue
+            from app.pipeline.voice_prewarm import prewarm_spec
+            spec = prewarm_spec(owner.id)  # live voice only: the worker pays for the capture guide under this session
+            if spec is not None:
+                enqueue(db, spec)
             result = CreateSessionResponse(session_id=owner.id, session_token=token)
         # Creation intentionally never writes a request-key record containing the token.
         return result

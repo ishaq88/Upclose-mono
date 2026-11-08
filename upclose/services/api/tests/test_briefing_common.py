@@ -38,12 +38,17 @@ class MemoryStorage:
         self.objects[key] = path.read_bytes()
 
 
+def allow(_prepared) -> bool:
+    return True
+
+
 class CountingVoice:
     def __init__(self, data: bytes = b"AUDIO", extension: str = "wav", fail: Exception | None = None) -> None:
         self.calls: list[str] = []
         self._data, self._ext, self._fail = data, extension, fail
 
-    def synthesize(self, text: str) -> VoiceAudio:
+    def synthesize(self, text: str, *, grant=None, record=None, kind="narration",
+                   deadline_seconds=None) -> VoiceAudio:
         self.calls.append(text)
         if self._fail:
             raise self._fail

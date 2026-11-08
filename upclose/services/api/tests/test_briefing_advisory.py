@@ -12,7 +12,7 @@ from app.adapters.advisor.config import load_env
 from app.adapters.advisor.gemini import GeminiAdvisor
 from app.briefing.advisory_block import ADVISORY_LABEL, AdvisoryBlock, build_advisory_block
 from tests.test_advisory_adapters import CONFIG, GEMINI_ENV
-from tests.test_briefing_common import KEY, summaries
+from tests.test_briefing_common import KEY, allow, summaries
 
 SETTINGS = SimpleNamespace(model_mode="fixture")
 VIN = "SYNTHETC00000UPCA"
@@ -24,7 +24,7 @@ class Stub:
     def __init__(self, result=None, exc: Exception | None = None, delay: float = 0.0) -> None:
         self.result, self.exc, self.delay, self.calls = result, exc, delay, 0
 
-    def advise(self, _summaries):
+    def advise(self, _summaries, *, grant=None, record=None, deadline_seconds=None):
         self.calls += 1
         time.sleep(self.delay)
         if self.exc:
@@ -68,31 +68,43 @@ def test_from_json_rejects_inconsistent_blocks():
 
 
 def test_live_style_result_validates():
-    block = build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(good()))
+    block = build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(good()), grant=allow)
     assert block.status == "available" and block.provenance == "live" and block.model == "m-1"
 
 
 @pytest.mark.parametrize("exc", [AdvisorProviderError("advisor provider returned HTTP 503"),
                                  RuntimeError("boom"), ValueError("bad")])
 def test_provider_failure_is_not_available_never_raises(exc):
-    block = build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(exc=exc))
+    block = build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(exc=exc), grant=allow)
     assert block.status == "not_available" and block.reason
     assert block.label == ADVISORY_LABEL and not block.questions_for_seller
 
 
-def test_timeout_is_not_available():
-    block = build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(good(), delay=1.0),
-                                 deadline_seconds=0.1)
+def test_transport_timeout_is_not_available_after_one_attempt():
+    calls = []
+
+    def transport(url, body, headers, timeout):
+        calls.append(timeout)
+        raise AdvisorProviderError("advisor provider request timed out", retryable=True)
+    adapter = GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, transport)
+    block = build_advisory_block(summaries(), None, SETTINGS, adapter=adapter, grant=allow, deadline_seconds=5.0)
     assert block.status == "not_available" and "timed out" in block.reason
+    assert len(calls) == 1 and calls[0] <= 5.0  # bounded by the deadline, never retried
+
+
+def test_live_provider_without_grant_makes_no_call():
+    stub = Stub(good())
+    block = build_advisory_block(summaries(), None, SETTINGS, adapter=stub)
+    assert block.status == "not_available" and "grant" in block.reason and stub.calls == 0
 
 
 def test_provider_not_available_result_and_garbage_result():
     na = {"status": "not_available", "reason": "no item cited evidence", "provider": "gemini",
           "model": "m-1", "prompt_version": "advisory-v1"}
-    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(na)).status == "not_available"
-    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub("nope")).status == "not_available"
+    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(na), grant=allow).status == "not_available"
+    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub("nope"), grant=allow).status == "not_available"
     bad = {**good(), "questions_for_seller": [{"text": "", "cites": []}]}
-    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(bad)).status == "not_available"
+    assert build_advisory_block(summaries(), None, SETTINGS, adapter=Stub(bad), grant=allow).status == "not_available"
 
 
 def test_no_evidence_or_replay_mode_makes_no_call():
@@ -121,6 +133,6 @@ def test_key_in_underlying_error_text_stays_out_of_block():
     def transport(url, body, headers, timeout):
         raise RuntimeError(f"connection failed for {headers['x-goog-api-key']}")
     adapter = GeminiAdvisor(load_env(GEMINI_ENV), CONFIG, transport)
-    block = build_advisory_block(summaries(), None, SETTINGS, adapter=adapter)
+    block = build_advisory_block(summaries(), None, SETTINGS, adapter=adapter, grant=allow)
     assert block.status == "not_available"
     assert KEY not in str(block.to_json())

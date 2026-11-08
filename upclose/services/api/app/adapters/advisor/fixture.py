@@ -17,7 +17,8 @@ class FixtureAdvisor:
     def __init__(self, config: AdvisoryConfig) -> None:
         self._config = config
 
-    def advise(self, summaries: Sequence[SourceSummary]) -> dict:
+    def advise(self, summaries: Sequence[SourceSummary], *, grant=None, record=None,
+               deadline_seconds: float | None = None) -> dict:
         citable = citable_keys(summaries)
         questions: list[dict] = []
         checks: list[dict] = []

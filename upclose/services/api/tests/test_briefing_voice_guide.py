@@ -17,7 +17,7 @@ from app.briefing.voice_guide import (CATALOG_PATH, VoiceGuide, VoiceGuideError,
                                       load_catalog)
 from app.contracts.enums import Zone
 from app.services.problems import ProblemError, handle_problem
-from tests.test_briefing_common import ELEVEN_ENV, KEY, CountingVoice, MemoryStorage
+from tests.test_briefing_common import ELEVEN_ENV, KEY, CountingVoice, MemoryStorage, allow
 
 TOKEN = "a" * 32
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -125,15 +125,29 @@ def test_cache_key_depends_on_text_voice_model_provider():
     assert eleven.storage_key(lines[0]).endswith(".mp3")
 
 
-def test_provider_failure_is_502_without_key_and_nothing_cached():
+def test_fixture_provider_failure_is_502_without_key_and_nothing_cached():
     storage = MemoryStorage()
     failing = CountingVoice(fail=RuntimeError(f"auth failed {KEY}"))
-    c = client(storage, environ=ELEVEN_ENV, adapter=failing)
+    c = client(storage, adapter=failing)
     r = c.get("/api/v1/voice-guide/finish", headers=AUTH)
     assert r.status_code == 502 and KEY not in r.text and storage.objects == {}
-    http = client(storage, environ=ELEVEN_ENV, adapter=CountingVoice(fail=VoiceProviderError("voice provider returned HTTP 401")))
-    r = http.get("/api/v1/voice-guide/finish", headers=AUTH)
-    assert r.status_code == 502 and "HTTP 401" in r.text
+
+
+def test_live_route_is_cache_only_and_never_reaches_the_adapter():
+    voice, storage = CountingVoice(), MemoryStorage()
+    c = client(storage, environ=ELEVEN_ENV, adapter=voice)
+    r = c.get("/api/v1/voice-guide/finish", headers=AUTH)
+    assert r.status_code == 503 and voice.calls == [] and storage.objects == {}
+    assert c.get("/api/v1/voice-guide", headers=AUTH).status_code == 200  # captions still served
+
+
+def test_live_prewarm_failure_is_sanitized_and_nothing_cached():
+    storage = MemoryStorage()
+    guide = VoiceGuide(storage, environ=ELEVEN_ENV,
+                       adapter=CountingVoice(fail=RuntimeError(f"auth failed {KEY}")))
+    with pytest.raises(ProblemError) as caught:
+        guide.audio("finish", grant=allow)
+    assert caught.value.status == 503 and KEY not in str(caught.value.detail) and storage.objects == {}
 
 
 def test_elevenlabs_request_shape_and_key_never_in_response():
@@ -144,13 +158,18 @@ def test_elevenlabs_request_shape_and_key_never_in_response():
         seen["key"], seen["body"] = request.headers["xi-api-key"], json.loads(request.content)
         return httpx.Response(200, content=b"ID3mp3")
     adapter = ElevenLabsVoice(load_env(ELEVEN_ENV), httpx.MockTransport(handler))
-    c = client(environ=ELEVEN_ENV, adapter=adapter)
-    r = c.get("/api/v1/voice-guide/finish", headers=AUTH)
-    assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg"
+    storage = MemoryStorage()
+    guide = VoiceGuide(storage, environ=ELEVEN_ENV, adapter=adapter)
+    status = guide.prewarm(grant=allow)
+    assert set(status.values()) == {"synthesized"} and len(status) == len(guide.catalog.lines)
+    c = client(storage, environ=ELEVEN_ENV, adapter=adapter)
+    r = c.get("/api/v1/voice-guide/finish", headers=AUTH)  # now a cache hit: served without any grant
+    assert r.status_code == 200 and r.headers["content-type"] == "audio/mpeg" and r.headers["x-voice-cache"] == "hit"
     assert r.headers["x-voice-provenance"] == "live"
     assert seen["path"] == "/v1/text-to-speech/voiceX" and seen["fmt"] == "mp3_44100_128"
-    assert seen["body"]["model_id"] == "modelY" and seen["body"]["text"] == load_catalog().get("finish").text
+    assert seen["body"]["model_id"] == "modelY"
     assert KEY not in r.text and KEY not in json.dumps(dict(r.headers))
+    assert guide.prewarm(grant=lambda p: pytest.fail("cached lines need no grant")) ==         {line.id: "cached" for line in guide.catalog.lines}
 
 
 def test_misconfigured_live_provider_fails_at_wiring_naming_only_variables():

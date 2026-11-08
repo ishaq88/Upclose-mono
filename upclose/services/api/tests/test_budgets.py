@@ -19,8 +19,8 @@ from sqlalchemy.orm import sessionmaker
 from app.models import BudgetBucket, Job, ModelCall, Session
 from app.routers.operator import create_operator_router
 from app.services.budgets import (
-    PRICE_VERSION, BudgetConfig, BudgetError, BudgetService, PriceRates,
-    ReservationRequest, UsageUnits, ceiling_cents, documented_prices, price_usage,
+    ELEVENLABS_PRICE_VERSION, ELEVENLABS_V4, PRICE_VERSION, BudgetConfig, BudgetError, BudgetService, PriceRates,
+    ReservationRequest, UsageUnits, ceiling_cents, documented_prices, price_usage, units_json,
 )
 
 
@@ -419,3 +419,107 @@ def test_midnight_requires_new_current_day_reservation_before_dispatch(db):
     assert all(bucket.reserved_cents == 1 for bucket in ledger(db)[1])
     service.settle(req.attempt_id, actual_units=None, actual_micro_usd=0, outcome="reconciled", evidence_code="synthetic-proven-never-dispatched")
     assert all(bucket.reserved_cents == 0 for bucket in ledger(db)[1])
+
+
+# ---- provider-qualified characters (ElevenLabs eleven_v4) -----------------------------------------------------
+
+def speech(db, characters=2500, **changes):
+    return request(db, units=UsageUnits(characters=characters), model=ELEVENLABS_V4,
+                   price_version=ELEVENLABS_PRICE_VERSION, **changes)
+
+
+def live_voice(**changes) -> BudgetConfig:
+    return BudgetConfig(model_mode="live", elevenlabs_access_receipt="synthetic-test-only-not-account-access", **changes)
+
+
+def test_character_price_is_the_approved_rate_and_rounds_up():
+    rates = documented_prices()
+    assert rates[ELEVENLABS_V4].character == Decimal(80)  # USD 0.08 per 1K characters
+    assert price_usage(ELEVENLABS_V4, UsageUnits(characters=1000), rates) == 80000
+    assert price_usage(ELEVENLABS_V4, UsageUnits(characters=2500), rates) == 200000
+    assert ceiling_cents(price_usage(ELEVENLABS_V4, UsageUnits(characters=1), rates)) == 1
+
+
+@pytest.mark.parametrize("model,units", [
+    (ELEVENLABS_V4, UsageUnits(input_tokens=5)), (ELEVENLABS_V4, UsageUnits()), (ELEVENLABS_V4, UsageUnits(images=1)),
+    ("muse-spark-1.3", UsageUnits(characters=5)), ("sam-3.1", UsageUnits(characters=5)),
+])
+def test_character_units_never_mix_with_other_modalities(model, units):
+    with pytest.raises(BudgetError, match="invalid_usage"):
+        price_usage(model, units, documented_prices())
+    with pytest.raises(BudgetError, match="invalid_usage"):
+        UsageUnits(characters=1, output_tokens=1)
+
+
+def test_caller_supplied_character_price_is_rejected():
+    cheap = {**documented_prices(), ELEVENLABS_V4: PriceRates(character=Decimal(1))}
+    with pytest.raises(BudgetError, match="price_unverified"):
+        price_usage(ELEVENLABS_V4, UsageUnits(characters=10), cheap)
+    with pytest.raises(BudgetError, match="model_unverified"):
+        price_usage("elevenlabs/invented", UsageUnits(characters=10), documented_prices())
+
+
+def test_legacy_units_serialization_is_unchanged_by_the_character_field():
+    legacy = units_json(UsageUnits(input_tokens=3, output_tokens=2))
+    assert "characters" not in legacy
+    assert legacy == {"images": 0, "frames": 0, "input_tokens": 3, "cached_input_tokens": 0, "output_tokens": 2}
+    assert units_json(UsageUnits(characters=7))["characters"] == 7
+
+
+def test_legacy_meta_reservation_fingerprint_is_stable_across_the_change(db):
+    service = BudgetService(db, live())
+    req = request(db)
+    service.reserve(req)
+    calls, _ = ledger(db)
+    assert "characters" not in calls[0].requested_units["units"]
+    assert service.reserve(req).state == "reserved"  # idempotent replay still matches the stored fingerprint
+
+
+def test_voice_reservation_needs_its_own_receipt_and_price_version(db):
+    req = speech(db)
+    with pytest.raises(BudgetError, match="provider_access_unverified"):
+        BudgetService(db, BudgetConfig(model_mode="live", verified_standard_access=True,
+                                       standard_access_receipt="meta-only")).reserve(req)
+    with pytest.raises(BudgetError, match="price_unverified"):
+        BudgetService(db, live_voice()).reserve(replace(req, price_version=PRICE_VERSION))
+    assert ledger(db) == ([], [])
+
+
+def test_voice_reserve_dispatch_keeps_unknown_charge_and_holds_twenty_cents(db):
+    service = BudgetService(db, live_voice())
+    req = speech(db)
+    created = service.reserve(req)
+    assert created.reserved_micro_usd == 200000 and created.reserved_cents == 20 and created.may_send is False
+    assert service.mark_dispatched(req.attempt_id, req.lease_token) is True
+    assert service.mark_dispatched(req.attempt_id, req.lease_token) is False  # one dispatch grant only
+    service.mark_unknown(req.attempt_id)
+    calls, buckets = ledger(db)
+    assert calls[0].state == "unknown" and calls[0].requested_units["units"]["characters"] == 2500
+    assert [b.reserved_cents for b in buckets] == [20, 20] and [b.spent_cents for b in buckets] == [0, 0]
+    assert service.operator_totals()["unknown_micro_usd"] == 200000
+
+
+def test_voice_dispatch_rechecks_receipt_and_deletion_and_deadline(db):
+    req = speech(db)
+    BudgetService(db, live_voice()).reserve(req)
+    with pytest.raises(BudgetError, match="provider_access_unverified"):
+        BudgetService(db, BudgetConfig(model_mode="live")).mark_dispatched(req.attempt_id, req.lease_token)
+    with pytest.raises(BudgetError, match="lease_lost"):
+        BudgetService(db, live_voice()).mark_dispatched(req.attempt_id, uuid4())
+    with db.begin() as connection:
+        connection.execute(update(Session).where(Session.id == req.session_id).values(state="deleting"))
+    with pytest.raises(BudgetError, match="job_not_eligible"):
+        BudgetService(db, live_voice()).mark_dispatched(req.attempt_id, req.lease_token)
+    calls, _ = ledger(db)
+    assert calls[0].state == "reserved"  # nothing was granted
+
+
+def test_voice_reservation_respects_the_session_cap(db):
+    service = BudgetService(db, live_voice(session_limit_cents=30))
+    owner_request = speech(db)
+    service.reserve(owner_request)
+    with db.begin() as connection:
+        job = connection.get(Job, owner_request.job_id)
+        owner_id = job.session_id
+    with pytest.raises(BudgetError, match="budget_exhausted"):
+        service.reserve(replace(speech(db, owner=type("O", (), {"id": owner_id})()), attempt_id=uuid4()))

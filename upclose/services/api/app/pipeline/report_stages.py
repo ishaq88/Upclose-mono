@@ -84,8 +84,9 @@ def stage_spec(session_id: UUID, revision_id: UUID, stage: str, manifest_hash: s
 class ReportStages:
     def __init__(self, factory: sessionmaker[DBSession], settings: Settings, config: ReportConfig | None = None, *,
                  claims_model: ClaimsModel | None = None, narration_model: NarrationModel | None = None,
-                 storage: ObjectStorage | None = None) -> None:
+                 storage: ObjectStorage | None = None, budget_service=None) -> None:  # type: ignore[no-untyped-def]
         self.factory, self.settings, self.storage = factory, settings, storage
+        self.budget = budget_service  # BudgetService when the worker is live; None keeps every live provider closed
         self.config = config or load_report_config()
         self.claims_model, self.narration_model = claims_model, narration_model
         self.default_provenance = _DEFAULT_PROVENANCE[settings.model_mode]
@@ -236,7 +237,7 @@ class ReportStages:
             free, paid = self._narrations(manifest, score, claims)
         except NarrationInputError:
             raise _terminal() from None
-        briefing = paid_in.briefing or self._briefing(manifest)  # a retry keeps the first provider answers
+        briefing = paid_in.briefing or self._briefing(manifest, lease)  # a retry keeps the first provider answers
         free_payload = StoredFreeNarration(manifest_hash=digest, outcome=free).model_dump(mode="json")
         paid_payload = paid_in.model_copy(update={"narration": paid, "briefing": briefing}).model_dump(mode="json")
 
@@ -260,7 +261,7 @@ class ReportStages:
 
         return Publication(publish=publish, downstream=(stage_spec(manifest.session_id, manifest.revision_id, "render", digest, manifest),))
 
-    def _briefing(self, manifest: ReportManifest) -> StoredBriefing:
+    def _briefing(self, manifest: ReportManifest, lease: Lease | None = None) -> StoredBriefing:
         """Advisory, VIN check and vibration series. Provider calls happen here, outside any transaction."""
         rig = None
         if any(row.kind == "rig_telemetry" for row in manifest.sources):
@@ -272,10 +273,13 @@ class ReportStages:
                         rig = RigTelemetryData.model_validate(row.data)
                     except ValidationError:
                         rig = None
-        return build_briefing(manifest.sources, rig, str(manifest.session_id), self.settings)
+        from app.services.auxiliary_budget import AuxiliaryDispatcher
+        return build_briefing(manifest.sources, rig, str(manifest.session_id), self.settings,
+                              dispatcher=AuxiliaryDispatcher(self.budget, lease), storage=self.storage)
 
-    def _narration_audio(self, snapshot: RevisionSnapshot) -> NarrationAudioMeta | None:
-        return _narration_audio_for(snapshot, self.storage)
+    def _narration_audio(self, snapshot: RevisionSnapshot, lease: Lease | None = None) -> NarrationAudioMeta | None:
+        from app.services.auxiliary_budget import AuxiliaryDispatcher
+        return _narration_audio_for(snapshot, self.storage, dispatcher=AuxiliaryDispatcher(self.budget, lease))
 
     def _narrations(self, manifest: ReportManifest, score: StoredScore, claims: Sequence[ClaimResult]) -> tuple[NarrationOutcome, NarrationOutcome]:
         config = self.config.narration
@@ -316,7 +320,7 @@ class ReportStages:
                 raise _terminal() from None
             digest = str(revision.manifest_hash)
             snapshot = load_snapshot(db, revision, config=self.config)
-        audio_meta = self._narration_audio(snapshot)  # provider call outside the read transaction
+        audio_meta = self._narration_audio(snapshot, lease)  # provider call outside the read transaction
 
         def publish(db: DBSession) -> None:
             revision = self._locked_for_publish(db, lease)
@@ -335,25 +339,33 @@ class ReportStages:
         return Publication(publish=publish)
 
 
-def _narration_audio_for(snapshot: RevisionSnapshot, storage: ObjectStorage | None) -> NarrationAudioMeta | None:
+def _narration_audio_for(snapshot: RevisionSnapshot, storage: ObjectStorage | None, *,
+                         dispatcher=None) -> NarrationAudioMeta | None:  # type: ignore[no-untyped-def]
     """Spoken version of the paid narration, cached by input hash. Never fails the report."""
     from app.briefing.narration_audio import NarrationAudioError, build_narration_audio
     from app.services.auxiliary_providers import LIVE_BUDGET_UNAVAILABLE, live_auxiliary_requested
     briefing = None if snapshot.paid_narration is None else snapshot.paid_narration.briefing
     if storage is None or briefing is None or briefing.narration_audio is not None:
         return None
-    if live_auxiliary_requested("VOICE_PROVIDER"):
+    live = live_auxiliary_requested("VOICE_PROVIDER")
+    if live and (dispatcher is None or not dispatcher.available):
         logging.warning(LIVE_BUDGET_UNAVAILABLE)
         return None
+    accounting = {"grant": dispatcher.grant, "record": dispatcher.record,
+                  "deadline_seconds": dispatcher.remaining_seconds()} if live else {}
     try:
         ready = replace(snapshot, state=ReportState.READY, rendered_at=datetime.now(timezone.utc))
         paid = build_reports(ready)[1]
         assert isinstance(paid, PaidReport)
         return NarrationAudioMeta.model_validate(
-            build_narration_audio(paid, snapshot.session_id, storage, simulated=snapshot.manifest.provenance != "live").metadata())
+            build_narration_audio(paid, snapshot.session_id, storage, simulated=snapshot.manifest.provenance != "live",
+                                  **accounting).metadata())
     except (NarrationAudioError, ValidationError, ValueError, OSError):
         logging.warning("Narration audio unavailable; the report publishes without it")
         return None
+    finally:
+        if dispatcher is not None:
+            dispatcher.close()  # a granted call that never reported usage keeps its unknown charge
 
 
 def _assemble(snapshot: RevisionSnapshot, *, validate_html: bool) -> None:
@@ -382,9 +394,10 @@ def _write_claims(db: DBSession, revision: ReportRevision, manifest: ReportManif
 def install_report_handlers(registry, factory: sessionmaker[DBSession], settings: Settings,  # type: ignore[no-untyped-def]
                             config: ReportConfig | None = None, *, claims_model: ClaimsModel | None = None,
                             narration_model: NarrationModel | None = None,
-                            storage: ObjectStorage | None = None) -> ReportStages:
+                            storage: ObjectStorage | None = None, budget_service=None) -> ReportStages:  # type: ignore[no-untyped-def]
     """Register claims, score, narrate and render. Offline by default: no model seam is installed."""
-    stages = ReportStages(factory, settings, config, claims_model=claims_model, narration_model=narration_model, storage=storage)
+    stages = ReportStages(factory, settings, config, claims_model=claims_model, narration_model=narration_model, storage=storage,
+                         budget_service=budget_service)
     for name in REPORT_STAGE_NAMES:
         registry.register(name, getattr(stages, name))
     return stages

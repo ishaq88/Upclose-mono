@@ -1,5 +1,6 @@
 """CLI: python -m app.adapters.voice NARRATION.json OUTPUT [--simulated]
 
+Live providers need a dispatch grant, which this CLI cannot supply, so only the fixture runs here.
 Prints only the output path, provenance and script length; never the key or the text.
 """
 
@@ -10,7 +11,9 @@ from pathlib import Path
 
 from app.domain.voice_script import VoiceScriptError, build_script, lines_from_json, load_voice_config
 
-from . import VoiceProviderError, get_voice_adapter
+from app.briefing.dispatch import DispatchError
+
+from . import get_voice_adapter
 from .config import VoiceConfigError
 
 CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "voice.v1.json"
@@ -27,7 +30,7 @@ def main(argv: list[str] | None = None) -> int:
         raw = json.loads(Path(args.narration_json).read_text(encoding="utf-8"))
         script = build_script(lines_from_json(raw), config, simulated=args.simulated)
         audio = get_voice_adapter().synthesize(script)
-    except (VoiceScriptError, VoiceConfigError, VoiceProviderError, OSError, ValueError) as exc:
+    except (VoiceScriptError, VoiceConfigError, DispatchError, OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     out = Path(args.output).with_suffix("." + audio.extension)

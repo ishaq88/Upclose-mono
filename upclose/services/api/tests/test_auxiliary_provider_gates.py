@@ -1,4 +1,4 @@
-"""Unfunded auxiliary generation must never invoke a live transport. Synthetic fixtures remain available."""
+"""Live auxiliary generation is closed unless a priced dispatch grant exists. Synthetic fixtures remain available."""
 from types import SimpleNamespace
 
 import pytest
@@ -11,18 +11,27 @@ from app.settings import Settings
 
 
 @pytest.mark.parametrize("provider", ["meta", "gemini"])
-def test_live_advisory_is_explicitly_unavailable_without_invocation(monkeypatch, provider):
+def test_live_advisory_without_a_dispatcher_is_unavailable_without_invocation(monkeypatch, provider):
     def forbidden(*args, **kwargs):
-        pytest.fail("live advisory dispatch must require a priced reservation")
+        pytest.fail("live advisory dispatch must require a priced grant")
 
     monkeypatch.setattr("app.pipeline.briefing.build_advisory_block", forbidden)
     result = build_briefing((), None, "synthetic-session", Settings(), environ={"ADVISOR_PROVIDER": provider})
     assert result.advisory.status == "not_available"
-    assert "priced budget reservation" in result.advisory.reason
+    assert "priced budget grant" in result.advisory.reason
     assert result.advisory.provider == provider
 
 
-def test_live_narration_is_not_invoked_without_reservation(monkeypatch):
+def test_live_advisory_with_a_dispatcher_that_has_no_live_budget_is_unavailable(monkeypatch):
+    monkeypatch.setattr("app.pipeline.briefing.build_advisory_block",
+                        lambda *args, **kwargs: pytest.fail("no budget connected: nothing may be dispatched"))
+    from app.services.auxiliary_budget import AuxiliaryDispatcher
+    result = build_briefing((), None, "synthetic-session", Settings(), environ={"ADVISOR_PROVIDER": "meta"},
+                            dispatcher=AuxiliaryDispatcher(None, None))
+    assert result.advisory.status == "not_available" and "priced budget grant" in result.advisory.reason
+
+
+def test_live_narration_is_not_invoked_without_a_dispatcher(monkeypatch):
     monkeypatch.setenv("VOICE_PROVIDER", "elevenlabs")
     monkeypatch.setattr("app.briefing.narration_audio.build_narration_audio",
         lambda *args, **kwargs: pytest.fail("unfunded synthesis was dispatched"))
@@ -30,8 +39,8 @@ def test_live_narration_is_not_invoked_without_reservation(monkeypatch):
     assert _narration_audio_for(snapshot, object()) is None
 
 
-def test_voice_guide_live_synthesis_denied_but_fixture_not_replaced():
+def test_voice_guide_api_is_cache_only_for_a_live_provider_but_fixture_is_not_replaced():
     assert guarded_guide_adapter({"VOICE_PROVIDER": "fixture"}) is None
     denied = guarded_guide_adapter({"VOICE_PROVIDER": "elevenlabs"})
     with pytest.raises(VoiceProviderError, match="budget reservation unavailable"):
-        denied.synthesize("synthetic caption")
+        denied.synthesize("synthetic caption", grant=None, record=None, kind="voice_guide")

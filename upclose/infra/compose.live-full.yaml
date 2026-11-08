@@ -15,6 +15,8 @@ services:
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
       ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
       ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID:-}
+      # Operator acknowledgement of the ElevenLabs account rate ceiling (non-secret text); live voice spend is refused without it.
+      MODEL_ELEVENLABS_ACCESS_RECEIPT: ${MODEL_ELEVENLABS_ACCESS_RECEIPT:-}
       TIGER_DATABASE_URL: ${TIGER_DATABASE_URL:-}
       VIN_PROVIDER: ${VIN_PROVIDER:-fixture}
   # The API receives only the voice-guide variables, never a model or database key.

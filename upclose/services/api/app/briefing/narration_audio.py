@@ -22,9 +22,10 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
-from app.adapters.storage import ObjectStorage
+from app.adapters.storage import ObjectStorage, StorageError
 from app.adapters.voice import VoiceAdapter, VoiceProviderError, get_voice_adapter
 from app.adapters.voice.config import load_env
+from app.briefing.dispatch import DispatchError, DispatchGrant, UsageRecorder
 from app.contracts.enums import ReportState
 from app.contracts.reports import PaidReport
 from app.domain.voice_script import VoiceScriptError, build_script, load_voice_config
@@ -66,7 +67,14 @@ def narration_key(session_id: UUID, revision_id: UUID, digest: str, extension: s
 
 def build_narration_audio(report: PaidReport, session_id: UUID, storage: ObjectStorage | None = None, *,
                           environ: Mapping[str, str] | None = None, adapter: VoiceAdapter | None = None,
-                          simulated: bool = False) -> NarrationAudio:
+                          simulated: bool = False, grant: DispatchGrant | None = None,
+                          record: UsageRecorder | None = None,
+                          deadline_seconds: float | None = None) -> NarrationAudio:
+    """Synthesize (or reuse) narration for a READY paid report.
+
+    A live provider is only called behind a dispatch `grant`; a cache hit needs no grant and makes
+    no transport. With no grant a live cache miss is refused. The script (including disclosure) is
+    capped at 2,500 characters by the prepared request."""
     if not isinstance(report, PaidReport) or report.scope != "paid":
         raise NarrationAudioError("narration audio is only built from a paid report")
     if report.state != ReportState.READY:
@@ -80,14 +88,20 @@ def build_narration_audio(report: PaidReport, session_id: UUID, storage: ObjectS
         raise NarrationAudioError(f"narration script or voice config invalid ({type(exc).__name__})") from None
     voice = adapter or get_voice_adapter(environ)
     provider = env.provider
+    live = provider != "fixture"
     voice_id = env.voice_id or "fixture"
     model_id = env.model_id or "fixture-v1"
     holder: list = []
 
     def synthesize() -> bytes:
         try:
-            audio = voice.synthesize(script)
-        except VoiceProviderError as exc:  # adapter messages exclude the key and the text
+            if live and grant is None:
+                raise NarrationAudioError("narration is not funded; no dispatch grant (nothing was sent)")
+            audio = (voice.synthesize(script, grant=grant, record=record, kind="narration",
+                                      deadline_seconds=deadline_seconds) if live else voice.synthesize(script))
+        except NarrationAudioError:
+            raise
+        except (VoiceProviderError, DispatchError) as exc:  # messages exclude the key and the text
             raise NarrationAudioError(f"voice provider failed: {str(exc)[:120]}") from None
         except Exception as exc:
             raise NarrationAudioError(f"voice provider failed ({type(exc).__name__})") from None
@@ -100,7 +114,10 @@ def build_narration_audio(report: PaidReport, session_id: UUID, storage: ObjectS
     if storage is None:
         data, hit = synthesize(), False
     else:
-        data, hit = fetch_or_store(storage, key, content_type, synthesize)
+        try:
+            data, hit = fetch_or_store(storage, key, content_type, synthesize, strict=live)
+        except StorageError:
+            raise NarrationAudioError("narration audio cache is unavailable; nothing was sent") from None
     if holder:
         extension, content_type, provenance = holder[0].extension, holder[0].content_type, holder[0].provenance
     return NarrationAudio(data=data, content_type=content_type, extension=extension, provider=provider,

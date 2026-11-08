@@ -25,11 +25,11 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.contracts.enums import SessionState
 from app.models import Job, Session
 
-Stage = Literal["ingest", "source_ingest", "vehicle_mask", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "audio_ingest"]
+Stage = Literal["ingest", "source_ingest", "vehicle_mask", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "audio_ingest", "voice_prewarm"]
 SubjectKind = Literal["part_run", "concept_run", "finding", "duplicate_group", "report_revision", "stripe_event", "session"]
 Publisher = Callable[[DBSession], None]
 SUBJECTS: dict[str, frozenset[str]] = {
-    "source_ingest": frozenset({"session"}), "audio_ingest": frozenset({"session"}),
+    "source_ingest": frozenset({"session"}), "audio_ingest": frozenset({"session"}), "voice_prewarm": frozenset({"session"}),
     "vehicle_mask": frozenset({"part_run"}),
     "ingest": frozenset({"part_run"}), "read_dash": frozenset({"part_run"}),
     "segment": frozenset({"concept_run"}), "verify": frozenset({"finding", "duplicate_group"}),

@@ -10,6 +10,10 @@ This namespace is not session media, so wire the router with the plain (unfenced
 Provider: `VOICE_PROVIDER=fixture` (default) serves a short generated WAV labeled synthetic;
 `VOICE_PROVIDER=elevenlabs` uses the existing ElevenLabs adapter (one non-streaming
 text-to-speech call per line, `mp3_44100_128`). Keys come from the environment only.
+
+Live synthesis happens only in `prewarm(grant=..., record=...)`, run by a worker with a dispatch
+grant. `audio()` without a grant is cache-only for a live provider: a miss never reaches the
+adapter (the API serves captions instead). Fixture synthesizes on demand (free).
 """
 from __future__ import annotations
 
@@ -21,9 +25,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Response
 
-from app.adapters.storage import ObjectStorage
+from app.adapters.storage import ObjectStorage, StorageError
 from app.adapters.voice import VoiceAdapter, VoiceProviderError, get_voice_adapter
 from app.adapters.voice.config import VoiceConfigError, load_env
+from app.briefing.dispatch import DispatchError, DispatchGrant, UsageRecorder
 from app.contracts.enums import Zone
 from app.routers.sessions import owner_bearer
 from app.services.problems import ProblemError, not_found
@@ -107,25 +112,66 @@ class VoiceGuide:
         extension = _format_for(self._env.provider)[0]
         return f"voice-guide/{input_hash(line.text, self.voice_id, self.model_id, self._env.provider)}.{extension}"
 
-    def audio(self, line_id: str) -> tuple[bytes, str, str, bool]:
-        """(bytes, content_type, provenance, cache_hit) for a catalog line; unknown id -> 404."""
+    @property
+    def live(self) -> bool:
+        return self._env.provider != "fixture"
+
+    def audio(self, line_id: str, *, grant: DispatchGrant | None = None,
+              record: UsageRecorder | None = None, deadline_seconds: float | None = None
+              ) -> tuple[bytes, str, str, bool]:
+        """(bytes, content_type, provenance, cache_hit) for a catalog line; unknown id -> 404.
+
+        Live provider: a hit is served; a miss synthesizes only with a `grant`, else 503 (cache-only)."""
         line = self.catalog.get(line_id)
         if line is None:
             raise not_found()
         extension, content_type, provenance = _format_for(self._env.provider)
 
-        def synthesize() -> bytes:
-            try:
-                return self._adapter.synthesize(line.text).data
-            except VoiceProviderError as exc:  # adapter messages exclude the key
-                raise ProblemError(502, "VOICE_UNAVAILABLE", "Voice unavailable",
-                                   f"The voice provider could not produce audio ({str(exc)[:80]}).") from None
-            except Exception as exc:
-                raise ProblemError(502, "VOICE_UNAVAILABLE", "Voice unavailable",
-                                   f"The voice provider could not produce audio ({type(exc).__name__}).") from None
+        def unavailable(detail: str) -> ProblemError:
+            return ProblemError(503 if self.live else 502, "VOICE_UNAVAILABLE", "Voice unavailable", detail)
 
-        data, hit = fetch_or_store(self._storage, self.storage_key(line), content_type, synthesize)
+        def synthesize() -> bytes:
+            if self.live and grant is None:
+                raise unavailable("Spoken guidance is not available yet; use the written captions.")
+            try:
+                if self.live:
+                    return self._adapter.synthesize(line.text, grant=grant, record=record, kind="voice_guide",
+                                                    deadline_seconds=deadline_seconds).data
+                return self._adapter.synthesize(line.text).data
+            except ProblemError:
+                raise
+            except (VoiceProviderError, DispatchError) as exc:  # messages exclude the key
+                raise unavailable(f"The voice provider could not produce audio ({str(exc)[:80]}).") from None
+            except Exception as exc:
+                raise unavailable(f"The voice provider could not produce audio ({type(exc).__name__}).") from None
+
+        try:
+            data, hit = fetch_or_store(self._storage, self.storage_key(line), content_type, synthesize,
+                                       strict=self.live)
+        except StorageError:
+            raise unavailable("Spoken guidance is not available right now; use the written captions.") from None
         return data, content_type, provenance, hit
+
+    def prewarm(self, *, grant: DispatchGrant | None, record: UsageRecorder | None = None,
+                deadline_seconds: float | None = None) -> dict[str, str]:
+        """Synthesize every missing catalog line sequentially, one granted call per line.
+
+        Returns {line_id: "cached" | "synthesized" | "failed"}. A denied grant or provider error marks
+        that line "failed" and moves on; nothing is retried here."""
+        import time
+        deadline = None if deadline_seconds is None else time.monotonic() + deadline_seconds
+        status: dict[str, str] = {}
+        for line in self.catalog.lines:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0.1:
+                status[line.id] = "failed"
+                continue
+            try:
+                _, _, _, hit = self.audio(line.id, grant=grant, record=record, deadline_seconds=remaining)
+                status[line.id] = "cached" if hit else "synthesized"
+            except ProblemError:
+                status[line.id] = "failed"
+        return status
 
     def describe(self) -> dict:
         return {"version": self.catalog.version, "voice_label": self.catalog.voice_label,

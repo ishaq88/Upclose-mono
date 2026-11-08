@@ -12,6 +12,12 @@ from app.adapters.voice.elevenlabs import ElevenLabsVoice
 from app.adapters.voice.fixture import FixtureVoice
 
 KEY = "sk_test_SECRET123"
+
+
+def ALLOW(_prepared):
+    return True
+
+
 ENV = {"VOICE_PROVIDER": "elevenlabs", "ELEVENLABS_API_KEY": KEY, "ELEVENLABS_VOICE_ID": "voiceX",
        "ELEVENLABS_MODEL_ID": "modelY"}
 
@@ -45,7 +51,7 @@ def test_request_shape():
         seen["req"] = request
         return httpx.Response(200, content=b"ID3audio")
 
-    audio = get_voice_adapter(ENV, httpx.MockTransport(handler)).synthesize("hello there")
+    audio = get_voice_adapter(ENV, httpx.MockTransport(handler)).synthesize("hello there", grant=ALLOW)
     r = seen["req"]
     assert r.method == "POST"
     assert r.url.path == "/v1/text-to-speech/voiceX" and r.url.host == "api.elevenlabs.io"
@@ -58,7 +64,7 @@ def test_request_shape():
 def test_non_200_error_does_not_leak_key_or_text():
     t = httpx.MockTransport(lambda r: httpx.Response(401, json={"detail": f"bad key {KEY}"}))
     with pytest.raises(VoiceProviderError) as e:
-        get_voice_adapter(ENV, t).synthesize("secret words")
+        get_voice_adapter(ENV, t).synthesize("secret words", grant=ALLOW)
     assert "401" in str(e.value) and KEY not in str(e.value) and "secret words" not in str(e.value)
 
 
@@ -67,7 +73,7 @@ def test_transport_error_sanitized():
         raise httpx.ConnectError(f"fail {KEY}")
 
     with pytest.raises(VoiceProviderError) as e:
-        get_voice_adapter(ENV, httpx.MockTransport(boom)).synthesize("t")
+        get_voice_adapter(ENV, httpx.MockTransport(boom)).synthesize("t", grant=ALLOW)
     assert KEY not in str(e.value) and e.value.__cause__ is None
 
 

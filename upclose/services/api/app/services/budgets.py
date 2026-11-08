@@ -34,10 +34,14 @@ def budget_config_from_settings(settings) -> BudgetConfig:
                         price_version=settings.model_price_version,
                         verified_standard_access=bool(settings.model_standard_access_receipt),
                         standard_access_receipt=settings.model_standard_access_receipt,
-                        allow_non_standard_demo=settings.model_allow_non_standard_demo)
+                        allow_non_standard_demo=settings.model_allow_non_standard_demo,
+                        elevenlabs_access_receipt=settings.model_elevenlabs_access_receipt)
 
 
 PRICE_VERSION = "meta-docs-2026-10-28"
+# Provider-qualified approved prices carry their own dated version; Meta keeps the legacy one.
+ELEVENLABS_PRICE_VERSION = "elevenlabs-docs-2026-11-08"
+ELEVENLABS_V4 = "elevenlabs/eleven_v4"
 MICRO_USD_PER_CENT = 10000
 
 
@@ -54,12 +58,23 @@ class UsageUnits:
     input_tokens: int = 0
     cached_input_tokens: int = 0
     output_tokens: int = 0
+    characters: int = 0  # text-to-speech; never mixed with other units
 
     def __post_init__(self) -> None:
         if any(type(value) is not int or value < 0 for value in asdict(self).values()):
             raise BudgetError("invalid_usage")
         if self.cached_input_tokens > self.input_tokens:
             raise BudgetError("invalid_usage")
+        if self.characters and any(value for key, value in asdict(self).items() if key != "characters"):
+            raise BudgetError("invalid_usage")
+
+
+def units_json(units: UsageUnits) -> dict:
+    """Stored/fingerprinted form. A zero `characters` field is omitted so legacy rows and fingerprints are unchanged."""
+    data = asdict(units)
+    if not data["characters"]:
+        del data["characters"]
+    return data
 
 
 @dataclass(frozen=True)
@@ -71,11 +86,12 @@ class PriceRates:
     cached_input_token: Decimal | None = None
     output_token: Decimal | None = None
     minimum_frames: int = 0
+    character: Decimal | None = None
 
     def __post_init__(self) -> None:
         if type(self.minimum_frames) is not int or self.minimum_frames < 0:
             raise BudgetError("price_unverified")
-        for rate in (self.image, self.frame, self.input_token, self.cached_input_token, self.output_token):
+        for rate in (self.image, self.frame, self.input_token, self.cached_input_token, self.output_token, self.character):
             if rate is not None and (not isinstance(rate, Decimal) or not rate.is_finite() or rate < 0):
                 raise BudgetError("price_unverified")
 
@@ -83,7 +99,13 @@ class PriceRates:
 def documented_prices() -> dict[str, PriceRates]:
     spark = PriceRates(input_token=Decimal("1.25"), cached_input_token=Decimal("0.15"), output_token=Decimal("4.25"))
     return {"sam-3.1": PriceRates(image=Decimal(2500), frame=Decimal(200), minimum_frames=50),
-            "muse-spark-1.3": spark, "muse-spark-1.2": spark, "muse-spark-1.1": spark}
+            "muse-spark-1.3": spark, "muse-spark-1.2": spark, "muse-spark-1.1": spark,
+            # USD 0.08 per 1K characters (80 micro-USD each), elevenlabs.io/pricing/api eleven_v4, taxes excluded.
+            ELEVENLABS_V4: PriceRates(character=Decimal(80))}
+
+
+def price_version_for(model: str) -> str:
+    return ELEVENLABS_PRICE_VERSION if model.startswith("elevenlabs/") else PRICE_VERSION
 
 
 @dataclass(frozen=True)
@@ -98,6 +120,8 @@ class BudgetConfig:
     standard_access_receipt: str | None = None
     # Demo-only escape hatch for documented non-Standard free credits; see live-demo-exception.md.
     allow_non_standard_demo: bool = False
+    # Trusted operator receipt that the ElevenLabs account/rate ceiling is acknowledged (never client input).
+    elevenlabs_access_receipt: str | None = None
 
     def __post_init__(self) -> None:
         if self.model_mode not in {"fixture", "live", "replay"}:
@@ -139,20 +163,28 @@ def ceiling_cents(micro_usd: int) -> int:
 
 
 def price_usage(model: str, units: UsageUnits, prices: dict[str, PriceRates]) -> int:
-    rate = prices.get(model) if model in documented_prices() else None
+    approved = documented_prices()
+    rate = prices.get(model) if model in approved else None
     if rate is None:
         raise BudgetError("model_unverified")
-    if model == "sam-3.1":
-        if units.input_tokens or units.cached_input_tokens or units.output_tokens or bool(units.images) == bool(units.frames):
+    if model.startswith("elevenlabs/") and rate != approved[model]:
+        raise BudgetError("price_unverified")  # provider-qualified prices are never caller-supplied
+    if model.startswith("elevenlabs/"):
+        if not units.characters or units.images or units.frames or units.input_tokens or units.cached_input_tokens or units.output_tokens:
+            raise BudgetError("invalid_usage")
+        amounts = [(units.characters, rate.character)]
+    elif model == "sam-3.1":
+        if units.characters or units.input_tokens or units.cached_input_tokens or units.output_tokens or bool(units.images) == bool(units.frames):
             raise BudgetError("invalid_usage")
         amounts = [(units.images, rate.image), (max(units.frames, 50, rate.minimum_frames) if units.frames else 0, rate.frame)]
     else:
-        if units.images or units.frames:
+        if units.images or units.frames or units.characters:
             raise BudgetError("invalid_usage")
         amounts = [(units.input_tokens - units.cached_input_tokens, rate.input_token),
                    (units.cached_input_tokens, rate.cached_input_token), (units.output_tokens, rate.output_token)]
     # Missing rates fail even when the particular request's unit count is zero.
-    required = (rate.image, rate.frame) if model == "sam-3.1" else (rate.input_token, rate.cached_input_token, rate.output_token)
+    required = ((rate.character,) if model.startswith("elevenlabs/") else (rate.image, rate.frame) if model == "sam-3.1"
+                else (rate.input_token, rate.cached_input_token, rate.output_token))
     if any(value is None or not value.is_finite() or value < 0 for value in required):
         raise BudgetError("price_unverified")
     total = sum((Decimal(amount) * rate_ for amount, rate_ in amounts), Decimal(0))
@@ -218,6 +250,13 @@ class BudgetService:
 
     def _configured_cost(self, request: ReservationRequest) -> int:
         config = self.config
+        if request.model.startswith("elevenlabs/"):
+            # Own dated price version and access receipt; Meta Standard-access rules do not apply.
+            if request.price_version != ELEVENLABS_PRICE_VERSION:
+                raise BudgetError("price_unverified")
+            if not config.elevenlabs_access_receipt:
+                raise BudgetError("provider_access_unverified")
+            return price_usage(request.model, request.units, config.prices)
         if config.price_version != PRICE_VERSION or request.price_version != config.price_version:
             raise BudgetError("price_unverified")
         standard_ok = config.verified_standard_access and config.standard_access_receipt
@@ -230,7 +269,7 @@ class BudgetService:
             return ReservationResult(request.attempt_id, None, self.config.model_mode, 0, 0, False)
         cost = self._configured_cost(request)
         reserved_cents = ceiling_cents(cost)
-        fingerprint_data = {**asdict(request), "session_id": str(request.session_id), "job_id": str(request.job_id),
+        fingerprint_data = {**asdict(request), "units": units_json(request.units), "session_id": str(request.session_id), "job_id": str(request.job_id),
                             "attempt_id": str(request.attempt_id), "lease_token": str(request.lease_token),
                             "deadline_at": request.deadline_at.astimezone(timezone.utc).isoformat()}
         fingerprint = sha256(json.dumps(fingerprint_data, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -262,10 +301,15 @@ class BudgetService:
                         "deadline_at": request.deadline_at.astimezone(timezone.utc).isoformat()}
             call = ModelCall(session_id=request.session_id, job_id=request.job_id, attempt_id=request.attempt_id,
                              model=request.model, price_version=request.price_version,
-                             requested_units={"units": asdict(request.units), "budget": metadata}, reserved_cost=cost, state="reserved")
+                             requested_units={"units": units_json(request.units), "budget": metadata}, reserved_cost=cost, state="reserved")
             db.add(call)
             db.flush()
             return self._result(call, False)
+
+    def has_attempt(self, attempt_id: UUID) -> bool:
+        """True when any ledger row (reserved, unknown or settled) already exists for this logical attempt."""
+        with self.sessions() as db:
+            return db.scalar(select(ModelCall.id).where(ModelCall.attempt_id == attempt_id)) is not None
 
     @staticmethod
     def _result(call: ModelCall, may_send: bool) -> ReservationResult:
@@ -343,7 +387,7 @@ class BudgetService:
             raise BudgetError("invalid_settlement")
         if provider_request_id is not None and (not provider_request_id or len(provider_request_id) > 255):
             raise BudgetError("invalid_settlement")
-        evidence = {"units": asdict(actual_units) if actual_units is not None else None,
+        evidence = {"units": units_json(actual_units) if actual_units is not None else None,
                     "micro_usd": actual_micro_usd, "outcome": outcome, "evidence_code": evidence_code,
                     "provider_request_id": provider_request_id, "latency_ms": latency_ms}
         with self.sessions.begin() as db:

@@ -220,6 +220,83 @@ describe('skip and finish', () => {
   });
 });
 
+describe('saving the inspection to an account during capture', () => {
+  const ACCOUNT_TOKEN = 'acct_0123456789abcdefghijklmnop';
+  const accountAuth = { account: { id: '22222222-2222-4222-8222-222222222222', email: 'owner@example.test', created_at: '2026-01-01T00:00:00Z', disabled: false }, token: ACCOUNT_TOKEN, expires_at: '2999-01-01T00:00:00Z' };
+
+  /** The fake owner backend plus the account routes; the account token is NOT an owner token, as on the real API. */
+  function withAccounts(): void {
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      const path = String(url);
+      if (path.endsWith('/accounts/register')) return new Response(JSON.stringify(accountAuth), { status: 201, headers: { 'Content-Type': 'application/json' } });
+      if (path.endsWith('/accounts/claim')) return new Response(JSON.stringify({ session_id: backend.sessionId, account_id: accountAuth.account.id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      return backend.fetch(url, init);
+    });
+  }
+
+  beforeEach(() => { localStorage.clear(); });
+  afterEach(() => { localStorage.clear(); });
+
+  it('keeps the capture tab working through sign-in, save, finish and the report link', async () => {
+    withAccounts();
+    seedSession();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Capture steps' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: 'owner@example.test' } });
+    fireEvent.change(screen.getByLabelText(/Password/), { target: { value: 'correct horse battery staple' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create account and save' }));
+    await screen.findByText('Saved');
+    expect(sessionStorage.getItem('upclose.session.v1')).toContain(backend.token);
+    expect(screen.queryByText('Your session has expired or was lost')).toBeNull();
+
+    await pickAndUpload(1, video(3000));
+    await waitFor(() => expect(screen.getByTestId('state-1').textContent).toBe('Uploaded, queued'));
+    backend.parts[0].state = 'processing';
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Finish capture' }) as HTMLButtonElement).disabled).toBe(false), { timeout: 8000 });
+    fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' }));
+    await screen.findByText(/Capture is finished/);
+    backend.report = { slug: 'slug-abc', state: 'ready', unlocked: false };
+    expect(await screen.findByRole('button', { name: 'Open your free report' }, { timeout: 5000 })).toBeTruthy();
+    expect(screen.queryByText('Your session has expired or was lost')).toBeNull();
+    // Every owner call kept the owner token; the account token was never sent to an owner route.
+    expect(backend.calls.every((call) => call.headers.Authorization === `Bearer ${backend.token}` || call.headers.Authorization === undefined)).toBe(true);
+  }, 20000);
+
+  it('does not lose the session when a sub-resource answers 404 or a stray 401', async () => {
+    seedSession();
+    const original = backend.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/audio') && init?.method === 'POST') return new Response(JSON.stringify({ code: 'NOT_FOUND', detail: '' }), { status: 404 });
+      if (String(url).includes('/skip')) return new Response(JSON.stringify({ code: 'TOKEN_INVALID', detail: '' }), { status: 401 });
+      return original(url, init);
+    });
+    render(<App />);
+    const card = await zoneCard('Driver side');
+    fireEvent.click(within(card).getByRole('button', { name: 'Skip this zone' }));
+    fireEvent.click(within(card).getByRole('button', { name: /Yes, skip Driver side/ }));
+    // The stray 401 triggers a re-read of the session; the session read still succeeds, so the page stays.
+    await waitFor(() => expect(backend.callsTo('GET', '/sessions/').length).toBeGreaterThan(1));
+    // Only the zone shows its own error; the page-level lost-session state (with its new-session button) is absent.
+    expect(screen.queryByRole('button', { name: 'Start a new session' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Capture steps' })).toBeTruthy();
+  });
+
+  it('offers the report and My reports when the lost session was saved and the user is signed in', async () => {
+    localStorage.setItem('upclose.account.v1', JSON.stringify({ token: ACCOUNT_TOKEN, email: 'owner@example.test', expiresAt: '2999-01-01T00:00:00Z' }));
+    seedSession();
+    backend.sessionState = 'finalized';
+    backend.report = { slug: 'slug-abc', state: 'ready', unlocked: false };
+    render(<App />);
+    await screen.findByRole('button', { name: 'Open your free report' });
+    backend.unauthorized = true;
+    await screen.findByText('Your session has expired or was lost', undefined, { timeout: 8000 });
+    expect((screen.getByRole('link', { name: "Open this inspection's report" }) as HTMLAnchorElement).getAttribute('href')).toBe('/report/slug-abc');
+    expect((screen.getByRole('link', { name: 'Go to My reports' }) as HTMLAnchorElement).getAttribute('href')).toBe('/reports');
+  });
+});
+
 describe('resume after reload', () => {
   it('requires the same file, rejects a different one, and continues with the right one', async () => {
     backend.holdPuts = true;

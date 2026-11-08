@@ -13,11 +13,21 @@ export interface SessionData {
   /** True once the server has said the token is not valid. Polling stops. */
   unauthorized: boolean;
   refresh: () => void;
-  markUnauthorized: () => void;
+  /**
+   * A sub-resource (upload, audio, kit, checkout) answered 401. That alone never loses the session: this
+   * re-reads the session now, and only the session read itself decides whether access is gone.
+   */
+  recheckAccess: () => void;
 }
 
-function isAuthFailure(caught: unknown): boolean {
+/** The session read refusing the owner token (401), or saying the session itself is gone (404). */
+function isSessionLost(caught: unknown): boolean {
   return caught instanceof ApiError && (caught.status === 401 || caught.status === 404 || caught.code === 'TOKEN_INVALID');
+}
+
+/** The progress read shares the owner token, so only a 401 counts; a 404 there is a local error. */
+function isTokenRefused(caught: unknown): boolean {
+  return caught instanceof ApiError && (caught.status === 401 || caught.code === 'TOKEN_INVALID');
 }
 
 /**
@@ -62,8 +72,10 @@ export function useSession(api: Api, sessionId: string, pollMs: number = SESSION
         latestProgress = progressResult.value;
         setProgress(progressResult.value);
       } else failure ??= progressResult.reason;
+      let lost = false;
+      if (sessionResult.status === 'rejected' && isSessionLost(sessionResult.reason)) { lost = true; failure = sessionResult.reason; }
+      if (progressResult.status === 'rejected' && isTokenRefused(progressResult.reason)) { lost = true; failure = progressResult.reason; }
       for (const result of [sessionResult, progressResult]) {
-        if (result.status === 'rejected' && isAuthFailure(result.reason)) failure = result.reason;
         if (result.status === 'rejected' && result.reason instanceof ApiError && result.reason.retryAfterSeconds !== null) {
           retryAfter = Math.max(retryAfter ?? 0, result.reason.retryAfterSeconds);
         }
@@ -71,7 +83,7 @@ export function useSession(api: Api, sessionId: string, pollMs: number = SESSION
       if (failure === null) {
         setError(null);
       } else {
-        if (isAuthFailure(failure)) {
+        if (lost) {
           stopped.current = true;
           setUnauthorized(true);
           setSession(null);
@@ -116,12 +128,12 @@ export function useSession(api: Api, sessionId: string, pollMs: number = SESSION
     void load();
   }, [load]);
 
-  const markUnauthorized = useCallback(() => {
-    stopped.current = true;
-    setUnauthorized(true);
-    setSession(null);
-    setProgress(null);
-  }, []);
+  const recheckAccess = useCallback(() => {
+    if (stopped.current) return;
+    if (timer.current) clearTimeout(timer.current);
+    notBefore.current = 0;
+    void load();
+  }, [load]);
 
-  return { session, progress, error, unauthorized, refresh, markUnauthorized };
+  return { session, progress, error, unauthorized, refresh, recheckAccess };
 }

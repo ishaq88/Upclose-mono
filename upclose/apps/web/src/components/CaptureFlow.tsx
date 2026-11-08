@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, type ReactElement } from 'react';
+import { useCallback, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useAccount } from '../accounts/AccountContext';
 import { ApiError, type Api, type PartSummary } from '../api/client';
 import { SaveInspection } from '../accounts/SaveInspection';
 import { GUIDE_STEPS, guideFor } from '../capture/guide';
@@ -36,11 +37,15 @@ export function CaptureFlow(props: Props): ReactElement {
 
 function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): ReactElement {
   const voice = useVoiceGuide();
-  const { session, progress, error, unauthorized, refresh, markUnauthorized } = useSession(api, sessionId);
+  const { session, progress, error, unauthorized, refresh, recheckAccess } = useSession(api, sessionId);
   const singleVideo = session?.capture_mode === 'single_video';
-  const sourceUpload = useSourceUpload({ api, sessionId, enabled: singleVideo && session?.state !== 'deleting' && session?.state !== 'deleted' && !unauthorized, onChanged: refresh, onUnauthorized: markUnauthorized });
-  const uploads = useUploads({ api, sessionId, onChanged: refresh, onUnauthorized: markUnauthorized });
-  const audioUpload = useAudioUpload({ api, sessionId, onChanged: refresh, onUnauthorized: markUnauthorized });
+  const sourceUpload = useSourceUpload({ api, sessionId, enabled: singleVideo && session?.state !== 'deleting' && session?.state !== 'deleted' && !unauthorized, onChanged: refresh, onUnauthorized: recheckAccess });
+  const uploads = useUploads({ api, sessionId, onChanged: refresh, onUnauthorized: recheckAccess });
+  const audioUpload = useAudioUpload({ api, sessionId, onChanged: refresh, onUnauthorized: recheckAccess });
+  const { account } = useAccount();
+  // The report address survives losing the session read, so a signed-in owner can still reach it.
+  const reportSlug = useRef<string | null>(null);
+  if (progress?.report?.slug) reportSlug.current = progress.report.slug;
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<UiError | null>(null);
@@ -73,11 +78,11 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
 
   const handleFailure = useCallback((caught: unknown, partNo: number | null): void => {
     const described = describeError(caught);
-    if (described.action === 'new_session') markUnauthorized();
+    if (described.action === 'new_session') recheckAccess();
     if (partNo === null) setFinishError(described);
     else setPartError(partNo, described);
     refresh(); // a 409/404 means the server's view moved on; re-read it
-  }, [markUnauthorized, refresh, setPartError]);
+  }, [recheckAccess, refresh, setPartError]);
 
   const skip = async (part: PartSummary): Promise<void> => {
     setPartError(part.part_no, null);
@@ -157,7 +162,12 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
         <div role="alert" className="notice notice-error stack">
           <p className="notice-title">Your session has expired or was lost</p>
           <p>This tab no longer has access to its session, and it cannot be recovered from another tab or device. Start a new one to continue.</p>
-          <button type="button" onClick={onNewSession} className="btn btn-sm">Start a new session</button>
+          {account && <p>You are signed in, so an inspection saved to your account is still available there.</p>}
+          <div className="cap-actions">
+            {account && reportSlug.current && <a className="btn btn-sm" href={`/report/${encodeURIComponent(reportSlug.current)}`}>Open this inspection's report</a>}
+            {account && <a className="btn btn-sm btn-ghost" href="/reports">Go to My reports</a>}
+            <button type="button" onClick={onNewSession} className="btn btn-sm">Start a new session</button>
+          </div>
         </div>
       )}
       {!unauthorized && error && !session && <ErrorNotice error={error} />}
@@ -201,7 +211,7 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
                 </nav>
               </div>
               <div className="cap-rail">
-                <ProgressPanel compact api={api} progress={progress} onRefresh={refresh} onUnauthorized={markUnauthorized} />
+                <ProgressPanel compact api={api} progress={progress} onRefresh={refresh} onUnauthorized={recheckAccess} />
                 <p className="rail-note">You can keep going; we process in the background. Keep this tab open while uploading.</p>
               </div>
             </div>
@@ -290,7 +300,7 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
                         setDeleting(true); setDeleteError(null);
                         void Promise.all([uploads.stopTransfers(), sourceUpload.stopTransfers()]).then(() => api.deleteMedia(sessionId)).then(onNewSession).catch((caught: unknown) => {
                           setDeleteError(describeError(caught)); setDeleting(false); setConfirmDelete(false);
-                          if (describeError(caught).action === 'new_session') markUnauthorized();
+                          if (describeError(caught).action === 'new_session') recheckAccess();
                           refresh();
                         });
                       }}>Yes, delete session media</button>

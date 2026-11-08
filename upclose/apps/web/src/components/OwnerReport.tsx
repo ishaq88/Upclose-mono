@@ -92,8 +92,8 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
         }
         setError(describeError(caught));
         if (caught instanceof ApiError && (caught.status === 401 || caught.status === 404)) {
-          setFatal(true);
-          onUnauthorized();
+          setFatal(true); // nothing to retry; only a 401 says the credential is refused
+          if (caught.status === 401) onUnauthorized();
         } else if (failures < 5) {
           failures += 1;
           schedule(caught instanceof ApiError ? caught.retryAfterSeconds : null);

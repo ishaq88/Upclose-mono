@@ -279,13 +279,14 @@ describe('owner report (JSON)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it.each([401, 404])('treats %s as lost access: tells the user and does not retry', async (status) => {
+  it.each([401, 404])('shows %s without retrying; only 401 reports lost access', async (status) => {
     const calls: Call[] = [];
     const api = apiFor([{ match: REPORT_URL, respond: () => problem(status, status === 401 ? 'TOKEN_INVALID' : 'NOT_FOUND') }], calls);
     const unauthorized = vi.fn();
     render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={unauthorized} onRefresh={noop} pollMs={5} />);
-    await waitFor(() => expect(unauthorized).toHaveBeenCalled());
-    expect(screen.getByRole('alert')).toBeTruthy();
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    // Only a refused credential (401) reports lost access; a 404 is this report's own error and the session stays.
+    if (status === 401) expect(unauthorized).toHaveBeenCalled(); else expect(unauthorized).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Retry report' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Sign in' })).toBeTruthy();
     await act(async () => { await new Promise((r) => setTimeout(r, 40)); });

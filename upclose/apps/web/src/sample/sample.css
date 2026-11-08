@@ -1,12 +1,12 @@
 .app-head { background: var(--surface); border-bottom: 1px solid var(--line); }
 .app-head .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; }
 .app-head .wordmark { font-size: 24px; letter-spacing: -1.3px; }
-.app-nav { display: flex; align-items: center; gap: 22px; font-weight: 600; font-size: 15px; }
+.app-nav { display: flex; align-items: center; gap: 22px; font-weight: 600; font-size: var(--fs-small); }
 .app-nav a:not(.btn) { text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 .sample-main { padding-block: 32px 96px; }
 .sample-head { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; max-width: 46em; }
-.sample-head h1 { font-size: clamp(32px, 4vw, 44px); line-height: 1; font-weight: 800; }
-.sample-tag { align-self: flex-start; font: 700 13px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; background: var(--accent-soft); color: var(--accent-ink); padding: 6px 10px; border-radius: 999px; }
+.sample-head h1 { font-size: var(--fs-h1); line-height: 1; font-weight: 800; }
+.sample-tag { align-self: flex-start; font: 700 var(--fs-fine)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; background: var(--accent-soft); color: var(--accent-ink); padding: 6px 10px; border-radius: 999px; }
 .sample-foot { border-top: 1px solid var(--line); }
-.sample-foot .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-block: 24px 40px; font-size: 14px; color: var(--ink-2); }
+.sample-foot .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding-block: 24px 40px; font-size: var(--fs-small); color: var(--ink-2); }
 .sample-foot a { color: var(--ink-2); min-height: 44px; display: inline-flex; align-items: center; }

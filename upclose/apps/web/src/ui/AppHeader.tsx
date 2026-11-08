@@ -2,13 +2,21 @@ import type { ReactElement, ReactNode } from 'react';
 import { useAccount } from '../accounts/AccountContext';
 import { Wordmark } from './Wordmark';
 
-/** App header: wordmark, then My reports and the account, or Sign in. `actions` sits before them (e.g. Finish). */
-export function AppHeader({ actions }: { actions?: ReactNode }): ReactElement {
+export interface AppHeaderProps {
+  /** Before the account links (e.g. a Finish button). */
+  actions?: ReactNode;
+  /** Between the wordmark and the nav (e.g. a StatusChip). */
+  status?: ReactNode;
+}
+
+/** App header: wordmark, an optional status slot, then My reports and the account, or Sign in. */
+export function AppHeader({ actions, status }: AppHeaderProps): ReactElement {
   const { account } = useAccount();
   return (
     <header className="app-head">
       <div className="wrap">
         <Wordmark />
+        {status && <div className="app-status">{status}</div>}
         <nav className="app-nav" aria-label="Account">
           {actions}
           {account ? (

@@ -88,17 +88,6 @@ export function PartCard(props: PartCardProps): ReactElement {
   );
 }
 
-export function chipClass(state: PartState): string {
-  switch (state) {
-    case 'processed': return 'bg-teal-100 text-teal-900';
-    case 'failed': return 'bg-red-100 text-red-900';
-    case 'skipped': return 'bg-stone-200 text-stone-800';
-    case 'uploading': return 'bg-sky-100 text-sky-900';
-    case 'pending': return 'bg-stone-100 text-stone-800';
-    default: return 'bg-amber-100 text-amber-900';
-  }
-}
-
 function Actions(props: PartCardProps): ReactElement | null {
   const { part, local, record, sessionCapturing } = props;
   const busy = local !== undefined && local.phase !== 'failed';

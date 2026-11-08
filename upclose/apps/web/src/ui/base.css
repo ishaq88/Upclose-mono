@@ -20,10 +20,70 @@
   --font: "Barlow", ui-sans-serif, system-ui, sans-serif;
   --display: "Barlow Semi Condensed", "Barlow", ui-sans-serif, sans-serif;
   --mark: "Manrope", "Barlow", sans-serif;
+  --fs-display: clamp(40px, 6vw, 64px);
+  --fs-h1: 30px;
+  --fs-h2: 24px;
+  --fs-h3: 19px;
+  --fs-body: 17px;
+  --fs-small: 15px;
+  --fs-fine: 13px;
+  --fs-label: 12px;
+  --ls-label: 0.08em;
+  --filmed: #1f6f8b;
+  --filmed-soft: #e3f0f5;
   --hatch: repeating-linear-gradient(-45deg, #f1f3f5 0 8px, #e1e5e9 8px 16px);
   color-scheme: light;
 }
 
+@font-face {
+  font-family: "Barlow";
+  src: url("/assets/fonts/barlow-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("/assets/fonts/barlow-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("/assets/fonts/barlow-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow";
+  src: url("/assets/fonts/barlow-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
 @font-face {
   font-family: Manrope;
   src: url("/assets/manrope-variable.ttf") format("truetype");
@@ -31,19 +91,39 @@
   font-display: swap;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+/* Reset (replaces the Tailwind preflight the app used to import). */
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; font-synthesis: none; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; border: 0 solid; }
+h1, h2, h3, h4, h5, h6 { font-size: inherit; font-weight: inherit; }
+ol, ul, menu { list-style: none; }
+img, svg, video, canvas, audio, iframe { display: block; vertical-align: middle; }
+img, video { max-width: 100%; height: auto; }
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; border-radius: 0; background-color: transparent; }
+button, [type=button], [type=submit] { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+table { border-collapse: collapse; border-color: inherit; text-indent: 0; }
+summary { display: list-item; }
+textarea { resize: vertical; }
+b, strong { font-weight: 600; }
+code, kbd, pre, samp { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1em; }
+progress { vertical-align: baseline; }
+[hidden]:where(:not([hidden=until-found])) { display: none !important; }
+fieldset { min-width: 0; }
+
+@media (min-width: 1100px) { :root { --fs-h1: 44px; --fs-h2: 30px; --fs-h3: 22px; } }
 body {
   margin: 0;
   min-width: 320px;
   background: var(--bg);
   color: var(--ink);
-  font: 400 17px/1.5 var(--font);
+  font: 400 var(--fs-body)/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 ::selection { background: #ffd3bf; color: var(--ink); }
 :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
 a { color: var(--ink); text-underline-offset: 4px; text-decoration-thickness: 1.5px; }
+dl, dd { margin: 0; }
 h1, h2, h3 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 p { margin: 0; }
 img { max-width: 100%; }
@@ -63,27 +143,6 @@ img { max-width: 100%; }
 .wordmark { display: inline-flex; align-items: baseline; font: 800 28px/1 var(--mark); letter-spacing: -1.6px; color: var(--ink); text-decoration: none; }
 .wordmark i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 3px; display: inline-block; }
 .wordmark-sm { font-size: 22px; letter-spacing: -1.2px; }
-
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 52px; padding: 0 24px; border-radius: 12px; border: 0;
-  background: var(--accent); color: var(--ink); font: 700 17px/1 var(--font);
-  text-decoration: none; cursor: pointer; white-space: nowrap;
-}
-.btn:hover { background: var(--accent-press); }
-.btn-ghost { background: var(--surface); color: var(--ink); border: 1.5px solid var(--line-2); }
-.btn-ghost:hover { background: #f7f8f9; border-color: var(--ink); }
-.btn-dark { background: var(--ink); color: #fff; }
-.btn-dark:hover { background: #2a2e33; }
-.btn-sm { min-height: 44px; padding: 0 16px; font-size: 16px; border-radius: 10px; }
-.textlink {
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0;
-  font: 600 16px var(--font); color: var(--ink); text-decoration: underline;
-  background: none; border: 0; cursor: pointer;
-}
-.pill { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 999px; white-space: nowrap; }
-.pill-not { background: var(--hatch); color: #3d434a; }
-.pill-ok { background: var(--ok-soft); color: #155f36; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

@@ -11,6 +11,8 @@ import { AppHeader } from './ui/AppHeader';
 const SignInPage = lazy(() => import('./accounts/SignInPage').then((m) => ({ default: m.SignInPage })));
 const ResetPasswordPage = lazy(() => import('./accounts/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const MyReportsPage = lazy(() => import('./accounts/MyReportsPage').then((m) => ({ default: m.MyReportsPage })));
+// Development only: the kit gallery. The import sits inside the DEV branch, so production builds drop it.
+const Gallery = import.meta.env.DEV ? lazy(() => import('./ui/gallery/Gallery')) : null;
 const ReportPage = lazy(() => import('./report/ReportPage').then((m) => ({ default: m.ReportPage })));
 
 /** Path-based switch; no router dependency. `pathname` is injectable for tests. */
@@ -52,7 +54,8 @@ function Screens({ pathname }: { pathname: string }): ReactElement {
 
   let screen: ReactElement;
   const report = /^\/report\/([^/]+)$/.exec(path);
-  if (path === '/checkout/return') screen = <main className="wrap app-main"><CheckoutReturn /></main>;
+  if (import.meta.env.DEV && Gallery && path === '/__gallery') screen = <Gallery />;
+  else if (path === '/checkout/return') screen = <main className="wrap app-main"><CheckoutReturn /></main>;
   else if (path === '/signin') screen = <SignInPage />;
   else if (path === '/reset-password') screen = <ResetPasswordPage />;
   else if (path === '/reports') screen = <MyReportsPage />;

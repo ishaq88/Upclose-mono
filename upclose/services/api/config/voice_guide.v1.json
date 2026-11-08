@@ -1,0 +1,31 @@
+{
+  "version": "voice-guide-v1",
+  "voice_label": "synthesized voice",
+  "lines": [
+    {"id": "zone_driver_side", "kind": "zone", "zone": "driver_side", "text": "Driver side. Start at the rear corner and walk to the front."},
+    {"id": "zone_passenger_side", "kind": "zone", "zone": "passenger_side", "text": "Passenger side. Start at the front corner and walk to the rear."},
+    {"id": "zone_front_rear_body", "kind": "zone", "zone": "front_rear_body", "text": "Front and rear. Arc around the front, then around the rear."},
+    {"id": "zone_tires", "kind": "zone", "zone": "tires", "text": "Tires. Stop at each tire for three to five seconds."},
+    {"id": "zone_dash_electrical", "kind": "zone", "zone": "dash_electrical", "text": "Dash. From the driver's seat, hold steady on the dash."},
+    {"id": "zone_engine_bay", "kind": "zone", "zone": "engine_bay", "text": "Engine bay. Open the hood and film from the front."},
+    {"id": "zone_underbody", "kind": "zone", "zone": "underbody", "text": "Underbody. Stay standing outside, keep the phone low, and sweep along the side."},
+    {"id": "zone_interior", "kind": "zone", "zone": "interior", "text": "Interior. Film through the open doors."},
+
+    {"id": "engine_pod_on", "kind": "engine", "text": "Switch the pod on while the engine is off."},
+    {"id": "engine_start", "kind": "engine", "text": "Now start the engine."},
+    {"id": "engine_hands_off", "kind": "engine", "text": "Hands off. The pod is learning for twenty seconds."},
+    {"id": "engine_baseline_learned", "kind": "engine", "text": "Baseline learned."},
+    {"id": "engine_gentle_rev", "kind": "engine", "text": "Give the engine one gentle rev."},
+    {"id": "engine_done", "kind": "engine", "text": "Done. Switch the engine off before removing the pod."},
+
+    {"id": "obd_plug_in", "kind": "obd", "text": "Plug the reader into the diagnostic port and wait."},
+    {"id": "engine_audio", "kind": "audio", "text": "Hold the phone near the engine for fifteen seconds."},
+
+    {"id": "warn_too_dark", "kind": "warning", "text": "Too dark. Add light or move to a brighter spot."},
+    {"id": "warn_too_shaky", "kind": "warning", "text": "Too shaky. Hold the phone steady."},
+    {"id": "warn_too_fast", "kind": "warning", "text": "Moving too fast. Slow down."},
+    {"id": "warn_car_not_in_frame", "kind": "warning", "text": "The car is not in frame. Point the phone at the car."},
+
+    {"id": "finish", "kind": "finish", "text": "That is everything. You can finish the inspection now."}
+  ]
+}

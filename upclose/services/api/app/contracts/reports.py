@@ -108,7 +108,7 @@ class FreeReport(ContractModel):
     categories: CategoryScores | None = None
     vehicle_check: FreeVehicleCheck | None = None
     dashboard: FreeDashCheck | None = None
-    session_id: UUID | None = None  # owner reads only
+    session_id: UUID | None = None  # owner-token or linked-account reads only
 
 
 class ShareEnableResponse(ContractModel):
@@ -157,7 +157,7 @@ class PaidReport(ContractModel):
     narration_audio: NarrationAudioView | None = None
     vehicle_check: FrozenVin | None = None
     vibration: FrozenVibration | None = None
-    session_id: UUID | None = None  # owner reads only
+    session_id: UUID | None = None  # owner-token or linked-account reads only
 
     @model_validator(mode="after")
     def citations_in_public_scope(self) -> Self:

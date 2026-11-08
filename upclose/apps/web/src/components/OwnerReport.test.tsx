@@ -152,14 +152,24 @@ describe('paid report kit integration', () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it.each([['report-session', 'report-session'], [null, 'legacy-session']])('renames with report session %s and legacy fallback', async (session, expected) => {
-    const api = apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, session_id: session }) }, FRAMES]);
+  it("renames the report's own inspection, never the one this tab may be capturing", async () => {
+    const api = apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, session_id: 'report-session' }) }, FRAMES]);
     const rename = vi.spyOn(api, 'updateLabel').mockResolvedValue({ vehicle_label: 'New name' } as never);
-    render(<OwnerReport api={api} slug="owner-slug" sessionId="legacy-session" onUnauthorized={noop} onRefresh={noop} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Rename' }));
-    fireEvent.change(screen.getByLabelText('Inspection name'), { target: { value: 'New name' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
-    await waitFor(() => expect(rename).toHaveBeenCalledWith(expected, 'New name'));
+    sessionStorage.setItem('upclose.session.v1', JSON.stringify({ sessionId: 'tab-session', token: 'x'.repeat(43) }));
+    try {
+      render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename' }));
+      fireEvent.change(screen.getByLabelText('Inspection name'), { target: { value: 'New name' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+      await waitFor(() => expect(rename).toHaveBeenCalledWith('report-session', 'New name'));
+    } finally { sessionStorage.clear(); }
+  });
+
+  it('offers no Rename when the report does not name its inspection', async () => {
+    const api = apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, session_id: null }) }, FRAMES]);
+    render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    await screen.findByRole('heading', { name: '1 serious issue' });
+    expect(screen.queryByRole('button', { name: 'Rename' })).toBeNull();
   });
 });
 
@@ -203,19 +213,16 @@ describe('owner report (JSON)', () => {
     const calls: Call[] = [];
     const sid = '11111111-1111-4111-8111-111111111111';
     const api = apiFor([
-      { match: REPORT_URL, respond: () => json(SAMPLE_REPORT) }, FRAMES,
+      { match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, session_id: sid }) }, FRAMES,
       { match: /\/sessions\/[^/]+\/label$/, respond: () => json({ vehicle_label: '2014 Honda Civic' }) },
     ], calls);
-    const view = render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} sessionId={sid} />);
+    const view = render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Rename' }));
     fireEvent.change(screen.getByLabelText('Inspection name'), { target: { value: '2014 Honda Civic' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
     expect(await screen.findByRole('heading', { name: '2014 Honda Civic', level: 1 })).toBeTruthy();
     expect(calls.find((c) => c.init?.method === 'PUT')?.url).toBe(`/api/v1/sessions/${sid}/label`);
     view.unmount();
-    render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    await screen.findByRole('heading', { name: '1 serious issue' });
-    expect(screen.queryByRole('button', { name: 'Rename' })).toBeNull();
   });
 
   it('shows a free report with its unlock panel, never requests evidence, and checks out on click', async () => {

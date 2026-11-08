@@ -14,7 +14,8 @@ from app.models import AudioUpload, EvidenceSource, Report, ReportRevision, Sess
 from app.services.privacy import approved_for, PrivacyService
 from app.adapters.storage import ObjectStorage, StorageError
 from app.services.accounts import AccountService
-from app.services.auth import authenticate, bearer_token, owner_session
+from app.services.auth import bearer_token
+from app.services.authority import lock_owner, resolve_authority, resolve_owner
 from app.services.billing import has_active_entitlement
 from app.services.problems import ProblemError, not_found
 from app.services.snapshots import Provenance, RevisionSnapshot, build_free_report, build_paid_report, load_snapshot
@@ -56,36 +57,28 @@ class ReportService:
             return self._get(db, slug, authorization)
 
     def _get(self, db: DBSession, slug: str, authorization: str | None = None) -> ReportRead:
-        # Explicit bearer authority is never silently downgraded to slug authority.
-        owner_id = None
-        account_id = None
+        # Explicit bearer authority is never silently downgraded to slug authority. A bearer resolves
+        # through the one post-capture rule (services.authority): owner token or linked account.
+        authority = None
         if authorization is not None:
-            token = bearer_token(authorization)
-            try:
-                owner_id = authenticate(db, token)
-            except ProblemError:
-                # Account Bearer: resolves to an account, never a session.
-                # Invalid for both authorities stays 401 TOKEN_INVALID.
-                account_id = self.accounts.verify_token(token).id
-        session_id = db.scalar(select(Report.session_id).where(Report.share_slug == slug))
-        if session_id is None:
-            raise not_found()
-        if owner_id is not None and owner_id != session_id:
-            raise not_found()
+            authority = resolve_authority(db, bearer_token(authorization), self.accounts, slug=slug)
+            session_id = authority.session_id
+        else:
+            session_id = db.scalar(select(Report.session_id).where(Report.share_slug == slug))
+            if session_id is None:
+                raise not_found()
         # Session-scoped publication and deletion serialize on the owner first.
         # Entitlement lookup uses current statement state; an in-flight read
         # may precede a refund commit and issues no future media authority.
         owner = db.scalar(select(Session).where(Session.id == session_id).with_for_update())
         if owner is None:
             raise not_found()
-        if account_id is not None and owner.account_id != account_id:
-            raise not_found()
         if owner.state in (SessionState.DELETING, SessionState.DELETED) or owner.deleted_at is not None:
             raise ProblemError(410, "NOT_FOUND", "Report removed", "This report is no longer available.")
         report = db.scalar(select(Report).where(Report.share_slug == slug, Report.session_id == owner.id))
         if report is None:
             raise not_found()
-        if owner_id is None and account_id is None and not (self.settings.public_sharing_enabled and report.share_enabled):
+        if authority is None and not (self.settings.public_sharing_enabled and report.share_enabled):
             raise not_found()
         revision = db.get(ReportRevision, report.current_revision_id) if report.current_revision_id else None
         if revision is None or revision.report_id != report.id or revision.session_id != report.session_id:
@@ -101,7 +94,7 @@ class ReportService:
                 raise ValueError("ready snapshot is incomplete")
             dto = assemble_report(snapshot, scope)
             dto = dto.model_copy(update={'vehicle_label': owner.vehicle_label,
-                'session_id': owner.id if owner_id is not None else None, 'findings': tuple(f.model_copy(update={'evidence_available':
+                'session_id': owner.id if authority is not None else None, 'findings': tuple(f.model_copy(update={'evidence_available':
                 approved_for(db, owner.id, revision.id, f.id) is not None}) for f in dto.findings)})
             if isinstance(dto, PaidReport):
                 dto = dto.model_copy(update={'candidates': tuple(f.model_copy(update={'evidence_available':
@@ -112,10 +105,9 @@ class ReportService:
         return ReportRead(dto, snapshot.manifest.provenance)
 
     def _owned_report(self, db: DBSession, slug: str, token: str) -> tuple[Session, Report]:
-        # Owner token ONLY: `owner_session` authenticates the session token
-        # (401 for account/invalid tokens) and locks the owner row, following
-        # the write convention of 404 for deleting/deleted sessions.
-        owner = owner_session(db, token, lock=True)
+        # Post-capture management (share on/off): the owner token or the account the inspection is
+        # saved to (services.authority); locked, with 404 for deleting/deleted sessions.
+        owner = lock_owner(db, resolve_owner(db, token, self.accounts, slug=slug))
         report = db.scalar(select(Report).where(Report.share_slug == slug, Report.session_id == owner.id).with_for_update())
         if report is None:
             raise not_found()

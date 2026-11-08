@@ -32,12 +32,12 @@ from app.adapters.stripe import (
     CheckoutRequest, ProviderNotFound, ProviderRejected, ProviderUnavailable,
     ProviderCheckout, StripeGateway, WebhookEvent,
 )
-from app.contracts.enums import ReportState, SessionState
+from app.contracts.enums import ReportState
 from app.jobs.queue import Failure, JobSpec, Lease, enqueue
 from app.jobs.worker import Publication, StageFailure, StageRegistry
-from app.models import Entitlement, Purchase, Report, ReportRevision, Session, StripeEvent
+from app.models import Entitlement, Purchase, Report, ReportRevision, StripeEvent
 from app.services.accounts import AccountService
-from app.services.auth import authenticate
+from app.services.authority import lock_owner, resolve_owner
 from app.services.idempotency import execute_idempotent
 from app.services.problems import ProblemError, conflict, not_found
 from app.settings import Settings
@@ -66,14 +66,6 @@ def has_active_entitlement(db: DBSession, report_id: UUID) -> bool:
 
 # ------------------------------------------------------------------ checkout
 
-def _lock_owner(db: DBSession, owner_id: UUID) -> Session:
-    """Lock an already-authorized inspection; one being deleted is gone (404), as for owner reads."""
-    owner = db.scalar(select(Session).where(Session.id == owner_id).with_for_update())
-    if owner is None or owner.state in (SessionState.DELETING, SessionState.DELETED):
-        raise not_found()
-    return owner
-
-
 class CheckoutService:
     def __init__(self, factory: sessionmaker[DBSession], settings: Settings, gateway: StripeGateway) -> None:
         self.factory = factory
@@ -82,27 +74,12 @@ class CheckoutService:
         self.accounts = AccountService(factory, settings)
 
     def create(self, token: str, slug: str, idempotency_key: str | None = None) -> tuple[str | None, bool]:
-        owner_id = self._authorized_owner(token, slug)
+        # Post-capture action: the owner token or the account the inspection is saved to (services.authority).
+        with self.factory.begin() as db:
+            owner_id = resolve_owner(db, token, self.accounts, slug=slug)
         if self.settings.demo_free_unlock:
             return None, self._demo_unlock(owner_id, slug, idempotency_key)
         return self._stripe_checkout(owner_id, slug, idempotency_key), False
-
-    def _authorized_owner(self, token: str, slug: str) -> UUID:
-        """The inspection this bearer may buy for, by the same rule as reading the report (ReportService):
-        the inspection's owner token, or the account the inspection is saved to. A token for another
-        inspection or an account the inspection is not saved to is 404; a token valid for neither is 401."""
-        with self.factory.begin() as db:
-            try:
-                return authenticate(db, token)
-            except ProblemError:
-                pass
-        account = self.accounts.verify_token(token)  # 401 TOKEN_INVALID when it is not an account token either
-        with self.factory.begin() as db:
-            session_id = db.scalar(select(Report.session_id).where(Report.share_slug == slug))
-            owner = None if session_id is None else db.get(Session, session_id)
-            if owner is None or owner.account_id != account.id:
-                raise not_found()
-            return owner.id
 
     def _demo_unlock(self, owner_id: UUID, slug: str, idempotency_key: str | None = None) -> bool:
         # Demo stand-in (DEMO_FREE_UNLOCK, fixture payments only): owner-only, ready-only,
@@ -111,7 +88,7 @@ class CheckoutService:
             raise ProblemError(503, "INTERNAL", "Checkout unavailable", "Demo unlock requires fixture payments mode.")
         purchase_id, _request, _checkout_id = self._persist_purchase(owner_id, slug, idempotency_key)
         with self.factory.begin() as db:
-            owner = _lock_owner(db, owner_id)
+            owner = lock_owner(db, owner_id)
             purchase = db.scalar(select(Purchase).where(Purchase.id == purchase_id, Purchase.session_id == owner.id).with_for_update())
             if purchase is None or purchase.state != "pending":
                 raise conflict()
@@ -136,7 +113,7 @@ class CheckoutService:
                 if current.status != 'open':
                     if current.status == 'expired':
                         with self.factory.begin() as db:
-                            _lock_owner(db, owner_id)
+                            lock_owner(db, owner_id)
                             db.execute(update(Purchase).where(Purchase.id == purchase_id,
                                 Purchase.state == 'pending').values(state='failed'))
                     raise conflict()
@@ -145,7 +122,7 @@ class CheckoutService:
             raise ProblemError(503, "INTERNAL", "Checkout unavailable",
                                "Checkout could not be started. Try again shortly.") from None
         with self.factory.begin() as db:
-            owner = _lock_owner(db, owner_id)
+            owner = lock_owner(db, owner_id)
             bound = db.scalar(update(Purchase).where(
                 Purchase.id == purchase_id, Purchase.session_id == owner.id, Purchase.state == "pending", (Purchase.checkout_id.is_(None)) | (Purchase.checkout_id == created.checkout_id),
             ).values(checkout_id=created.checkout_id).returning(Purchase.id))
@@ -156,7 +133,7 @@ class CheckoutService:
     def _persist_purchase(self, owner_id: UUID, slug: str, idempotency_key: str | None) -> tuple[UUID, CheckoutRequest, str | None]:
         cfg = self.settings
         with self.factory.begin() as db:
-            owner = _lock_owner(db, owner_id)  # 404 deleting/deleted
+            owner = lock_owner(db, owner_id)  # 404 deleting/deleted
             report = db.scalar(select(Report).where(Report.share_slug == slug, Report.session_id == owner.id))
             if report is None:
                 raise not_found()

@@ -15,7 +15,9 @@ from app.contracts.enums import PART_ZONES, PartState, SessionState, UploadState
 from app.models import AudioUpload, Job, Part, Report, ReportRevision, Session, Upload, VideoUpload
 from app.pipeline.orchestration import advance_session
 from app.settings import Settings
+from .accounts import AccountService
 from .auth import owner_session, token_hash
+from .authority import lock_owner, resolve_owner
 from .idempotency import execute_idempotent
 from .problems import conflict, not_found, validation
 from .rate_limits import consume_creation_limit
@@ -25,6 +27,7 @@ class SessionService:
     def __init__(self, sessions: sessionmaker[DBSession], settings: Settings):
         self.sessions = sessions
         self.settings = settings
+        self.accounts = AccountService(sessions, settings)
 
     def create(self, request: CreateSessionRequest, source_hash: str, *,
                account_id: UUID | None = None) -> CreateSessionResponse:
@@ -124,10 +127,10 @@ class SessionService:
         except ValueError:
             raise validation() from None
         with self.sessions.begin() as db:
-            owner = owner_session(db, token, session_id, lock=True)
-            # Display name only: settable while capturing and after finalize;
-            # never touches listing_text/listing_version. Deleting/deleted
-            # sessions already 404 via owner_session.
+            # Post-capture management: the owner token or the account the inspection is saved to
+            # (services.authority). Display name only: settable while capturing and after finalize;
+            # never touches listing_text/listing_version. Deleting/deleted sessions 404 on lock.
+            owner = lock_owner(db, resolve_owner(db, token, self.accounts, session_id=session_id))
             owner.vehicle_label = cleaned
             db.flush()
             return self._response(db, owner)

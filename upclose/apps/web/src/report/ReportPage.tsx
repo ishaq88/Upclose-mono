@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { ApiError, type Api } from '../api/client';
 import { OwnerReport } from '../components/OwnerReport';
-import { loadSession } from '../session/storage';
 import '../results/results.css';
 
 const noop = (): void => {};
@@ -64,7 +63,7 @@ export function ReportPage({ slug, credentials }: { slug: string; credentials: R
   }
   return (
     <main className="wrap app-main">
-      <OwnerReport api={resolution.api} slug={slug} onUnauthorized={noop} onRefresh={noop} sessionId={loadSession()?.sessionId} />
+      <OwnerReport api={resolution.api} slug={slug} onUnauthorized={noop} onRefresh={noop} />
     </main>
   );
 }

@@ -64,9 +64,8 @@ def create_session_router(sessions: sessionmaker[DBSession], settings: Settings)
 
     @router.put("/sessions/{session_id}/label", response_model=SessionResponse)
     def update_label(session_id: UUID, body: UpdateVehicleLabelRequest, token: Annotated[str, Depends(owner_bearer)]) -> SessionResponse:
-        # Owner token only: an account token is not an owner token and fails
-        # owner authentication (401); a valid owner token for another
-        # session follows the existing 404 convention.
+        # Owner token or the account the inspection is saved to (services.authority);
+        # another inspection's owner token or an unlinked account is 404, neither is 401.
         return service.update_label(token, session_id, body.label)
 
     @router.put("/sessions/{session_id}/listing", response_model=UpdateListingResponse)

@@ -33,8 +33,6 @@ export interface OwnerReportProps {
   /** Base poll interval for a report that is still building. */
   pollMs?: number;
   navigate?: (url: string) => void;
-  /** The owner's inspection id. When given, the title gets an inline Rename (owner token only). */
-  sessionId?: string;
 }
 
 /**
@@ -42,7 +40,7 @@ export interface OwnerReportProps {
  * fetched one by one as data URLs (token in a header). Free reports show the driver-side result with
  * unlock. A building report polls with backoff. Which of these shows is decided only by the server's response.
  */
-export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SESSION_POLL_MS, navigate, sessionId }: OwnerReportProps): ReactElement {
+export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SESSION_POLL_MS, navigate }: OwnerReportProps): ReactElement {
   const [report, setReport] = useState<Loaded | null>(null);
   const [error, setError] = useState<UiError | null>(null);
   const [fatal, setFatal] = useState(false);
@@ -127,7 +125,9 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
   const retry = (): void => { setAwaiting(false); setAttempt((n) => n + 1); };
   const label = renamed !== undefined ? renamed : report && 'vehicle_label' in report ? report.vehicle_label : null;
   const kind = report ? kindOf(report) : null;
-  const renameSessionId = report && 'session_id' in report ? report.session_id ?? sessionId : sessionId;
+  // The report names its own inspection for any owner credential (owner token or linked account); never fall
+  // back to whichever inspection this tab happens to be capturing, which may be a different one.
+  const renameSessionId = report && 'session_id' in report ? report.session_id ?? null : null;
 
   return (
     <div className="res-col" data-testid="owner-report">

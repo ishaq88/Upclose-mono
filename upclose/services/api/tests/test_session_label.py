@@ -145,7 +145,7 @@ def test_label_settable_after_finalize_without_listing_version_change(app):
     assert r.status_code == 200 and r.json()["state"] == "finalized" and r.json()["listing_version"] == 1
 
 
-def test_label_owner_only_stranger_404_and_account_token_cannot_write(app):
+def test_label_owner_or_linked_account_stranger_404(app):
     c = client(app)
     sid, headers, token = owner(c)
     _, stranger_headers, _ = owner(client(app))
@@ -154,12 +154,15 @@ def test_label_owner_only_stranger_404_and_account_token_cannot_write(app):
     account = register(c)
     acct = {"Authorization": "Bearer " + account["token"]}
     assert c.post("/api/v1/accounts/claim", headers=acct, json={"session_id": sid, "owner_token": token}).status_code == 200
-    # Account token alone: write rejected, existing read paths still work.
-    assert c.put(f"/api/v1/sessions/{sid}/label", headers=acct, json={"label": "x"}).status_code == 401
+    # The account the inspection is saved to renames it on any device (services.authority);
+    # an account it is not saved to is 404.
+    other = {"Authorization": "Bearer " + register(c)["token"]}
+    assert c.put(f"/api/v1/sessions/{sid}/label", headers=other, json={"label": "x"}).status_code == 404
     assert c.get(f"/api/v1/sessions/{sid}", headers=acct).status_code == 200
     mine = c.get("/api/v1/accounts/sessions", headers=acct)
     assert mine.status_code == 200 and mine.json()["sessions"][0]["vehicle_label"] is None
-    c.put(f"/api/v1/sessions/{sid}/label", headers=headers, json={"label": LABEL})
+    renamed = c.put(f"/api/v1/sessions/{sid}/label", headers=acct, json={"label": LABEL})
+    assert renamed.status_code == 200, renamed.text
     mine = c.get("/api/v1/accounts/sessions", headers=acct).json()
     assert mine["sessions"][0]["vehicle_label"] == LABEL
     assert c.get(f"/api/v1/sessions/{sid}", headers=acct).json()["vehicle_label"] == LABEL

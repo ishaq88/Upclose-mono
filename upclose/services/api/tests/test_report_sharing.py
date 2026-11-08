@@ -70,18 +70,25 @@ def test_share_requires_owner_authority(ready):
     assert share_enabled(ready) is False
 
 
-def test_account_token_alone_cannot_share(ready):
+def test_linked_account_shares_like_the_owner_and_unlinked_account_cannot(ready):
+    # One post-capture rule (services.authority): the account the inspection is saved to manages
+    # it on any device, exactly as it reads it; an account it is not saved to is 404.
     h = ready.h
     grant(ready)
     service = AccountService(h.db, Settings(account_pbkdf2_iterations=1000))
     account = service.register(f"dealer-{uuid4().hex[:16]}@example.com", PASSWORD)
+    stranger = service.register(f"dealer-{uuid4().hex[:16]}@example.com", PASSWORD)
     with h.db.begin() as db:
         db.execute(update(Session).where(Session.id == h.session_id).values(account_id=account.id))
     account_headers = {"Authorization": "Bearer " + service.issue_token(account.id).token}
-    # The account token reads its linked report, but it is not owner authority.
+    stranger_headers = {"Authorization": "Bearer " + service.issue_token(stranger.id).token}
     assert h.http.get(f"/api/v1/reports/{report_of(ready).share_slug}", headers=account_headers).status_code == 200
-    problem(h.http.post(share_path(ready), headers=account_headers), 401, "TOKEN_INVALID")
-    problem(h.http.delete(share_path(ready), headers=account_headers), 401, "TOKEN_INVALID")
+    problem(h.http.post(share_path(ready), headers=stranger_headers), 404, "NOT_FOUND")
+    assert share_enabled(ready) is False
+    assert h.http.post(share_path(ready), headers=account_headers).status_code == 200
+    assert share_enabled(ready) is True
+    problem(h.http.delete(share_path(ready), headers=stranger_headers), 404, "NOT_FOUND")
+    assert h.http.delete(share_path(ready), headers=account_headers).status_code == 200
     assert share_enabled(ready) is False
 
 

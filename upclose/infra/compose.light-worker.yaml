@@ -1,0 +1,51 @@
+# Opt-in light lane: a third queue runner that never claims the slow SAM stages, so cheap jobs
+# (audio, source and dash ingest, claims, render, ...) do not queue behind a vehicle mask.
+# Self-contained (compose `extends` cannot reach a service in another overlay), so it repeats the live worker
+# environment from compose.yaml, compose.live-demo.yaml and compose.live-full.yaml. Run from upclose/:
+#   docker compose --env-file .env -f infra/compose.yaml -f infra/compose.light-worker.yaml up -d --no-deps worker-light
+# The existing worker containers are untouched. Lane contents: WORKER_LIGHT_EXCLUDE_STAGES (default vehicle_mask,segment).
+services:
+  worker-light:
+    build:
+      context: ..
+      dockerfile: infra/api.Dockerfile
+    command: ["python", "-m", "app.jobs.worker"]
+    restart: "on-failure:3"
+    environment:
+      DATABASE_URL: postgresql+psycopg://upclose:local-development-only@postgres:5432/upclose
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:5173}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:5173}
+      WEB_EXTRA_ORIGINS: ${WEB_EXTRA_ORIGINS:-}
+      S3_BUCKET: ${S3_BUCKET:-upclose-local}
+      S3_INTERNAL_ENDPOINT: http://floci:4566
+      S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:4566}
+      AWS_ACCESS_KEY_ID: local-development-only
+      AWS_SECRET_ACCESS_KEY: local-development-only
+      AWS_DEFAULT_REGION: us-east-1
+      PUBLIC_SHARING_ENABLED: "false"
+      DEMO_SESSION_ID: ${DEMO_SESSION_ID:-}
+      MODEL_MODE: ${MODEL_MODE:-live}
+      DASH_READER_PROVIDER: ${DASH_READER_PROVIDER:-meta}
+      MODEL_API_KEY: ${MODEL_API_KEY:?Set a Meta API key locally for the worker only}
+      META_API_BASE: ${META_API_BASE:-https://api.meta.ai}
+      MODEL_PRICE_VERSION: ${MODEL_PRICE_VERSION:-meta-docs-2026-10-28}
+      MODEL_SESSION_BUDGET_CENTS: ${MODEL_SESSION_BUDGET_CENTS:-500}
+      MODEL_DAILY_BUDGET_CENTS: ${MODEL_DAILY_BUDGET_CENTS:-5000}
+      MODEL_STANDARD_ACCESS_RECEIPT: ${MODEL_STANDARD_ACCESS_RECEIPT:-}
+      MODEL_ALLOW_NON_STANDARD_DEMO: ${MODEL_ALLOW_NON_STANDARD_DEMO:-true}
+      ADVISOR_PROVIDER: ${ADVISOR_PROVIDER:-fixture}
+      ADVISOR_META_MODEL: ${ADVISOR_META_MODEL:-}
+      ADVISOR_GEMINI_MODEL: ${ADVISOR_GEMINI_MODEL:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VOICE_PROVIDER: ${VOICE_PROVIDER:-fixture}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      ELEVENLABS_VOICE_ID: ${ELEVENLABS_VOICE_ID:-}
+      ELEVENLABS_MODEL_ID: ${ELEVENLABS_MODEL_ID:-}
+      MODEL_ELEVENLABS_ACCESS_RECEIPT: ${MODEL_ELEVENLABS_ACCESS_RECEIPT:-}
+      TIGER_DATABASE_URL: ${TIGER_DATABASE_URL:-}
+      VIN_PROVIDER: ${VIN_PROVIDER:-fixture}
+      DEMO_AUTO_APPROVE_DERIVATIVES: ${DEMO_AUTO_APPROVE_DERIVATIVES:-false}
+      WORKER_EXCLUDE_STAGES: ${WORKER_LIGHT_EXCLUDE_STAGES:-vehicle_mask,segment}
+    depends_on:
+      postgres: {condition: service_healthy}
+      storage-init: {condition: service_completed_successfully}

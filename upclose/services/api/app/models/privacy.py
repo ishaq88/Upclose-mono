@@ -20,6 +20,8 @@ class PrivacyDerivative(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     review_receipt: Mapped[str | None] = mapped_column(String(128))
+    # NULL = explicit operator approval; 'demo-auto' = automated demo approval (no human review).
+    approved_by: Mapped[str | None] = mapped_column(String(32))
     __table_args__ = (
         ForeignKeyConstraint(["revision_id", "finding_id", "session_id"], ["revision_findings.revision_id", "revision_findings.finding_id", "revision_findings.session_id"]),
         ForeignKeyConstraint(["finding_id", "source_key", "session_id"], ["findings.id", "findings.frame_key", "findings.session_id"]),

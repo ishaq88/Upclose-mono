@@ -19,6 +19,8 @@ services:
       MODEL_ELEVENLABS_ACCESS_RECEIPT: ${MODEL_ELEVENLABS_ACCESS_RECEIPT:-}
       TIGER_DATABASE_URL: ${TIGER_DATABASE_URL:-}
       VIN_PROVIDER: ${VIN_PROVIDER:-fixture}
+      # Demo only, fixture payments only: auto-approve evidence derivatives after render (recorded as demo-auto).
+      DEMO_AUTO_APPROVE_DERIVATIVES: ${DEMO_AUTO_APPROVE_DERIVATIVES:-false}
   # The API receives only the voice-guide variables, never a model or database key.
   api:
     environment:

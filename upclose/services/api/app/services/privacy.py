@@ -17,6 +17,7 @@ from app.services.snapshots import load_snapshot
 from app.settings import Settings
 
 RECEIPT = "permission-cleared-manually-reviewed-v1"
+DEMO_AUTO = "demo-auto"
 
 
 def operator_auth(settings: Settings, token: str | None) -> None:
@@ -96,7 +97,7 @@ class PrivacyService:
             raise not_found() from None
         return {'id': str(derivative_id), 'sha256': digest, 'state': 'pending_manual_review'}
 
-    def approve(self, derivative_id: UUID, sha256: str, receipt: str) -> dict[str, str]:
+    def approve(self, derivative_id: UUID, sha256: str, receipt: str, approved_by: str | None = None) -> dict[str, str]:
         with self.factory.begin() as db:
             row = db.get(PrivacyDerivative, derivative_id)
             if row is None or row.sha256 != sha256 or receipt != RECEIPT:
@@ -110,8 +111,37 @@ class PrivacyService:
             if row is None or row.sha256 != sha256:
                 raise not_found()
             if row.approved_at is None:
-                row.approved_at, row.review_receipt = datetime.now(timezone.utc), receipt
+                row.approved_at, row.review_receipt, row.approved_by = datetime.now(timezone.utc), receipt, approved_by
         return {'id': str(derivative_id), 'sha256': sha256, 'state': 'approved'}
+
+    def auto_approve_session(self, settings: Settings, session_id: UUID) -> int:
+        """ Demo only: create and approve derivatives for the current ready revision's findings.
+
+        Uses the same create/approve code as the operator endpoints but records approved_by='demo-auto'.
+        Refused unless DEMO_AUTO_APPROVE_DERIVATIVES is on and payments are fixture-mode. Idempotent.
+        """
+        if not settings.demo_auto_approve_derivatives or settings.payments_mode != "fixture":
+            return 0
+        with self.factory() as db:
+            report = db.scalar(select(Report).where(Report.session_id == session_id))
+            revision = None if report is None or report.current_revision_id is None else db.get(ReportRevision, report.current_revision_id)
+            if revision is None or revision.state != 'ready':
+                return 0
+            revision_id = revision.id
+            findings = [f.id for f in load_snapshot(db, revision, report.share_slug).manifest.all_findings
+                        if f.status in ('verified', 'unverified')]
+        approved = 0
+        for finding_id in findings:
+            with self.factory() as db:
+                if approved_for(db, session_id, revision_id, finding_id) is not None:
+                    continue
+            try:
+                body = self.create(session_id, revision_id, finding_id, ())
+                self.approve(UUID(body['id']), body['sha256'], RECEIPT, approved_by=DEMO_AUTO)
+                approved += 1
+            except ProblemError:
+                continue  # leave this finding withheld
+        return approved
 
     def verify_bytes(self, key: str, sha256: str) -> None:
         try:

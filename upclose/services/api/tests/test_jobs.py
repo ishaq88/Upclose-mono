@@ -534,3 +534,29 @@ def test_worker_main_process_starts_fixture_only_and_stops_cleanly(factory):
         reader.join(timeout=5)
         process.stdout.close()
         process.stderr.close()
+
+
+def test_claim_stage_filter_leaves_other_stages_queued(factory):
+    heavy = put(factory, spec(owner(factory), stage="segment", kind="concept_run"))
+    light = put(factory, spec(owner(factory), stage="ingest"))
+    queue = JobQueue(factory)
+    lease = queue.claim("light-worker", ["ingest", "audio_ingest"])
+    assert lease is not None and lease.job_id == light and lease.stage == "ingest"
+    assert queue.claim("light-worker", ["ingest", "audio_ingest"]) is None
+    assert state(factory, heavy)[:2] == ("queued", 0)
+    heavy_lease = queue.claim("heavy-worker")
+    assert heavy_lease is not None and heavy_lease.job_id == heavy and heavy_lease.attempt == 1
+
+
+def test_claimable_stages_allow_exclude_and_validation():
+    from app.jobs.worker import claimable_stages
+    registry = StageRegistry()
+    for stage in ("ingest", "vehicle_mask", "segment", "render"):
+        registry.register(stage, lambda lease: Publication())
+    assert claimable_stages(registry) == ("ingest", "vehicle_mask", "segment", "render")
+    assert claimable_stages(registry, exclude="vehicle_mask, segment") == ("ingest", "render")
+    assert claimable_stages(registry, allow="render,ingest,audio_ingest") == ("ingest", "render")
+    for bad in ({"allow": "ingest", "exclude": "render"}, {"allow": "nonsense"}, {"exclude": "nonsense"}):
+        with pytest.raises(ValueError):
+            claimable_stages(registry, **bad)
+    assert run_once(JobQueue(None), registry, "w", stages=[]) is False  # an empty lane claims nothing, no DB touched

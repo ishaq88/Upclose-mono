@@ -192,3 +192,33 @@ def test_cross_session_and_raw_namespace_bindings_rejected(ready, make):
             with ready.h.db.begin() as db:
                 db.add(PrivacyDerivative(id=identity,session_id=sid,
                     object_key=key or f'media/{sid}/derivatives/{identity}',**values))
+
+
+def test_demo_auto_approve_default_off_and_production_guard(ready):
+    from app.services.reports import ReportService
+    from pydantic import ValidationError
+    assert Settings().demo_auto_approve_derivatives is False
+    with pytest.raises(ValidationError):
+        Settings(demo_auto_approve_derivatives=True, payments_mode="test")
+    service = PrivacyService(ready.h.db, ready.h.storage)
+    assert service.auto_approve_session(Settings(), ready.h.session_id) == 0  # off: unchanged
+    with ready.h.db() as db:
+        assert db.scalar(select(PrivacyDerivative.id).where(PrivacyDerivative.session_id == ready.h.session_id)) is None
+    report = rows(ready.h, Report)[0]
+    dto = ReportService(ready.h.db, ready.h.settings, ready.h.storage).get(report.share_slug, ready.h.headers['Authorization']).dto
+    assert not any(f.evidence_available for f in dto.findings)
+
+
+def test_demo_auto_approve_on_approves_and_records_automation(ready):
+    from app.services.reports import ReportService
+    service = PrivacyService(ready.h.db, ready.h.storage)
+    settings = Settings(demo_auto_approve_derivatives=True)
+    count = service.auto_approve_session(settings, ready.h.session_id)
+    assert count > 0
+    assert service.auto_approve_session(settings, ready.h.session_id) == 0  # idempotent
+    with ready.h.db() as db:
+        rows_ = list(db.scalars(select(PrivacyDerivative).where(PrivacyDerivative.session_id == ready.h.session_id)))
+    assert len(rows_) == count and all(r.approved_at and r.approved_by == 'demo-auto' for r in rows_)
+    report = rows(ready.h, Report)[0]
+    dto = ReportService(ready.h.db, ready.h.settings, ready.h.storage).get(report.share_slug, ready.h.headers['Authorization']).dto
+    assert any(f.evidence_available for f in dto.findings)

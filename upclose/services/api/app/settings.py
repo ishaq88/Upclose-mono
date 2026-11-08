@@ -5,7 +5,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 import ipaddress
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     # Dev-demo only: DEMO_FREE_UNLOCK=true (fixture payments only) grants a labeled demo
     # entitlement from the Unlock button with no charge. Default off; refused in test mode.
     demo_free_unlock: bool = False
+    # Dev-demo only: DEMO_AUTO_APPROVE_DERIVATIVES=true makes the worker create and approve evidence
+    # derivatives for a freshly rendered report, recorded as an automated demo approval (not a human
+    # review). Default off; refused unless payments are fixture-mode (same guard as DEMO_FREE_UNLOCK).
+    demo_auto_approve_derivatives: bool = False
+    # Light lane: restrict which stages this worker claims. Comma lists; default claims every stage.
+    # WORKER_STAGES is an allowlist, WORKER_EXCLUDE_STAGES a denylist; setting both is refused.
+    worker_stages: str = ""
+    worker_exclude_stages: str = ""
     payments_mode: Literal["fixture", "test"] = "fixture"
     stripe_secret_key: SecretStr | None = None
     stripe_webhook_secret: SecretStr | None = None
@@ -126,6 +134,12 @@ class Settings(BaseSettings):
     @classmethod
     def blank_is_unset(cls, value: object) -> object:
         return None if isinstance(value, str) and not value.strip() else value
+
+    @model_validator(mode="after")
+    def _demo_auto_approve_guard(self) -> "Settings":
+        if self.demo_auto_approve_derivatives and self.payments_mode != "fixture":
+            raise ValueError("DEMO_AUTO_APPROVE_DERIVATIVES requires fixture payments mode")
+        return self
 
     @field_validator("web_extra_origins", mode="before")
     @classmethod

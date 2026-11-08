@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import signal
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from queue import Empty, Queue
 from threading import Event, Thread
@@ -59,10 +59,24 @@ class StageFailure(Exception):
         self.failure = failure
 
 
-def run_once(queue: JobQueue, registry: StageRegistry, worker_id: str) -> bool:
-    if not registry.stages:
+def claimable_stages(registry: StageRegistry, allow: str = "", exclude: str = "") -> tuple[Stage, ...]:
+    """ Stages this runner may claim: installed stages narrowed by WORKER_STAGES / WORKER_EXCLUDE_STAGES."""
+    allowed = tuple(part.strip() for part in allow.split(",") if part.strip())
+    excluded = tuple(part.strip() for part in exclude.split(",") if part.strip())
+    if allowed and excluded:
+        raise ValueError("set only one of WORKER_STAGES and WORKER_EXCLUDE_STAGES")
+    unknown = [name for name in (*allowed, *excluded) if name not in SUBJECTS]
+    if unknown:
+        raise ValueError("unknown worker stage: " + ", ".join(unknown))
+    return tuple(stage for stage in registry.stages if (stage in allowed if allowed else stage not in excluded))
+
+
+def run_once(queue: JobQueue, registry: StageRegistry, worker_id: str, stages: Iterable[Stage] | None = None,
+             after_complete: Callable[[Lease], None] | None = None) -> bool:
+    claimable = tuple(registry.stages if stages is None else stages)
+    if not claimable:
         return False
-    lease = queue.claim(worker_id, registry.stages)
+    lease = queue.claim(worker_id, claimable)
     if lease is None:
         return False
     results: Queue[Publication | Exception] = Queue(maxsize=1)
@@ -101,9 +115,15 @@ def run_once(queue: JobQueue, registry: StageRegistry, worker_id: str) -> bool:
             queue.fail(lease, Failure("INVALID_INPUT", retryable=False))
         else:
             try:
-                queue.complete(lease, result.publish, result.downstream)
+                done = queue.complete(lease, result.publish, result.downstream)
             except Exception:
+                done = False
                 queue.fail(lease, Failure("INTERNAL"))
+            if done and after_complete is not None:
+                try:
+                    after_complete(lease)
+                except Exception:
+                    logging.warning("Post-completion hook failed for stage %s.", lease.stage)
         return True
 
 
@@ -212,6 +232,22 @@ def build_registry(settings: Settings, factory: object) -> StageRegistry:
     return registry
 
 
+def demo_derivative_hook(settings: Settings, factory: object) -> Callable[[Lease], None] | None:
+    """ Demo-only: after a report render commits, auto-approve its evidence derivatives (opt-in, fixture payments)."""
+    if not settings.demo_auto_approve_derivatives:
+        return None
+    from app.adapters.storage import S3Storage
+    from app.services.privacy import PrivacyService
+
+    service = PrivacyService(factory, S3Storage(settings))  # type: ignore[arg-type]
+
+    def hook(lease: Lease) -> None:
+        if lease.stage == "render" and lease.session_id is not None:
+            service.auto_approve_session(settings, lease.session_id)
+
+    return hook
+
+
 def main() -> None:
     settings = Settings()
     if settings.model_mode == "replay":
@@ -242,8 +278,13 @@ def main() -> None:
 
     sweep_ingest_scratch(settings)  # scratch left by a crashed previous process
     registry = build_registry(settings, factory)
+    try:
+        claim_stages = claimable_stages(registry, settings.worker_stages, settings.worker_exclude_stages)
+    except ValueError as error:
+        raise SystemExit("Worker refused: " + str(error)) from None
+    after_complete = demo_derivative_hook(settings, factory)
     worker_id = f"{settings.model_mode}-{uuid4().hex}"
-    logging.info("Queue runner started (mode=%s); installed stages: %s", settings.model_mode, ", ".join(registry.stages))
+    logging.info("Queue runner started (mode=%s); installed stages: %s; claiming: %s", settings.model_mode, ", ".join(registry.stages), ", ".join(claim_stages))
     next_purge_sweep = time.monotonic()
     tombstone_cursor = None
     audit_storage = S3Storage(settings)
@@ -259,7 +300,7 @@ def main() -> None:
                 tombstone_cursor = audit.cursor
             except Exception:
                 logging.warning("Purge recovery sweep failed; retrying next interval.")
-        if not run_once(queue, registry, worker_id):
+        if not run_once(queue, registry, worker_id, claim_stages, after_complete):
             stopped.wait(1)
 
 

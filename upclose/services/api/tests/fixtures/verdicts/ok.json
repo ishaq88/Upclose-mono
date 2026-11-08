@@ -1,0 +1,116 @@
+{
+  "schema": "upclose-anomaly-verdict/1",
+  "verdict": "no_anomaly_detected",
+  "reason": null,
+  "data_source": "simulator",
+  "duration_s": 40.0,
+  "windows": 159,
+  "anomalous_windows": 4,
+  "anomalous_fraction": 0.0252,
+  "max_score": 4.903,
+  "median_score": 2.246,
+  "threshold": 4.0615,
+  "fraction_threshold": 0.15,
+  "min_anomalous_windows": 3,
+  "top_features": [],
+  "anomalous_runs": [
+    {
+      "t_start_s": 5.25,
+      "t_end_s": 5.75,
+      "peak_score": 4.439,
+      "top_features": [
+        {
+          "name": "vib_log_frac_2x",
+          "share": 0.266,
+          "z": -0.75
+        },
+        {
+          "name": "vib_log_frac_hi",
+          "share": 0.258,
+          "z": 0.84
+        },
+        {
+          "name": "vib_crest",
+          "share": 0.213,
+          "z": 0.73
+        }
+      ]
+    },
+    {
+      "t_start_s": 12.75,
+      "t_end_s": 13.25,
+      "peak_score": 4.094,
+      "top_features": [
+        {
+          "name": "vib_log_frac_hi",
+          "share": 0.621,
+          "z": 1.28
+        },
+        {
+          "name": "vib_log_frac_half",
+          "share": 0.207,
+          "z": 1.94
+        },
+        {
+          "name": "vib_log_frac_fire",
+          "share": 0.053,
+          "z": -0.21
+        }
+      ]
+    },
+    {
+      "t_start_s": 22.0,
+      "t_end_s": 22.5,
+      "peak_score": 4.903,
+      "top_features": [
+        {
+          "name": "vib_log_frac_half",
+          "share": 0.272,
+          "z": -1.38
+        },
+        {
+          "name": "vib_sub_ratio",
+          "share": 0.253,
+          "z": 2.14
+        },
+        {
+          "name": "vib_log_frac_sub",
+          "share": 0.237,
+          "z": 2.14
+        }
+      ]
+    },
+    {
+      "t_start_s": 36.25,
+      "t_end_s": 36.75,
+      "peak_score": 4.086,
+      "top_features": [
+        {
+          "name": "vib_log_frac_half",
+          "share": 0.874,
+          "z": -3.04
+        },
+        {
+          "name": "vib_cycle_cv",
+          "share": 0.044,
+          "z": -0.18
+        },
+        {
+          "name": "vib_crest",
+          "share": 0.037,
+          "z": 0.27
+        }
+      ]
+    }
+  ],
+  "model": {
+    "fire_hz": 26.0,
+    "fs_hz": 400.0,
+    "has_audio": false,
+    "baseline_seconds": 60.0,
+    "baseline_source": "simulator",
+    "threshold_percentile": 99.0,
+    "config_hash": "f0dfb44d456597bc4da9762d1e373c01fa8aa583301176e5112e7a433a9007b7"
+  },
+  "note": "relative to the baseline this model was fitted on; not a diagnosis and not calibrated accuracy"
+}

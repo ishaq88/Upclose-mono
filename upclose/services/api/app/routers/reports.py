@@ -47,7 +47,8 @@ def create_report_router(factory: sessionmaker[DBSession], settings: Settings, s
                             else _PROVENANCE_LABELS[result.provenance_label])
         html = (render_report_status(result.dto) if isinstance(result.dto, ReportStatus)
                 else render_report(result.dto, provenance_label=provenance_label,
-                    evidence_url=lambda fid: f"/api/v1/reports/{slug}/frames/{fid}"))
+                    evidence_url=lambda fid: f"/api/v1/reports/{slug}/frames/{fid}",
+                    source_media_url=lambda which: f"/api/v1/reports/{slug}/sources/engine_audio/{which}"))
         headers = dict(REPORT_HEADERS)
         if result.provenance_label is not None:
             headers["X-UpClose-Provenance"] = result.provenance_label
@@ -61,6 +62,13 @@ def create_report_router(factory: sessionmaker[DBSession], settings: Settings, s
                   authorization: Annotated[str | None, Header()] = None) -> Response:
         url = service.frame_url(slug, finding_id, authorization)
         return RedirectResponse(url, status_code=302, headers={key: value for key, value in REPORT_HEADERS.items() if key != "Content-Type"})
+
+    @router.get("/api/v1/reports/{slug}/sources/engine_audio/{which}")
+    def get_source_media(slug: str, which: str, authorization: Annotated[str | None, Header()] = None) -> Response:
+        data, mime = service.source_media(slug, which, authorization)
+        headers = {key: value for key, value in REPORT_HEADERS.items() if key != "Content-Type"}
+        headers["Content-Disposition"] = "inline"
+        return Response(content=data, media_type=mime, headers=headers)
 
     @router.post("/api/v1/reports/{slug}/share", response_model=ShareEnableResponse)
     def enable_share(slug: str, token: Annotated[str, Depends(owner_bearer)]) -> ShareEnableResponse:

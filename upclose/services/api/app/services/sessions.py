@@ -4,7 +4,7 @@ from __future__ import annotations
 import secrets
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, exists, func, select
 from sqlalchemy.orm import Session as DBSession, sessionmaker
 
 from app.contracts.api import (CreateSessionRequest, CreateSessionResponse, FinalizeResponse,
@@ -12,7 +12,7 @@ from app.contracts.api import (CreateSessionRequest, CreateSessionResponse, Fina
 from app.contracts.accounts import (AccountSessionSummary, AccountSessionsResponse,
     ClaimSessionResponse)
 from app.contracts.enums import PART_ZONES, PartState, SessionState, UploadState
-from app.models import Part, Report, ReportRevision, Session, Upload, VideoUpload
+from app.models import AudioUpload, Job, Part, Report, ReportRevision, Session, Upload, VideoUpload
 from app.pipeline.orchestration import advance_session
 from app.settings import Settings
 from .auth import owner_session, token_hash
@@ -179,7 +179,14 @@ class SessionService:
             source_active = db.scalar(select(VideoUpload.id).where(VideoUpload.session_id == owner.id,
                 (VideoUpload.state.in_([UploadState.OPEN, UploadState.COMPLETING])) |
                 (VideoUpload.processing_state == "queued")).limit(1))
-            if active is not None or source_active is not None or any(part.state == PartState.UPLOADING for part in parts):
+            audio_active = db.scalar(select(AudioUpload.id).where(AudioUpload.session_id == owner.id,
+                (AudioUpload.state == UploadState.OPEN) | ((AudioUpload.state == UploadState.ACCEPTED) &
+                 (AudioUpload.processing_state == "queued") &
+                 exists().where(Job.session_id == AudioUpload.session_id, Job.stage == "audio_ingest",
+                                Job.subject_id == cast(AudioUpload.id, String),
+                                Job.state.in_(("queued", "running"))))).limit(1))
+            if (active is not None or source_active is not None or audio_active is not None
+                    or any(part.state == PartState.UPLOADING for part in parts)):
                 raise conflict()
             for part in parts:
                 if part.state == PartState.PENDING:

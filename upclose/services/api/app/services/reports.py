@@ -1,5 +1,7 @@
 """Current-revision report access and one scope-filtered serialization boundary."""
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
@@ -8,7 +10,7 @@ from sqlalchemy.orm import Session as DBSession, sessionmaker
 
 from app.contracts.enums import ReportState, SessionState
 from app.contracts.reports import FreeReport, PaidReport, ReportStatus, ShareDisableResponse, ShareEnableResponse
-from app.models import Report, ReportRevision, Session
+from app.models import AudioUpload, EvidenceSource, Report, ReportRevision, Session
 from app.services.privacy import approved_for, PrivacyService
 from app.adapters.storage import ObjectStorage, StorageError
 from app.services.accounts import AccountService
@@ -141,6 +143,49 @@ class ReportService:
             _owner, report = self._owned_report(db, slug, token)
             report.share_enabled = False
             return ShareDisableResponse(share_enabled=False)
+
+    def source_media(self, slug: str, which: str, authorization: str | None = None) -> tuple[bytes, str]:
+        """Engine-audio clip or spectrogram of a PAID report: bytes, content type. Free scope and every other
+        state answer 404, so the existence of the clip is not revealed."""
+        if self.storage is None or which not in ("audio", "spectrogram"):
+            raise not_found()
+        with self.factory.begin() as db:
+            result = self._get(db, slug, authorization)
+            dto = result.dto
+            if not isinstance(dto, PaidReport):
+                raise not_found()
+            check = next((row for row in dto.additional_checks if row.kind == "engine_audio"), None)
+            summary = None if check is None or check.source is None else check.source.summary
+            if summary is None or summary.state != "assessed" or (which == "spectrogram" and not summary.spectrogram_sha256):
+                raise not_found()
+            report = db.scalar(select(Report).where(Report.share_slug == slug))
+            source = db.scalar(select(EvidenceSource).where(EvidenceSource.session_id == report.session_id,
+                                                            EvidenceSource.kind == "engine_audio"))
+            upload = None if source is None else db.get(AudioUpload, UUID(str(source.data.get("upload_id"))))
+            if (source is None or upload is None or upload.session_id != report.session_id
+                    or source.data_sha256 != check.source.data_sha256 or upload.processing_state != "ready"
+                    or upload.spectrogram_sha256 != summary.spectrogram_sha256):
+                raise not_found()
+            if which == "audio":
+                key, digest, mime = upload.object_key, upload.raw_sha256, upload.content_type
+            else:
+                key, digest, mime = upload.spectrogram_key, upload.spectrogram_sha256, "image/png"
+        if key is None or digest is None:
+            raise not_found()
+        with tempfile.TemporaryDirectory(prefix="upclose-media-") as scratch:
+            path = Path(scratch) / "media.bin"
+            try:
+                downloaded = self.storage.download_to(key, path, 10 * 1024 * 1024)
+            except StorageError:
+                raise not_found() from None
+            if downloaded.sha256 != digest:
+                raise not_found()
+            data = path.read_bytes()
+        with self.factory.begin() as db:  # authorization and revision are rechecked after the external read
+            current = self._get(db, slug, authorization).dto
+            if not isinstance(current, PaidReport) or current.revision_id != dto.revision_id:
+                raise not_found()
+        return data, mime
 
     def frame_url(self, slug: str, finding_id: UUID, authorization: str | None = None) -> str:
         with self.factory.begin() as db:

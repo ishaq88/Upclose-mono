@@ -13,7 +13,7 @@ from typing import Annotated
 from pydantic import Field
 
 from app.contracts.base import ContractModel
-from app.contracts.sources import (IrregularWindow, ObdSnapshotData, ObdSummary, RigTelemetryData,
+from app.contracts.sources import (EngineAudioSummary, IrregularWindow, ObdSnapshotData, ObdSummary, RigTelemetryData,
                                    RigTelemetrySummary, SourceProvenance, TemperatureSummary)
 from app.domain.config import HashedConfig
 
@@ -45,9 +45,20 @@ class ObdConfig(ContractModel):
     cold_start_coolant_c_below: float
 
 
+class AudioConfig(ContractModel):
+    decode_rate_hz: Annotated[int, Field(strict=True, ge=4000, le=48000)]
+    window_ms: Annotated[int, Field(strict=True, ge=50, le=5000)]
+    max_points: Annotated[int, Field(strict=True, ge=1, le=240)]
+    min_duration_s: Pos
+    silent_rms_db: Annotated[float, Field(lt=0)]
+    spectrogram_width: Annotated[int, Field(strict=True, ge=64, le=2000)]
+    spectrogram_height: Annotated[int, Field(strict=True, ge=64, le=1000)]
+
+
 class SourcesConfig(HashedConfig):
     rig: RigConfig
     obd: ObdConfig
+    audio: AudioConfig
 
 
 def load_sources_config(path: str | Path) -> SourcesConfig:
@@ -114,10 +125,15 @@ def summarize_rig(data: RigTelemetryData, provenance: SourceProvenance, config: 
     count = len(accel.x_mg)
     duration = round(count / accel.rate_hz, 3)
 
-    def result(**fields: object) -> RigTelemetrySummary:
+    verdict = data.model_verdict
+
+    def result(*, flags: tuple[str, ...] = (), **fields: object) -> RigTelemetrySummary:
+        # The baseline model's verdict is independent of the spectral search, so its flag survives either way.
+        raised = (*flags, "anomaly_suspected") if verdict is not None and verdict.verdict == "anomaly_suspected" else flags
         return RigTelemetrySummary(config_hash=config.content_hash, provenance=provenance, sample_count=count,
-                                   duration_s=duration, cylinders=data.cylinders,
-                                   temperature=_temperature(data, cfg), **fields)  # type: ignore[arg-type]
+                                   duration_s=duration, cylinders=data.cylinders, model_verdict=verdict,
+                                   temperature=_temperature(data, cfg), flags=raised, flag_count=len(raised),
+                                   **fields)  # type: ignore[arg-type]
 
     def not_assessed(reason: str) -> RigTelemetrySummary:
         return result(state="not_assessed", reason=reason)
@@ -166,7 +182,7 @@ def summarize_rig(data: RigTelemetryData, provenance: SourceProvenance, config: 
     return result(state="assessed", dominant_hz=round(frequency, 2),
                   rpm_estimate=round(frequency * 120.0 / data.cylinders),
                   roughness=None if roughness is None else round(roughness, 4),
-                  irregular_windows=tuple(windows), flags=tuple(flags), flag_count=len(flags))
+                  irregular_windows=tuple(windows), flags=tuple(flags))
 
 
 # ---- OBD snapshot -------------------------------------------------------------------------------
@@ -195,3 +211,13 @@ def summarize_obd(data: ObdSnapshotData, provenance: SourceProvenance, config: S
                       coolant_c=None if coolant is None else round(coolant, 1),
                       distance_since_codes_cleared_km=distance, warmups_since_codes_cleared=warmups,
                       flags=tuple(flags), flag_count=len(flags))
+
+
+# ---- engine audio (the derivation itself runs in the worker) ------------------------------------
+
+
+def pending_audio_summary(provenance: SourceProvenance, size: int, content_type: str,
+                          config: SourcesConfig) -> EngineAudioSummary:
+    """Placeholder until the worker publishes; finalize waits, and a manifest never freezes this state as a pass."""
+    return EngineAudioSummary(config_hash=config.content_hash, provenance=provenance, state="processing",
+                              size_bytes=size, content_type=content_type, envelope_step_ms=config.audio.window_ms)

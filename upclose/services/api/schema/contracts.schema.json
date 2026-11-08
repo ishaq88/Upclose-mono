@@ -1012,6 +1012,228 @@
       "title": "EmptyRequest",
       "type": "object"
     },
+    "EngineAudioData": {
+      "additionalProperties": false,
+      "description": "Reference to a completed private audio upload; the server verifies its size and sha256.",
+      "properties": {
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "upload_id": {
+          "format": "uuid",
+          "title": "Upload Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id",
+        "sha256"
+      ],
+      "title": "EngineAudioData",
+      "type": "object"
+    },
+    "EngineAudioSource": {
+      "additionalProperties": false,
+      "properties": {
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "data": {
+          "$ref": "#/$defs/EngineAudioData"
+        },
+        "device": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Device",
+          "type": "string"
+        },
+        "kind": {
+          "const": "engine_audio",
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "synthetic",
+            "cached",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provenance",
+        "device",
+        "captured_at",
+        "kind",
+        "data"
+      ],
+      "title": "EngineAudioSource",
+      "type": "object"
+    },
+    "EngineAudioSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "config_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "content_type": {
+          "maxLength": 32,
+          "title": "Content Type",
+          "type": "string"
+        },
+        "duration_s": {
+          "anyOf": [
+            {
+              "maximum": 1000,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration S"
+        },
+        "envelope_db": {
+          "default": [],
+          "items": {
+            "maximum": 0,
+            "minimum": -120,
+            "type": "number"
+          },
+          "maxItems": 240,
+          "title": "Envelope Db",
+          "type": "array"
+        },
+        "envelope_step_ms": {
+          "minimum": 1,
+          "title": "Envelope Step Ms",
+          "type": "integer"
+        },
+        "flag_count": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Flag Count",
+          "type": "integer"
+        },
+        "flags": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Flags",
+          "type": "array"
+        },
+        "kind": {
+          "const": "engine_audio",
+          "default": "engine_audio",
+          "title": "Kind",
+          "type": "string"
+        },
+        "peak_db": {
+          "anyOf": [
+            {
+              "maximum": 0,
+              "minimum": -120,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Peak Db"
+        },
+        "provenance": {
+          "enum": [
+            "synthetic",
+            "cached",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 240,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "rms_db": {
+          "anyOf": [
+            {
+              "maximum": 0,
+              "minimum": -120,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rms Db"
+        },
+        "size_bytes": {
+          "maximum": 10485760,
+          "minimum": 1,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "spectrogram_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spectrogram Sha256"
+        },
+        "state": {
+          "enum": [
+            "processing",
+            "assessed",
+            "not_assessed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "uncalibrated_note": {
+          "const": "Values are uncalibrated estimates, not measurements.",
+          "default": "Values are uncalibrated estimates, not measurements.",
+          "title": "Uncalibrated Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_hash",
+        "provenance",
+        "state",
+        "size_bytes",
+        "content_type",
+        "envelope_step_ms"
+      ],
+      "title": "EngineAudioSummary",
+      "type": "object"
+    },
     "EvidenceRef": {
       "additionalProperties": false,
       "properties": {
@@ -1510,7 +1732,8 @@
         "kind": {
           "enum": [
             "rig_telemetry",
-            "obd_snapshot"
+            "obd_snapshot",
+            "engine_audio"
           ],
           "title": "Kind",
           "type": "string"
@@ -1596,6 +1819,177 @@
         "password"
       ],
       "title": "LoginRequest",
+      "type": "object"
+    },
+    "ModelVerdict": {
+      "additionalProperties": false,
+      "description": "Engine-anomaly model output (upclose-anomaly-verdict/1): relative to a baseline, not a diagnosis.",
+      "properties": {
+        "anomalous_fraction": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anomalous Fraction"
+        },
+        "anomalous_runs": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VerdictRun"
+          },
+          "maxItems": 10,
+          "title": "Anomalous Runs",
+          "type": "array"
+        },
+        "anomalous_windows": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Anomalous Windows"
+        },
+        "data_source": {
+          "pattern": "^[a-z0-9_]{1,32}$",
+          "title": "Data Source",
+          "type": "string"
+        },
+        "duration_s": {
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "fraction_threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "title": "Fraction Threshold",
+          "type": "number"
+        },
+        "max_score": {
+          "anyOf": [
+            {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Max Score"
+        },
+        "median_score": {
+          "anyOf": [
+            {
+              "maximum": 1000000000.0,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Median Score"
+        },
+        "min_anomalous_windows": {
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Min Anomalous Windows",
+          "type": "integer"
+        },
+        "model": {
+          "$ref": "#/$defs/VerdictModel"
+        },
+        "note": {
+          "maxLength": 300,
+          "title": "Note",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z_]{1,48}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "schema": {
+          "const": "upclose-anomaly-verdict/1",
+          "title": "Schema",
+          "type": "string"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000000000.0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "top_features": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VerdictFeature"
+          },
+          "maxItems": 5,
+          "title": "Top Features",
+          "type": "array"
+        },
+        "verdict": {
+          "enum": [
+            "anomaly_suspected",
+            "no_anomaly_detected",
+            "not_assessed"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "windows": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Windows"
+        }
+      },
+      "required": [
+        "schema",
+        "verdict",
+        "reason",
+        "data_source",
+        "duration_s",
+        "windows",
+        "anomalous_windows",
+        "anomalous_fraction",
+        "max_score",
+        "median_score",
+        "threshold",
+        "fraction_threshold",
+        "min_anomalous_windows",
+        "model",
+        "note"
+      ],
+      "title": "ModelVerdict",
       "type": "object"
     },
     "NarratedStatement": {
@@ -2168,7 +2562,8 @@
         "kind": {
           "enum": [
             "rig_telemetry",
-            "obd_snapshot"
+            "obd_snapshot",
+            "engine_audio"
           ],
           "title": "Kind",
           "type": "string"
@@ -2929,6 +3324,17 @@
           "title": "Cylinders",
           "type": "integer"
         },
+        "model_verdict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelVerdict"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "sound": {
           "anyOf": [
             {
@@ -3056,6 +3462,17 @@
           "default": "rig_telemetry",
           "title": "Kind",
           "type": "string"
+        },
+        "model_verdict": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelVerdict"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "provenance": {
           "enum": [
@@ -3401,6 +3818,100 @@
       "title": "SoundData",
       "type": "object"
     },
+    "SourceListItem": {
+      "additionalProperties": false,
+      "description": "Owner read of an attached source: envelope, hash and summary, never the raw samples.",
+      "properties": {
+        "captured_at": {
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "data_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Data Sha256",
+          "type": "string"
+        },
+        "device": {
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+          "title": "Device",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "rig_telemetry",
+            "obd_snapshot",
+            "engine_audio"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "enum": [
+            "synthetic",
+            "cached",
+            "live"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "source_id": {
+          "format": "uuid",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "summary": {
+          "discriminator": {
+            "mapping": {
+              "engine_audio": "#/$defs/EngineAudioSummary",
+              "obd_snapshot": "#/$defs/ObdSummary",
+              "rig_telemetry": "#/$defs/RigTelemetrySummary"
+            },
+            "propertyName": "kind"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RigTelemetrySummary"
+            },
+            {
+              "$ref": "#/$defs/ObdSummary"
+            },
+            {
+              "$ref": "#/$defs/EngineAudioSummary"
+            }
+          ],
+          "title": "Summary"
+        }
+      },
+      "required": [
+        "source_id",
+        "kind",
+        "provenance",
+        "device",
+        "captured_at",
+        "data_sha256",
+        "summary"
+      ],
+      "title": "SourceListItem",
+      "type": "object"
+    },
+    "SourceListResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceListItem"
+          },
+          "title": "Sources",
+          "type": "array"
+        }
+      },
+      "required": [
+        "sources"
+      ],
+      "title": "SourceListResponse",
+      "type": "object"
+    },
     "SourceRecord": {
       "additionalProperties": false,
       "description": "One frozen source: summary plus the hash binding it to the raw row. Manifest and paid report.",
@@ -3423,7 +3934,8 @@
         "kind": {
           "enum": [
             "rig_telemetry",
-            "obd_snapshot"
+            "obd_snapshot",
+            "engine_audio"
           ],
           "title": "Kind",
           "type": "string"
@@ -3440,6 +3952,7 @@
         "summary": {
           "discriminator": {
             "mapping": {
+              "engine_audio": "#/$defs/EngineAudioSummary",
               "obd_snapshot": "#/$defs/ObdSummary",
               "rig_telemetry": "#/$defs/RigTelemetrySummary"
             },
@@ -3451,6 +3964,9 @@
             },
             {
               "$ref": "#/$defs/ObdSummary"
+            },
+            {
+              "$ref": "#/$defs/EngineAudioSummary"
             }
           ],
           "title": "Summary"
@@ -3478,7 +3994,8 @@
         "kind": {
           "enum": [
             "rig_telemetry",
-            "obd_snapshot"
+            "obd_snapshot",
+            "engine_audio"
           ],
           "title": "Kind",
           "type": "string"
@@ -3491,6 +4008,7 @@
         "summary": {
           "discriminator": {
             "mapping": {
+              "engine_audio": "#/$defs/EngineAudioSummary",
               "obd_snapshot": "#/$defs/ObdSummary",
               "rig_telemetry": "#/$defs/RigTelemetrySummary"
             },
@@ -3502,6 +4020,9 @@
             },
             {
               "$ref": "#/$defs/ObdSummary"
+            },
+            {
+              "$ref": "#/$defs/EngineAudioSummary"
             }
           ],
           "title": "Summary"
@@ -3777,6 +4298,150 @@
         "size_bytes"
       ],
       "title": "UploadedPiece",
+      "type": "object"
+    },
+    "VerdictFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z0-9_]{1,48}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "share": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "share"
+      ],
+      "title": "VerdictFeature",
+      "type": "object"
+    },
+    "VerdictModel": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline_seconds": {
+          "exclusiveMinimum": 0,
+          "maximum": 100000,
+          "title": "Baseline Seconds",
+          "type": "number"
+        },
+        "baseline_source": {
+          "pattern": "^[a-z0-9_.-]{1,32}$",
+          "title": "Baseline Source",
+          "type": "string"
+        },
+        "config_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "fire_hz": {
+          "exclusiveMinimum": 0,
+          "maximum": 1000,
+          "title": "Fire Hz",
+          "type": "number"
+        },
+        "fs_hz": {
+          "exclusiveMinimum": 0,
+          "maximum": 10000,
+          "title": "Fs Hz",
+          "type": "number"
+        },
+        "has_audio": {
+          "title": "Has Audio",
+          "type": "boolean"
+        },
+        "threshold_percentile": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Threshold Percentile",
+          "type": "number"
+        }
+      },
+      "required": [
+        "fire_hz",
+        "fs_hz",
+        "has_audio",
+        "baseline_seconds",
+        "baseline_source",
+        "threshold_percentile",
+        "config_hash"
+      ],
+      "title": "VerdictModel",
+      "type": "object"
+    },
+    "VerdictRun": {
+      "additionalProperties": false,
+      "properties": {
+        "peak_score": {
+          "maximum": 1000000000.0,
+          "minimum": 0,
+          "title": "Peak Score",
+          "type": "number"
+        },
+        "t_end_s": {
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "T End S",
+          "type": "number"
+        },
+        "t_start_s": {
+          "maximum": 100000,
+          "minimum": 0,
+          "title": "T Start S",
+          "type": "number"
+        },
+        "top_features": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/VerdictRunFeature"
+          },
+          "maxItems": 5,
+          "title": "Top Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "t_start_s",
+        "t_end_s",
+        "peak_score"
+      ],
+      "title": "VerdictRun",
+      "type": "object"
+    },
+    "VerdictRunFeature": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[a-z0-9_]{1,48}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "share": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Share",
+          "type": "number"
+        },
+        "z": {
+          "maximum": 1000,
+          "minimum": -1000,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "share",
+        "z"
+      ],
+      "title": "VerdictRunFeature",
       "type": "object"
     },
     "VerificationGroup": {

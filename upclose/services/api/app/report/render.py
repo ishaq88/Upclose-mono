@@ -23,7 +23,7 @@ from markupsafe import Markup
 
 from app.contracts.enums import PART_ZONES, ComponentId, CoverageState, ReportState, Zone
 from app.contracts.reports import FreeReport, PaidReport, PublicFinding, ReportStatus
-from app.contracts.sources import FreeSourceCheck, ObdSummary, PaidSourceCheck, RigTelemetrySummary, SourceRecord
+from app.contracts.sources import EngineAudioSummary, FreeSourceCheck, ObdSummary, PaidSourceCheck, RigTelemetrySummary, SourceRecord
 from app.domain.dedup import INTERNAL_FLAGS
 
 from .anchors import ANCHOR_VERSION, VIEW_HEIGHT, VIEW_LABELS, VIEW_WIDTH, VIEWS, anchor_for
@@ -42,7 +42,7 @@ _CSS_HASH = base64.b64encode(hashlib.sha256(_CSS.encode("utf-8")).digest()).deco
 REPORT_CSP = (
     "default-src 'none'; "
     f"style-src 'sha256-{_CSS_HASH}'; "
-    "img-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+    "img-src 'self'; media-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 )
 REPORT_HEADERS: dict[str, str] = {
     "Content-Type": "text/html; charset=utf-8",
@@ -233,12 +233,22 @@ def _state_notice(state: ReportState) -> str | None:
     return None
 
 
-_SOURCE_LABELS = {"rig_telemetry": "Vibration and temperature (capture rig)",
+_SOURCE_LABELS = {"engine_audio": "Engine sound (audio clip)", "rig_telemetry": "Vibration and temperature (capture rig)",
                   "obd_snapshot": "Engine computer (OBD) snapshot"}
 _PROVENANCE_BADGES = {"synthetic": "Simulated bench data", "cached": "Replayed recording", "live": "Live"}
 _FLAG_LABELS = {"irregular_vibration": "Irregular vibration", "rough_vibration": "Rough vibration",
                 "mil_on": "Check-engine light on", "trouble_codes": "Trouble codes present",
-                "codes_recently_cleared": "Codes may have been recently cleared"}
+                "codes_recently_cleared": "Codes may have been recently cleared",
+                "anomaly_suspected": "Engine anomaly suspected (relative to its own baseline)"}
+_FEATURE_WORDS = {
+    "vib_log_frac_fire": "vibration energy at the firing rate", "vib_log_frac_2x": "vibration energy at twice the firing rate",
+    "vib_log_frac_half": "vibration energy at half the firing rate", "vib_log_frac_sub": "low-frequency vibration energy",
+    "vib_log_frac_hi": "high-frequency vibration energy", "vib_cycle_cv": "cycle-to-cycle irregularity of the vibration",
+    "vib_crest": "sharp vibration peaks (crest factor)", "vib_kurtosis": "spikiness of the vibration",
+    "vib_log_rms": "overall vibration level", "vib_sub_ratio": "low-frequency to firing-rate energy ratio",
+    "aud_env_cycle_cv": "cycle-to-cycle irregularity of the sound", "aud_flux": "how fast the sound spectrum changes"}
+MODEL_NOTE = ("A relative signal against this engine's own baseline recording; it is not a diagnosis and not a "
+              "calibrated accuracy.")
 
 
 def _yes_no(value: bool | None) -> str:
@@ -249,10 +259,30 @@ def _flag_text(flags: Sequence[str]) -> str:
     return ", ".join(_FLAG_LABELS.get(flag, _words(flag).capitalize()) for flag in flags) or "None"
 
 
+def _verdict_rows(summary: RigTelemetrySummary) -> list[tuple[str, str]]:
+    verdict = summary.model_verdict
+    if verdict is None:
+        return []
+    title = "Engine anomaly model"
+    if verdict.verdict == "not_assessed":
+        return [(title, f"Not assessed ({_words(verdict.reason or 'no reason given')}). This is not a pass.")]
+    rows = [(title, "Anomaly suspected" if verdict.verdict == "anomaly_suspected"
+             else "No anomaly detected against the baseline"),
+            ("Baseline", f"{verdict.model.baseline_seconds:g} s of this engine's own recording")]
+    if verdict.verdict == "anomaly_suspected":
+        ranges = "; ".join(f"unlike this engine's own baseline between {row.t_start_s:g}\u2013{row.t_end_s:g} s"
+                           for row in verdict.anomalous_runs)
+        rows.append(("Anomalous time ranges", ranges or "not located"))
+        features = [row.name for row in verdict.top_features]
+        rows.append(("Main contributing features", ", ".join(_FEATURE_WORDS.get(name, _words(name)) for name in features) or "not reported"))
+    rows.append(("About this signal", MODEL_NOTE))
+    return rows
+
+
 def _free_check_rows(checks: Sequence[FreeSourceCheck]) -> list[dict[str, str]]:
     return [{"label": _SOURCE_LABELS[row.kind],
              "status": "Checked" if row.checked else "Not checked",
-             "flags": (f"{row.flag_count} flag{'s' if row.flag_count != 1 else ''} raised" if row.checked else "\u2014")}
+             "flags": (f"{row.flag_count} flag{'s' if row.flag_count != 1 else ''} raised" if row.checked or row.flag_count else "\u2014")}
             for row in checks]
 
 
@@ -272,6 +302,7 @@ def _rig_details(summary: RigTelemetrySummary) -> tuple[list[tuple[str, str]], l
                      f"({'warm' if summary.temperature.engine_warm_at_start else 'cold'} start)"))
         if summary.temperature.rise_c is not None:
             rows.append(("Temperature rise", f"{summary.temperature.rise_c:+g} \u00b0C"))
+    rows.extend(_verdict_rows(summary))
     rows.append(("Flags", _flag_text(summary.flags)))
     return rows, windows
 
@@ -293,14 +324,28 @@ def _obd_details(summary: ObdSummary) -> tuple[list[tuple[str, str]], list[str]]
     return rows, []
 
 
-def _paid_check_rows(checks: Sequence[PaidSourceCheck]) -> list[dict[str, object]]:
+def _audio_details(summary: EngineAudioSummary) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+    if summary.duration_s is not None:
+        rows.append(("Clip length", f"{summary.duration_s:g} s"))
+    if summary.state == "assessed":
+        rows.append(("Loudness", f"average {summary.rms_db:g} dBFS, peak {summary.peak_db:g} dBFS"))
+        rows.append(("Loudness envelope", f"{len(summary.envelope_db)} readings, one per {summary.envelope_step_ms} ms "
+                     f"(range {min(summary.envelope_db):g} to {max(summary.envelope_db):g} dBFS)"
+                     if summary.envelope_db else "not available"))
+    return rows
+
+
+def _paid_check_rows(checks: Sequence[PaidSourceCheck],
+                     media_url: Callable[[str], str | None] | None = None) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for check in checks:
         record: SourceRecord | None = check.source
         row: dict[str, object] = {"label": _SOURCE_LABELS[check.kind], "badge": None, "device": None,
                                   "status": "Not checked",
                                   "reason": "No data was attached for this check; it is not a pass.",
-                                  "details": [], "windows": []}
+                                  "details": [], "windows": [], "audio_src": None, "spectrogram_src": None,
+                                  "note": None}
         if record is not None:
             summary = record.summary
             row["badge"] = _PROVENANCE_BADGES[record.provenance]
@@ -309,8 +354,17 @@ def _paid_check_rows(checks: Sequence[PaidSourceCheck]) -> list[dict[str, object
                 row["status"], row["reason"] = "Checked", None
             else:
                 row["reason"] = f"{summary.reason or 'Data was insufficient.'} This is not a pass."
-            row["details"], row["windows"] = (_rig_details(summary) if isinstance(summary, RigTelemetrySummary)
-                                              else _obd_details(summary))
+            if isinstance(summary, EngineAudioSummary):
+                row["details"], row["windows"] = _audio_details(summary), []
+                if summary.state == "assessed" and media_url is not None:
+                    row["audio_src"] = _safe_path(media_url("audio"))
+                    row["spectrogram_src"] = _safe_path(media_url("spectrogram")) if summary.spectrogram_sha256 else None
+                if record.provenance == "synthetic":
+                    row["note"] = ("This clip is a bench or internet sample (synthetic), not a recording of the "
+                                   "vehicle in this report.")
+            else:
+                row["details"], row["windows"] = (_rig_details(summary) if isinstance(summary, RigTelemetrySummary)
+                                                  else _obd_details(summary))
         rows.append(row)
     return rows
 
@@ -438,7 +492,8 @@ def _repairs_context(report: PaidReport, numbers: dict[UUID, int]) -> dict[str, 
     }
 
 
-def _paid_context(report: PaidReport, evidence_url: EvidenceUrl | None) -> dict[str, object]:
+def _paid_context(report: PaidReport, evidence_url: EvidenceUrl | None,
+                  media_url: Callable[[str], str | None] | None = None) -> dict[str, object]:
     cards, numbers = _cards(report.findings, evidence_url)
     assessed = sum(row.score is not None for row in report.scores.zones)
     context = _common_context(report, None)
@@ -470,7 +525,7 @@ def _paid_context(report: PaidReport, evidence_url: EvidenceUrl | None) -> dict[
             "refs": _refs(claim.finding_ids, numbers),
         } for claim in sorted(report.claims, key=lambda row: row.claim_index)],
         "repairs": _repairs_context(report, numbers),
-        "check_rows": _paid_check_rows(report.additional_checks),
+        "check_rows": _paid_check_rows(report.additional_checks, media_url),
         "narration_rows": [{"text": row.text, "refs": _refs(row.finding_ids, numbers)} for row in report.narration],
     })
     if report.scores.headline is None and assessed >= 3:
@@ -484,6 +539,7 @@ def render_report(
     evidence_url: EvidenceUrl | None = None,
     unlock_href: str | None = None,
     provenance_label: str | None = None,
+    source_media_url: Callable[[str], str | None] | None = None,
 ) -> str:
     """Render one scope-filtered report DTO to HTML.
 
@@ -500,7 +556,7 @@ def render_report(
         context = _free_context(report, evidence_url, unlock_href)
         template = "free.html"
     elif isinstance(report, PaidReport):
-        context = _paid_context(report, evidence_url)
+        context = _paid_context(report, evidence_url, source_media_url)
         template = "paid.html"
     else:
         raise TypeError("render_report requires a FreeReport or PaidReport")

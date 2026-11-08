@@ -163,6 +163,7 @@ def build_registry(settings: Settings, factory: object) -> StageRegistry:
     from app.services.billing import register_billing_handlers
     from app.pipeline.purge import register_purge_handlers
     from app.pipeline.source_video import register_source_video_handlers
+    from app.pipeline.audio_ingest import register_audio_handlers
 
     registry = StageRegistry()
     if settings.model_mode == "live":
@@ -198,6 +199,7 @@ def build_registry(settings: Settings, factory: object) -> StageRegistry:
 
     register_source_video_handlers(registry, factory, S3Storage(settings), settings,  # type: ignore[arg-type]
                                    fanout=lambda outcome: plan_downstream(source_ctx, outcome))
+    register_audio_handlers(registry, factory, S3Storage(settings), settings)  # type: ignore[arg-type]
     install_report_handlers(registry, factory, settings)  # type: ignore[arg-type]
     secret = settings.stripe_secret_key.get_secret_value() if settings.stripe_secret_key else None
     register_billing_handlers(registry, factory, build_gateway(settings.payments_mode, secret))  # type: ignore[arg-type]

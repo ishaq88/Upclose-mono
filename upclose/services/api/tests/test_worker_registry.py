@@ -19,7 +19,7 @@ def test_module_entry_point_runs_canonical_module(monkeypatch: pytest.MonkeyPatc
 def test_worker_installs_only_implemented_stages() -> None:
     # Construction must not contact storage, Stripe or the database.
     registry = build_registry(Settings(s3_internal_endpoint="invalid"), factory=object())
-    assert set(registry.stages) == {"ingest", "source_ingest", "vehicle_mask", "segment", "verify", "claims", "score", "narrate", "render", "billing_event", "purge"}
+    assert set(registry.stages) == {"ingest", "source_ingest", "audio_ingest", "vehicle_mask", "segment", "verify", "claims", "score", "narrate", "render", "billing_event", "purge"}
 
 
 def test_worker_refuses_live_stripe_keys() -> None:

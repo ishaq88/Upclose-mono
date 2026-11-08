@@ -225,3 +225,121 @@ def test_obd_vin_optional_and_json_round_trip():
     source = REQUEST.validate_python(envelope("obd_snapshot", data))
     assert source.data.vin is None
     assert json.loads(source.data.model_dump_json())["dtcs"][0]["code"] == "P0301"
+
+
+# ---- model verdict ----------------------------------------------------------------------------
+
+import copy  # noqa: E402
+
+VERDICTS = Path(__file__).parent / "fixtures" / "verdicts"
+
+
+def verdict(name: str) -> dict:
+    return json.loads((VERDICTS / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def with_verdict(name: str = "misfire", seconds: float = 40.0, **kwargs) -> dict:
+    data = rig_data(seconds=seconds, **kwargs)
+    data["model_verdict"] = verdict(name)
+    return data
+
+
+@pytest.mark.parametrize("name,expected", [("misfire", "anomaly_suspected"), ("ok", "no_anomaly_detected"),
+                                           ("short", "not_assessed")])
+def test_generated_verdicts_are_accepted(name, expected):
+    data = RigTelemetryData.model_validate(with_verdict(name))
+    assert data.model_verdict is not None and data.model_verdict.verdict == expected
+    assert json.loads(data.model_dump_json())["model_verdict"]["schema"] == "upclose-anomaly-verdict/1"
+
+
+def test_suspected_verdict_adds_flag_and_travels_in_the_summary():
+    summary = summarize_rig(RigTelemetryData.model_validate(with_verdict("misfire")), "synthetic", CONFIG)
+    assert summary.state == "assessed" and "anomaly_suspected" in summary.flags
+    assert summary.flag_count == len(summary.flags) and summary.model_verdict is not None
+    assert summary.model_verdict.model.baseline_seconds == 60.0
+    for name in ("ok", "short"):
+        quiet = summarize_rig(RigTelemetryData.model_validate(with_verdict(name)), "synthetic", CONFIG)
+        assert "anomaly_suspected" not in quiet.flags and quiet.flag_count == 0
+
+
+def test_flag_survives_when_the_spectral_search_is_not_assessed():
+    summary = summarize_rig(RigTelemetryData.model_validate(with_verdict("misfire", noise_only=True)), "synthetic", CONFIG)
+    assert summary.state == "not_assessed" and summary.flags == ("anomaly_suspected",) and summary.flag_count == 1
+
+
+def test_recording_without_a_verdict_is_unchanged():
+    data = RigTelemetryData.model_validate(rig_data())
+    summary = summarize_rig(data, "synthetic", CONFIG)
+    assert data.model_verdict is None and summary.model_verdict is None and summary.flags == ()
+
+
+def _mut(path_fn):
+    def apply(data: dict) -> None:
+        path_fn(data["model_verdict"])
+    return apply
+
+
+INCONSISTENT = {
+    "fraction": _mut(lambda v: v.update(anomalous_fraction=0.5)),
+    "verdict_flipped": _mut(lambda v: v.update(verdict="no_anomaly_detected")),
+    "more_anomalous_than_windows": _mut(lambda v: v.update(anomalous_windows=v["windows"] + 1, anomalous_fraction=1.0)),
+    "bad_schema": _mut(lambda v: v.update(schema="upclose-anomaly-verdict/2")),
+    "extra_field": _mut(lambda v: v.update(extra=1)),
+    "nan_score": _mut(lambda v: v.update(max_score=float("nan"))),
+    "bad_config_hash": _mut(lambda v: v["model"].update(config_hash="xyz")),
+    "six_features": _mut(lambda v: v.update(top_features=[{"name": f"f{i}", "share": 0.1} for i in range(6)])),
+    "share_over_one": _mut(lambda v: v.update(top_features=[{"name": "a", "share": 0.7}, {"name": "b", "share": 0.7}])),
+    "eleven_runs": _mut(lambda v: v.update(anomalous_runs=[
+        {"t_start_s": float(i), "t_end_s": i + 0.5, "peak_score": 5.0} for i in range(11)])),
+    "run_past_recording": _mut(lambda v: v["anomalous_runs"][0].update(t_end_s=41.0)),
+    "run_backwards": _mut(lambda v: v["anomalous_runs"][0].update(t_start_s=30.0, t_end_s=10.0)),
+    "runs_overlap": _mut(lambda v: v.update(anomalous_runs=[
+        {"t_start_s": 0.0, "t_end_s": 20.0, "peak_score": 5.0}, {"t_start_s": 10.0, "t_end_s": 30.0, "peak_score": 5.0}])),
+    "run_peak_over_max": _mut(lambda v: v["anomalous_runs"][0].update(peak_score=v["max_score"] + 5)),
+    "no_runs_but_anomalous": _mut(lambda v: v.update(anomalous_runs=[])),
+    "too_many_windows": _mut(lambda v: v.update(windows=500, anomalous_windows=500)),
+    "median_over_max": _mut(lambda v: v.update(median_score=v["max_score"] + 1)),
+    "reason_on_assessed": _mut(lambda v: v.update(reason="too_short")),
+}
+
+
+@pytest.mark.parametrize("name", sorted(INCONSISTENT))
+def test_inconsistent_verdicts_are_rejected(name):
+    data = with_verdict("misfire")
+    INCONSISTENT[name](data)
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(data)
+
+
+def test_below_threshold_verdicts_cannot_claim_suspected_and_vice_versa():
+    data = with_verdict("ok")
+    data["model_verdict"]["verdict"] = "anomaly_suspected"  # 4 windows, 2.5 percent: below the 15 percent threshold
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(data)
+    few = with_verdict("misfire")
+    few["model_verdict"].update(windows=10, anomalous_windows=2, anomalous_fraction=0.2)  # fewer than 3 windows
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(few)
+    quiet = with_verdict("ok")
+    quiet["model_verdict"].update(top_features=[{"name": "vib_crest", "share": 0.5}])
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(quiet)
+
+
+@pytest.mark.parametrize("mutate", [
+    lambda v: v.update(reason=None),
+    lambda v: v.update(windows=3),
+    lambda v: v.update(anomalous_fraction=0.0),
+    lambda v: v.update(max_score=1.0),
+    lambda v: v.update(top_features=[{"name": "a", "share": 0.1}]),
+])
+def test_not_assessed_must_carry_a_reason_and_null_counts(mutate):
+    data = with_verdict("short", seconds=10.0)
+    mutate(data["model_verdict"])
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(data)
+
+
+def test_verdict_cannot_cover_more_time_than_the_recording():
+    with pytest.raises(ValidationError):
+        RigTelemetryData.model_validate(with_verdict("misfire", seconds=10.0))

@@ -490,8 +490,11 @@ def _manifest_sources(db: DBSession, session_id: UUID) -> tuple[SourceRecord, ..
                           .order_by(EvidenceSource.kind)):
         if canonical_hash(row.data) != row.data_sha256:
             raise SnapshotIntegrityError("evidence source data does not match its stored hash")
+        summary = row.summary
+        if summary.get("state") == "processing":  # processing never completed: freeze it as not assessed
+            summary = {**summary, "state": "not_assessed", "reason": "Audio processing did not complete."}
         records.append(SourceRecord(kind=row.kind, provenance=row.provenance, device=row.device,
-                                    captured_at=row.captured_at, data_sha256=row.data_sha256, summary=row.summary))
+                                    captured_at=row.captured_at, data_sha256=row.data_sha256, summary=summary))
     return tuple(records)
 
 
@@ -534,6 +537,9 @@ def manifest_payload(manifest: ReportManifest) -> dict[str, object]:
         payload.pop("source_video", None)
     if not manifest.sources:
         payload.pop("sources", None)
+    for source in payload.get("sources", ()):
+        if source["summary"].get("model_verdict") is None:
+            source["summary"].pop("model_verdict", None)  # keeps frozen manifests from before model verdicts byte-identical
     for part in payload["parts"]:
         if part.get("source_video") is None:
             part.pop("source_video", None)
@@ -767,7 +773,7 @@ def free_source_checks(manifest: ReportManifest) -> tuple[FreeSourceCheck, ...]:
     """Per kind: checked or not, plus a flag count. Missing or unassessed is never a pass."""
     by_kind = {row.kind: row for row in manifest.sources}
     return tuple(FreeSourceCheck(kind=kind, checked=kind in by_kind and by_kind[kind].summary.state == "assessed",
-                                 flag_count=by_kind[kind].summary.flag_count if kind in by_kind else 0)
+                                 flag_count=by_kind[kind].summary.flag_count if kind in by_kind else 0)  # flags survive "not checked"
                  for kind in SOURCE_KINDS)
 
 

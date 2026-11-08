@@ -1,0 +1,63 @@
+{
+  "schema": "upclose-anomaly-verdict/1",
+  "verdict": "anomaly_suspected",
+  "reason": null,
+  "data_source": "simulator",
+  "duration_s": 40.0,
+  "windows": 159,
+  "anomalous_windows": 159,
+  "anomalous_fraction": 1.0,
+  "max_score": 93.312,
+  "median_score": 77.636,
+  "threshold": 4.0615,
+  "fraction_threshold": 0.15,
+  "min_anomalous_windows": 3,
+  "top_features": [
+    {
+      "name": "vib_log_frac_fire",
+      "share": 0.462
+    },
+    {
+      "name": "vib_cycle_cv",
+      "share": 0.345
+    },
+    {
+      "name": "vib_log_frac_2x",
+      "share": 0.103
+    }
+  ],
+  "anomalous_runs": [
+    {
+      "t_start_s": 0.0,
+      "t_end_s": 40.0,
+      "peak_score": 93.312,
+      "top_features": [
+        {
+          "name": "vib_cycle_cv",
+          "share": 0.526,
+          "z": 16.81
+        },
+        {
+          "name": "vib_log_frac_fire",
+          "share": 0.316,
+          "z": -7.05
+        },
+        {
+          "name": "vib_log_frac_2x",
+          "share": 0.086,
+          "z": -7.89
+        }
+      ]
+    }
+  ],
+  "model": {
+    "fire_hz": 26.0,
+    "fs_hz": 400.0,
+    "has_audio": false,
+    "baseline_seconds": 60.0,
+    "baseline_source": "simulator",
+    "threshold_percentile": 99.0,
+    "config_hash": "f0dfb44d456597bc4da9762d1e373c01fa8aa583301176e5112e7a433a9007b7"
+  },
+  "note": "relative to the baseline this model was fitted on; not a diagnosis and not calibrated accuracy"
+}

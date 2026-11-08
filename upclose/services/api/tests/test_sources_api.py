@@ -222,9 +222,9 @@ def test_free_report_shows_only_checked_state_and_flag_counts(with_sources, with
     # No sources attached: both kinds read "Not checked", never a pass.
     empty = build_free_report(without_sources.snapshot())
     assert [(row.kind, row.checked, row.flag_count) for row in empty.additional_checks] == [
-        ("rig_telemetry", False, 0), ("obd_snapshot", False, 0)]
+        ("rig_telemetry", False, 0), ("obd_snapshot", False, 0), ("engine_audio", False, 0)]
     empty_html = render_report(empty)
-    assert empty_html.count("Not checked") == 2 and "Checked<" not in empty_html.replace("Not checked", "")
+    assert empty_html.count("Not checked") == 3 and "Checked<" not in empty_html.replace("Not checked", "")
 
 
 @needs_ffmpeg
@@ -238,9 +238,9 @@ def test_paid_report_carries_full_summaries_provenance_and_unchecked_kinds(with_
     assert "<script" not in html.lower() and "style=" not in html
     empty = build_paid_report(without_sources.snapshot())
     assert [(row.kind, row.checked, row.source) for row in empty.additional_checks] == [
-        ("rig_telemetry", False, None), ("obd_snapshot", False, None)]
+        ("rig_telemetry", False, None), ("obd_snapshot", False, None), ("engine_audio", False, None)]
     empty_html = render_report(empty)
-    assert empty_html.count("Not checked") == 2 and "it is not a pass" in empty_html
+    assert empty_html.count("Not checked") == 3 and "it is not a pass" in empty_html
 
 
 def _pure_paid(checks):
@@ -305,3 +305,108 @@ def test_purge_removes_source_rows_with_the_session(with_sources):
     with h.db() as db:
         assert db.scalar(select(func.count()).select_from(EvidenceSource).where(EvidenceSource.session_id == h.session_id)) == 0
         assert db.get(Session, h.session_id).state == SessionState.DELETED
+
+
+# ---- GET /sources and model verdict -----------------------------------------------------
+
+
+def get_sources(h, headers=None, session_id=None):
+    return h.http.get(f"/api/v1/sessions/{session_id or h.session_id}/sources",
+                      headers=h.headers if headers is None else headers)
+
+
+def verdict_body(name="misfire", **kwargs):
+    from tests.test_sources_domain import with_verdict
+    return envelope("rig_telemetry", with_verdict(name, **kwargs))
+
+
+def test_get_sources_lists_by_kind_without_raw_data_and_survives_finalize(make):
+    h = make()
+    assert get_sources(h).json() == {"sources": []}
+    post(h, rig_body())
+    post(h, obd_body())
+    listing = get_sources(h)
+    assert listing.status_code == 200, listing.text
+    items = listing.json()["sources"]
+    assert [row["kind"] for row in items] == ["obd_snapshot", "rig_telemetry"]
+    for row, stored in zip(items, source_rows(h)):
+        assert set(row) == {"source_id", "kind", "provenance", "device", "captured_at", "data_sha256", "summary"}
+        assert row["data_sha256"] == stored.data_sha256 and row["source_id"] == str(stored.id)
+    assert "x_mg" not in listing.text and '"data"' not in listing.text and "SYNTHETC" in listing.text
+    finalize(h)
+    assert get_sources(h).json() == listing.json()
+
+
+def test_get_sources_auth_and_ownership(make):
+    h = make()
+    path = f"/api/v1/sessions/{h.session_id}/sources"
+    assert h.http.get(path).status_code == 401
+    assert get_sources(h, headers={"Authorization": "Bearer " + "x" * 43}).status_code == 401
+    assert get_sources(h, headers=h.other_owner()).status_code == 404
+    assert get_sources(h, session_id=uuid4()).status_code == 404
+    with h.db.begin() as db:
+        db.execute(update(Session).where(Session.id == h.session_id).values(state=SessionState.DELETING))
+    assert get_sources(h).status_code == 404
+
+
+def test_verdict_is_stored_hashed_and_flagged(make):
+    h = make()
+    response = post(h, verdict_body())
+    assert response.status_code == 201, response.text
+    summary = response.json()["summary"]
+    assert "anomaly_suspected" in summary["flags"] and summary["model_verdict"]["schema"] == "upclose-anomaly-verdict/1"
+    (row,) = source_rows(h)
+    assert row.data["model_verdict"]["verdict"] == "anomaly_suspected" and row.data_sha256 == canonical_hash(row.data)
+    assert get_sources(h).json()["sources"][0]["summary"]["model_verdict"]["anomalous_runs"][0]["t_end_s"] == 40.0
+
+
+def test_recording_without_verdict_stores_no_verdict_key_and_the_same_hash(make):
+    h = make()
+    body = rig_body()
+    response = post(h, body)
+    (row,) = source_rows(h)
+    assert "model_verdict" not in row.data and response.json()["summary"]["model_verdict"] is None
+    from app.contracts.sources import RigTelemetrySource
+    expected = RigTelemetrySource.model_validate(body).data.model_dump(mode="json")
+    expected.pop("model_verdict")
+    assert row.data_sha256 == canonical_hash(expected)
+
+
+def test_inconsistent_verdicts_are_422_over_http(make):
+    h = make()
+    body = verdict_body()
+    body["data"]["model_verdict"]["verdict"] = "no_anomaly_detected"
+    assert post(h, body).status_code == 422
+    body = verdict_body()
+    body["data"]["model_verdict"]["anomalous_fraction"] = 0.5
+    assert post(h, body).status_code == 422
+    body = verdict_body(seconds=10.0)
+    assert post(h, body).status_code == 422
+    assert source_rows(h) == []
+
+
+@pytest.fixture
+def with_verdict_rig(make, media_dir, scratch_root):  # noqa: F811
+    return build_rig(make, media_dir, scratch_root, [verdict_body(), obd_body()])
+
+
+@needs_ffmpeg
+def test_verdict_reaches_the_paid_report_but_not_the_free_view(with_verdict_rig, with_sources):
+    rig = with_verdict_rig
+    revision = rig.revision()
+    manifest = load_manifest(revision)
+    rig_source = next(row for row in manifest.sources if row.kind == "rig_telemetry")
+    assert rig_source.summary.model_verdict is not None and "anomaly_suspected" in rig_source.summary.flags
+    assert canonical_hash(manifest_payload(manifest)) == revision.manifest_hash
+    paid_html = render_report(build_paid_report(rig.snapshot()))
+    for expected in ("Engine anomaly model", "Anomaly suspected",
+                     "unlike this engine&#39;s own baseline between 0–40 s", "60 s of this engine&#39;s own recording",
+                     "not a diagnosis", "cycle-to-cycle irregularity"):
+        assert expected in paid_html, expected
+    free = build_free_report(rig.snapshot())
+    html, dumped = render_report(free), free.model_dump_json()
+    for leak in ("unlike", "baseline", "vib_", "firing", "anomalous_runs", "model_verdict", "cycle-to-cycle"):
+        assert leak not in html and leak not in dumped, leak
+    assert {row.kind: row.flag_count for row in free.additional_checks} == {"rig_telemetry": 1, "obd_snapshot": 3, "engine_audio": 0}
+    # A recording frozen without a verdict has no verdict key anywhere in its manifest.
+    assert "model_verdict" not in json.dumps(with_sources.revision().manifest)

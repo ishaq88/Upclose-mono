@@ -441,6 +441,112 @@ export interface components {
         };
         /** EmptyRequest */
         EmptyRequest: Record<string, never>;
+        /**
+         * EngineAudioData
+         * @description Reference to a completed private audio upload; the server verifies its size and sha256.
+         */
+        EngineAudioData: {
+            /** Sha256 */
+            sha256: string;
+            /**
+             * Upload Id
+             * Format: uuid
+             */
+            upload_id: string;
+        };
+        /** EngineAudioSource */
+        EngineAudioSource: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            data: components["schemas"]["EngineAudioData"];
+            /** Device */
+            device: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "engine_audio";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+        };
+        /** EngineAudioSummary */
+        EngineAudioSummary: {
+            /** Config Hash */
+            config_hash: string;
+            /** Content Type */
+            content_type: string;
+            /**
+             * Duration S
+             * @default null
+             */
+            duration_s: number | null;
+            /**
+             * Envelope Db
+             * @default []
+             */
+            envelope_db: number[];
+            /** Envelope Step Ms */
+            envelope_step_ms: number;
+            /**
+             * Flag Count
+             * @default 0
+             */
+            flag_count: number;
+            /**
+             * Flags
+             * @default []
+             */
+            flags: string[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "engine_audio";
+            /**
+             * Peak Db
+             * @default null
+             */
+            peak_db: number | null;
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * Rms Db
+             * @default null
+             */
+            rms_db: number | null;
+            /** Size Bytes */
+            size_bytes: number;
+            /**
+             * Spectrogram Sha256
+             * @default null
+             */
+            spectrogram_sha256: string | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "processing" | "assessed" | "not_assessed";
+            /**
+             * Uncalibrated Note
+             * @default Values are uncalibrated estimates, not measurements.
+             * @constant
+             */
+            uncalibrated_note: "Values are uncalibrated estimates, not measurements.";
+        };
         /** EvidenceRef */
         EvidenceRef: {
             bbox: components["schemas"]["BoundingBox"];
@@ -645,7 +751,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rig_telemetry" | "obd_snapshot";
+            kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
         };
         /** IrregularWindow */
         IrregularWindow: {
@@ -678,6 +784,57 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+        };
+        /**
+         * ModelVerdict
+         * @description Engine-anomaly model output (upclose-anomaly-verdict/1): relative to a baseline, not a diagnosis.
+         */
+        ModelVerdict: {
+            /** Anomalous Fraction */
+            anomalous_fraction: number | null;
+            /**
+             * Anomalous Runs
+             * @default []
+             */
+            anomalous_runs: components["schemas"]["VerdictRun"][];
+            /** Anomalous Windows */
+            anomalous_windows: number | null;
+            /** Data Source */
+            data_source: string;
+            /** Duration S */
+            duration_s: number;
+            /** Fraction Threshold */
+            fraction_threshold: number;
+            /** Max Score */
+            max_score: number | null;
+            /** Median Score */
+            median_score: number | null;
+            /** Min Anomalous Windows */
+            min_anomalous_windows: number;
+            model: components["schemas"]["VerdictModel"];
+            /** Note */
+            note: string;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Schema
+             * @constant
+             */
+            schema: "upclose-anomaly-verdict/1";
+            /** Threshold */
+            threshold: number;
+            /**
+             * Top Features
+             * @default []
+             */
+            top_features: components["schemas"]["VerdictFeature"][];
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "anomaly_suspected" | "no_anomaly_detected" | "not_assessed";
+            /** Windows */
+            windows: number | null;
         };
         /** NarratedStatement */
         NarratedStatement: {
@@ -924,7 +1081,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rig_telemetry" | "obd_snapshot";
+            kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
             /** @default null */
             source: components["schemas"]["SourceRecord"] | null;
         };
@@ -1184,6 +1341,8 @@ export interface components {
              */
             cylinders: number;
             /** @default null */
+            model_verdict: components["schemas"]["ModelVerdict"] | null;
+            /** @default null */
             sound: components["schemas"]["SoundData"] | null;
             /**
              * Temperature
@@ -1245,6 +1404,8 @@ export interface components {
              * @enum {string}
              */
             kind: "rig_telemetry";
+            /** @default null */
+            model_verdict: components["schemas"]["ModelVerdict"] | null;
             /**
              * Provenance
              * @enum {string}
@@ -1395,6 +1556,43 @@ export interface components {
             rate_hz: number;
         };
         /**
+         * SourceListItem
+         * @description Owner read of an attached source: envelope, hash and summary, never the raw samples.
+         */
+        SourceListItem: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Data Sha256 */
+            data_sha256: string;
+            /** Device */
+            device: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
+            /**
+             * Provenance
+             * @enum {string}
+             */
+            provenance: "synthetic" | "cached" | "live";
+            /**
+             * Source Id
+             * Format: uuid
+             */
+            source_id: string;
+            /** Summary */
+            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"] | components["schemas"]["EngineAudioSummary"];
+        };
+        /** SourceListResponse */
+        SourceListResponse: {
+            /** Sources */
+            sources: components["schemas"]["SourceListItem"][];
+        };
+        /**
          * SourceRecord
          * @description One frozen source: summary plus the hash binding it to the raw row. Manifest and paid report.
          */
@@ -1412,14 +1610,14 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rig_telemetry" | "obd_snapshot";
+            kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
             /**
              * Provenance
              * @enum {string}
              */
             provenance: "synthetic" | "cached" | "live";
             /** Summary */
-            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"];
+            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"] | components["schemas"]["EngineAudioSummary"];
         };
         /** SourceResponse */
         SourceResponse: {
@@ -1429,14 +1627,14 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "rig_telemetry" | "obd_snapshot";
+            kind: "rig_telemetry" | "obd_snapshot" | "engine_audio";
             /**
              * Source Id
              * Format: uuid
              */
             source_id: string;
             /** Summary */
-            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"];
+            summary: components["schemas"]["RigTelemetrySummary"] | components["schemas"]["ObdSummary"] | components["schemas"]["EngineAudioSummary"];
         };
         /**
          * Subzone
@@ -1527,6 +1725,53 @@ export interface components {
         UploadUrlsResponse: {
             /** Items */
             items: components["schemas"]["UploadUrl"][];
+        };
+        /** VerdictFeature */
+        VerdictFeature: {
+            /** Name */
+            name: string;
+            /** Share */
+            share: number;
+        };
+        /** VerdictModel */
+        VerdictModel: {
+            /** Baseline Seconds */
+            baseline_seconds: number;
+            /** Baseline Source */
+            baseline_source: string;
+            /** Config Hash */
+            config_hash: string;
+            /** Fire Hz */
+            fire_hz: number;
+            /** Fs Hz */
+            fs_hz: number;
+            /** Has Audio */
+            has_audio: boolean;
+            /** Threshold Percentile */
+            threshold_percentile: number;
+        };
+        /** VerdictRun */
+        VerdictRun: {
+            /** Peak Score */
+            peak_score: number;
+            /** T End S */
+            t_end_s: number;
+            /** T Start S */
+            t_start_s: number;
+            /**
+             * Top Features
+             * @default []
+             */
+            top_features: components["schemas"]["VerdictRunFeature"][];
+        };
+        /** VerdictRunFeature */
+        VerdictRunFeature: {
+            /** Name */
+            name: string;
+            /** Share */
+            share: number;
+            /** Z */
+            z: number;
         };
         /**
          * VerificationGroup

@@ -1,0 +1,27 @@
+{
+  "schema": "upclose-anomaly-verdict/1",
+  "verdict": "not_assessed",
+  "reason": "too_short",
+  "data_source": "simulator",
+  "duration_s": 2.0,
+  "windows": null,
+  "anomalous_windows": null,
+  "anomalous_fraction": null,
+  "max_score": null,
+  "median_score": null,
+  "threshold": 4.0615,
+  "fraction_threshold": 0.15,
+  "min_anomalous_windows": 3,
+  "top_features": [],
+  "anomalous_runs": [],
+  "model": {
+    "fire_hz": 26.0,
+    "fs_hz": 400.0,
+    "has_audio": false,
+    "baseline_seconds": 60.0,
+    "baseline_source": "simulator",
+    "threshold_percentile": 99.0,
+    "config_hash": "f0dfb44d456597bc4da9762d1e373c01fa8aa583301176e5112e7a433a9007b7"
+  },
+  "note": "relative to the baseline this model was fitted on; not a diagnosis and not calibrated accuracy"
+}

@@ -109,6 +109,15 @@
 {%- if row.reason %}
 <p>{{ row.reason }}</p>
 {%- endif %}
+{%- if row.note %}
+<p class="note">{{ row.note }}</p>
+{%- endif %}
+{%- if row.audio_src %}
+<p><audio controls preload="none" src="{{ row.audio_src }}">Your browser cannot play this clip.</audio></p>
+{%- endif %}
+{%- if row.spectrogram_src %}
+<img class="evidence-img" src="{{ row.spectrogram_src }}" alt="Spectrogram of the engine sound clip" loading="lazy">
+{%- endif %}
 {%- if row.details %}
 <table>
 <tbody>

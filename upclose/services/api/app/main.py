@@ -21,6 +21,7 @@ from app.routers.reports import create_report_router
 from app.routers.privacy import create_privacy_router
 from app.routers.deletion import create_deletion_router
 from app.routers.sessions import create_session_router
+from app.routers.audio_uploads import create_audio_upload_router
 from app.routers.sources import create_source_router
 from app.routers.operator import create_operator_router
 from app.routers.uploads import create_upload_router
@@ -42,7 +43,8 @@ def create_app(
     object_storage = fenced_storage(sessions, storage or S3Storage(config))
     application.include_router(create_account_router(sessions, config, email_sender))
     application.include_router(create_session_router(sessions, config))
-    application.include_router(create_source_router(sessions, config))
+    application.include_router(create_source_router(sessions, config, object_storage))
+    application.include_router(create_audio_upload_router(sessions, config, object_storage))
     application.include_router(create_progress_router(sessions, config))
     application.include_router(create_report_router(sessions, config, object_storage))
     application.include_router(create_upload_router(sessions, config, object_storage))

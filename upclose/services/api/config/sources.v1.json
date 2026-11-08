@@ -22,5 +22,14 @@
     "cleared_warmups_below": 10,
     "incomplete_monitors_at_or_above": 3,
     "cold_start_coolant_c_below": 40.0
+  },
+  "audio": {
+    "decode_rate_hz": 8000,
+    "window_ms": 500,
+    "max_points": 240,
+    "min_duration_s": 1.0,
+    "silent_rms_db": -60.0,
+    "spectrogram_width": 960,
+    "spectrogram_height": 320
   }
 }

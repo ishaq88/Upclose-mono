@@ -29,7 +29,7 @@ from .reports import (
     PublicFinding, PublicClaim, ReportStatus, ShareDisableResponse, ShareEnableResponse,
 )
 from .sources import (
-    FreeSourceCheck, ObdSnapshotSource, PaidSourceCheck, RigTelemetrySource, SourceListItem, SourceListResponse, SourceRecord, SourceResponse,
+    FreeSourceCheck, ObdSnapshotSource, PaidSourceCheck, RigTelemetrySource, EngineAudioSource, SourceListItem, SourceListResponse, SourceRecord, SourceResponse,
 )
 from .scoring import RepairEstimate, RepairSummary, ScoreResult, ScoringInput, ZoneScore
 

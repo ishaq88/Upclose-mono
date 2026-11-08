@@ -175,7 +175,7 @@ class Job(Record, Base):
     session_id: Mapped[UUID | None] = mapped_column(ForeignKey("sessions.id"), index=True)
     subject_kind: Mapped[str] = mapped_column(states("job_subject", "part_run", "concept_run", "finding", "duplicate_group", "report_revision", "stripe_event", "session"))
     subject_id: Mapped[str] = mapped_column(String(255))
-    stage: Mapped[str] = mapped_column(states("job_stage", "ingest", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "source_ingest", "vehicle_mask"))
+    stage: Mapped[str] = mapped_column(states("job_stage", "ingest", "segment", "verify", "read_dash", "claims", "score", "narrate", "render", "billing_event", "purge", "source_ingest", "vehicle_mask", "audio_ingest"))
     input_hash: Mapped[str] = hash_column()
     config_hash: Mapped[str] = hash_column()
     idempotency_key: Mapped[str] = mapped_column(String(64), unique=True)
@@ -503,7 +503,7 @@ class EvidenceSource(Record, Base):
     """Plugin evidence attached before finalize: raw data bound by hash, plus its derived summary."""
     __tablename__ = "evidence_sources"
     session_id: Mapped[UUID] = mapped_column(ForeignKey("sessions.id"), index=True)
-    kind: Mapped[str] = mapped_column(states("evidence_source_kind", "rig_telemetry", "obd_snapshot"))
+    kind: Mapped[str] = mapped_column(states("evidence_source_kind", "rig_telemetry", "obd_snapshot", "engine_audio"))
     provenance: Mapped[str] = mapped_column(states("evidence_source_provenance", "synthetic", "cached", "live"))
     device: Mapped[str] = mapped_column(String(64))
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -514,3 +514,27 @@ class EvidenceSource(Record, Base):
     __table_args__ = (UniqueConstraint("session_id", "kind"),
         CheckConstraint("data_sha256 ~ '^[0-9a-f]{64}$'", name="data_hash"),
         CheckConstraint("jsonb_typeof(data) = 'object' AND jsonb_typeof(summary) = 'object'", name="json_objects"))
+
+
+class AudioUpload(Record, Base):
+    """Private engine-audio clip (<= 10 MiB) and what the worker derived from it."""
+    __tablename__ = "audio_uploads"
+    session_id: Mapped[UUID] = mapped_column(ForeignKey("sessions.id"), index=True)
+    object_key: Mapped[str] = mapped_column(String(1024), unique=True)
+    provider_upload_id: Mapped[str] = mapped_column(String(1024), unique=True)
+    expected_bytes: Mapped[int] = mapped_column(Integer)
+    content_type: Mapped[str] = mapped_column(states("audio_content_type", "audio/wav", "audio/x-wav", "audio/mpeg", "audio/mp4", "audio/x-m4a"))
+    state: Mapped[UploadState] = mapped_column(enum_type(UploadState, "audio_upload_state"), server_default="open")
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    processing_state: Mapped[str] = mapped_column(states("audio_processing_state", "pending", "queued", "ready", "failed"), server_default="pending")
+    reason: Mapped[str | None] = mapped_column(String(240))
+    raw_sha256: Mapped[str | None] = hash_column(nullable=True)
+    spectrogram_key: Mapped[str | None] = mapped_column(String(1024))
+    spectrogram_sha256: Mapped[str | None] = hash_column(nullable=True)
+    __table_args__ = (CheckConstraint("expected_bytes BETWEEN 1 AND 10485760", name="expected_bytes"),
+        CheckConstraint("length(object_key) > 0 AND object_key !~ '[:?#]'", name="object_key"),
+        CheckConstraint("length(provider_upload_id) > 0", name="provider_id"),
+        CheckConstraint("state != 'accepted' OR accepted_at IS NOT NULL", name="accepted_timestamp"),
+        CheckConstraint("raw_sha256 IS NULL OR raw_sha256 ~ '^[0-9a-f]{64}$'", name="raw_hash"),
+        CheckConstraint("spectrogram_sha256 IS NULL OR spectrogram_sha256 ~ '^[0-9a-f]{64}$'", name="spectrogram_hash"),
+        Index("uq_audio_uploads_open_session", "session_id", unique=True, postgresql_where=text("state = 'open'")))

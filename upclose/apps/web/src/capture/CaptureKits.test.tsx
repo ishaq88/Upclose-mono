@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { ApiError, createApi, type Api, type CaptureSource } from '../api/client';
 import { FakeBackend } from '../testing/fakeBackend';
+import { openEngineStep } from '../testing/engineStep';
 import { useCaptureSources } from './useCaptureSources';
 
 vi.mock('./Guide3D', () => ({ default: () => null }));
@@ -30,6 +31,7 @@ describe('Capture kits card', () => {
   it('renders attached, provenance and not-assessed status from mocked sources', async () => {
     backend.sources = [pod, obd];
     render(<App />);
+    await openEngineStep();
     await waitFor(() => expect(row('rig_telemetry').getByText('Attached')).toBeTruthy());
     expect(row('rig_telemetry').getByText('Simulated')).toBeTruthy();
     expect(row('obd_snapshot').getByText('Replayed')).toBeTruthy();
@@ -41,6 +43,7 @@ describe('Capture kits card', () => {
   it('treats a 404 from an API without the route as no sources', async () => {
     backend.sourcesStatus = 404;
     render(<App />);
+    await openEngineStep();
     await screen.findByTestId('kit-rig_telemetry');
     expect(row('rig_telemetry').getByText('Waiting')).toBeTruthy();
     const api = createApi({ getToken: () => backend.token, fetchImpl: backend.fetch });
@@ -53,6 +56,7 @@ describe('Capture kits card', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
     const view = render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByText('Connect the sensor pod'));
     expect(screen.getByText(/Paste it only into your own rig/)).toBeTruthy();
     expect(screen.getByText(`python -m upclose_rig demo-run --session ${backend.sessionId} --api http://localhost:8000 --port COM3 --audio synth`)).toBeTruthy();

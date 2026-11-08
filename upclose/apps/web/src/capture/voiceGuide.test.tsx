@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { FakeBackend } from '../testing/fakeBackend';
+import { openEngineStep } from '../testing/engineStep';
 import { loadVoicePreference, saveVoicePreference } from './voiceGuide';
 
 vi.mock('./Guide3D', () => ({ default: () => null }));
@@ -38,6 +39,7 @@ const next = () => fireEvent.click(screen.getByRole('button', { name: 'Next step
 describe('engine check with spoken guidance', () => {
   it('walks the steps, speaking each from the tap and always showing its caption', async () => {
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Start engine check' }));
     expect(caption()).toBe('Switch the pod on while the engine is off.');
     await waitFor(() => expect(played).toHaveLength(1));
@@ -51,6 +53,7 @@ describe('engine check with spoken guidance', () => {
 
   it('counts down the 20 s learning step, then moves on to the baseline step', async () => {
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Start engine check' }));
     next();
     next();
@@ -73,12 +76,14 @@ describe('engine check with spoken guidance', () => {
       captured_at: '2026-11-07T21:14:03Z', data_sha256: 'a'.repeat(64), summary: { state: 'assessed' },
     }];
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Start engine check' }));
     await waitFor(() => expect(within(current()).getByTestId('engine-kit-rig_telemetry').textContent).toContain('attached (Simulated)'));
   });
 
   it('speaks nothing when the voice guide is toggled off, and remembers the choice', async () => {
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByLabelText('Voice guide'));
     expect(localStorage.getItem('upclose.voiceGuide.v1')).toBe('off');
     fireEvent.click(screen.getByRole('button', { name: 'Start engine check' }));
@@ -88,12 +93,14 @@ describe('engine check with spoken guidance', () => {
     expect(played).toHaveLength(0);
     cleanup();
     render(<App />);
+    await openEngineStep();
     expect((await screen.findByLabelText('Voice guide') as HTMLInputElement).checked).toBe(false);
   });
 
   it('shows the caption only when the audio cannot be fetched, and never blocks the step', async () => {
     backend.voiceAudioStatus = 502;
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Start engine check' }));
     expect(caption()).toBe('Switch the pod on while the engine is off.');
     await waitFor(() => expect(screen.getByTestId('voice-caption').textContent).toContain('captions only'));
@@ -105,6 +112,7 @@ describe('engine check with spoken guidance', () => {
   it('falls back to the local caption when the catalog does not load', async () => {
     backend.voiceCatalogStatus = 500;
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByRole('button', { name: 'Start engine check' }));
     expect(caption()).toBe('Switch the pod on while the engine is off.');
   });
@@ -113,7 +121,7 @@ describe('engine check with spoken guidance', () => {
 describe('guided zones', () => {
   it('speaks a zone only when the user taps it, and keeps the zone usable if audio fails', async () => {
     render(<App />);
-    await screen.findByRole('button', { name: 'Start engine check' });
+    await screen.findByRole('navigation', { name: 'Zones' });
     expect(audioFetches()).toHaveLength(0); // the zone opened on load is not a tap
     fireEvent.click(screen.getByRole('button', { name: /Passenger side/ }));
     await waitFor(() => expect(audioFetches().map((call) => call.url)).toEqual(['/api/v1/voice-guide/zone_passenger_side']));

@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { ApiError, type Api, type FreeReport, type PaidReport, type ReportStatus } from '../api/client';
 import { SESSION_POLL_MS } from '../config';
 import { describeError, type UiError } from '../errors';
 import { nextPollDelay } from '../progress/polling';
-import { ReportView } from '../report/ReportView';
+import { ReportView, type ReportHeader } from '../report/ReportView';
 import { clearPendingCheckout, pendingCheckout } from '../results/checkout';
 import { isSyntheticPaid } from '../results/freeModel';
 import { ResultError } from '../results/ResultError';
 import { ShareControl } from '../results/ShareControl';
 import { useUnlock } from '../results/useUnlock';
+import { Button, Card, Notice, PageHeader, Pill } from '../ui';
 import '../results/results.css';
 import { FreeVerdictCard } from './FreeVerdictCard';
 import { RenameLabel } from './RenameLabel';
@@ -131,28 +132,30 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
 
   return (
     <div className="res-col" data-testid="owner-report">
-      <header className="res-head">
-        <nav className="crumbs" aria-label="Breadcrumb"><a href="/reports">My reports</a><span aria-hidden="true">/</span><span>{label ?? 'Report'}</span></nav>
-        <h1 className="page-title">{label ?? 'Your report'}</h1>
-        {renameSessionId && report && <RenameLabel api={api} sessionId={renameSessionId} label={label} onRenamed={setRenamed} />}
-      </header>
+      {kind !== 'paid' && (
+        <PageHeader crumbs={[{ label: 'My reports', href: '/reports' }, { label: label ?? 'Report' }]} title={label ?? 'Your report'}
+          actions={renameSessionId && report ? <RenameLabel api={api} sessionId={renameSessionId} label={label} onRenamed={setRenamed} /> : undefined} />
+      )}
       {error && (
         <ResultError error={error}>
-          {!fatal && <button type="button" className="btn btn-sm btn-ghost" onClick={retry}>Retry report</button>}
-          {fatal && <a className="btn btn-sm btn-ghost" href="/signin">Sign in</a>}
-          {fatal && <a className="textlink" href="/reports">My reports</a>}
+          {!fatal && <Button variant="secondary" size="sm" onClick={retry}>Retry report</Button>}
+          {fatal && <Button variant="secondary" size="sm" href="/signin">Sign in</Button>}
+          {fatal && <Button variant="text" size="sm" href="/reports">My reports</Button>}
         </ResultError>
       )}
       {report === null && !error && <p role="status" className="muted">Loading your report…</p>}
       {report && kind === 'status' && <Status state={report.state === 'failed' ? 'failed' : 'building'} />}
       {report && kind === 'free' && (
         <>
-          {awaiting && !gaveUp && <p role="status" className="notice notice-warn">Confirming your payment with our payment provider. The full report opens only after the payment is verified; this page keeps checking.</p>}
-          {awaiting && gaveUp && <p role="status" className="notice notice-warn">We have not received the payment confirmation yet. If you paid, it can take a few minutes. Reload this page to check again. Nothing is charged twice by waiting.</p>}
+          {awaiting && !gaveUp && <Notice tone="warn" role="status">Confirming your payment with our payment provider. The full report opens only after the payment is verified; this page keeps checking.</Notice>}
+          {awaiting && gaveUp && <Notice tone="warn" role="status">We have not received the payment confirmation yet. If you paid, it can take a few minutes. Reload this page to check again. Nothing is charged twice by waiting.</Notice>}
           <FreeVerdictCard data={report as FreeReport} layout="page" unlock={{ onUnlock: unlock.start, busy: unlock.busy, error: unlock.error }} />
         </>
       )}
-      {report && kind === 'paid' && <PaidBody report={report as PaidReport} slug={slug} api={api} resolveFrame={resolveFrame} />}
+      {report && kind === 'paid' && (
+        <PaidBody report={report as PaidReport} slug={slug} api={api} resolveFrame={resolveFrame} label={label}
+          rename={renameSessionId ? <RenameLabel api={api} sessionId={renameSessionId} label={label} onRenamed={setRenamed} /> : null} />
+      )}
     </div>
   );
 }
@@ -160,29 +163,47 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
 function Status({ state: value }: { state: 'building' | 'failed' }): ReactElement {
   if (value === 'failed') {
     return (
-      <div role="alert" className="notice notice-error build-card">
-        <b>The report could not be built.</b>
-        <span>There is nothing to open or unlock. Zones that failed or were skipped were not assessed, which is not a clean result. Start a new inspection to try again.</span>
-      </div>
+      <Notice tone="error" title="The report could not be built." className="build-card">
+        There is nothing to open or unlock. Zones that failed or were skipped were not assessed, which is not a clean result. Start a new inspection to try again.
+      </Notice>
     );
   }
   return (
-    <div className="res-card build-card">
-      <h2 style={{ fontSize: 24, fontWeight: 800 }}>Building your report</h2>
+    <Card padding="lg" className="build-card">
+      <h2 className="build-title">Building your report</h2>
       <p role="status" className="muted"><span className="spin" aria-hidden="true" />This usually takes a few minutes. This page checks again by itself; you can leave it open.</p>
-    </div>
+    </Card>
   );
 }
 
-function PaidBody({ report, slug, api, resolveFrame }: { report: PaidReport; slug: string; api: Api; resolveFrame: (id: string) => Promise<string> }): ReactElement {
+function issuedOn(renderedAt: string | null): string | null {
+  if (!renderedAt) return null;
+  const date = new Date(renderedAt);
+  return Number.isNaN(date.getTime()) ? null : `Issued ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+interface PaidBodyProps { report: PaidReport; slug: string; api: Api; resolveFrame: (id: string) => Promise<string>; label: string | null; rename: ReactNode }
+
+function PaidBody({ report, slug, api, resolveFrame, label, rename }: PaidBodyProps): ReactElement {
   const synthetic = useMemo(() => isSyntheticPaid(report), [report]);
   const resolveMedia = useCallback((which: import('../api/client').ReportMedia, signal: AbortSignal) => api.getReportMedia(slug, which, signal), [api, slug]);
+  const issued = issuedOn(report.rendered_at);
+  const header: ReportHeader = {
+    crumbs: [{ label: 'My reports', href: '/reports' }, { label: label ?? 'Report' }],
+    title: label ?? 'Your report',
+    meta: (
+      <>
+        {synthetic && <Pill tone="synthetic" data-testid="synthetic-badge">Synthetic test result. No real inference was performed.</Pill>}
+        {issued && <span>{issued}</span>}
+      </>
+    ),
+    share: <ShareControl api={api} slug={slug} />,
+    rename,
+  };
   return (
     <>
-      {synthetic && <p className="res-badge" data-testid="synthetic-badge">Synthetic test result. No real inference was performed.</p>}
-      <ShareControl api={api} slug={slug} />
+      <ReportView report={report} header={header} resolveFrame={resolveFrame} resolveMedia={resolveMedia} />
       <p className="res-note">Private report. Evidence frames load from your account only as you scroll. Anyone you share the link with can read the report; downloaded copies cannot be recalled.</p>
-      <ReportView report={report} resolveFrame={resolveFrame} resolveMedia={resolveMedia} />
     </>
   );
 }

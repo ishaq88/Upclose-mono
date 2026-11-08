@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useAccount } from './AccountContext';
 import { CredentialsForm } from './CredentialsForm';
 import { accountErrorMessage } from './errors';
+import { Button, Card, Notice } from '../ui';
 import './accounts.css';
 
 export interface SaveInspectionProps {
@@ -60,46 +61,46 @@ export function SaveInspection({ sessionId, ownerToken }: SaveInspectionProps): 
 
   if (saved) {
     return (
-      <div className="save-card" role="status">
+      <Card padding="lg" className="save-card" role="status">
         <div>
           <h2>Saved</h2>
           <p className="muted">It's in <a href="/reports">My reports</a>.</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <section className="save-card" aria-labelledby="save-title">
+    <Card as="section" padding="lg" className="save-card" aria-labelledby="save-title">
       <div>
         <h2 id="save-title">Save this inspection to your account</h2>
         <p className="muted">Open it again on any device.</p>
       </div>
-      <button ref={openerRef} type="button" className="btn btn-dark btn-sm" onClick={() => { setError(null); setOpen(true); }}>Save</button>
+      <Button ref={openerRef} variant="dark" size="sm" onClick={() => { setError(null); setOpen(true); }}>Save</Button>
       <dialog ref={dialogRef} className="save-dialog" aria-labelledby="save-dialog-title" onCancel={(e) => { e.preventDefault(); close(); }} onClose={() => setOpen(false)}>
         {open && (
           <div className="save-dialog-body">
             <div className="save-dialog-head">
               <h2 id="save-dialog-title">{account ? 'Save to my account' : mode === 'register' ? 'Create an account to save it' : 'Sign in to save it'}</h2>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={close} aria-label="Close">Close</button>
+              <Button variant="secondary" size="sm" onClick={close} aria-label="Close">Close</Button>
             </div>
             {account ? (
               <>
                 <p className="muted">Saving as {account.email}.</p>
-                <div aria-live="polite">{error && <p className="notice notice-error" role="alert">{error}</p>}</div>
-                <button type="button" className="btn" disabled={busy} onClick={() => { void saveSignedIn(); }} autoFocus>{busy ? 'Saving…' : 'Save to my account'}</button>
+                <div aria-live="polite">{error && <Notice tone="error">{error}</Notice>}</div>
+                <Button disabled={busy} onClick={() => { void saveSignedIn(); }} autoFocus>{busy ? 'Saving…' : 'Save to my account'}</Button>
               </>
             ) : (
               <>
                 <CredentialsForm key={mode} mode={mode} submitLabel={mode === 'register' ? 'Create account and save' : 'Sign in and save'} onSubmit={enter} />
-                <button type="button" className="textlink" onClick={() => setMode(mode === 'register' ? 'signin' : 'register')}>
+                <Button variant="text" onClick={() => setMode(mode === 'register' ? 'signin' : 'register')}>
                   {mode === 'register' ? 'I already have an account' : 'Create an account instead'}
-                </button>
+                </Button>
               </>
             )}
           </div>
         )}
       </dialog>
-    </section>
+    </Card>
   );
 }

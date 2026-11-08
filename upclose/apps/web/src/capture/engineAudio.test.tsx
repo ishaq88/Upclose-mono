@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { FakeBackend } from '../testing/fakeBackend';
+import { openEngineStep } from '../testing/engineStep';
 
 vi.mock('./Guide3D', () => ({ default: () => null }));
 const durations = vi.hoisted(() => ({ seconds: 15 as number | null }));
@@ -32,6 +33,7 @@ const audioCalls = (method: string, part: string) => backend.callsTo(method, par
 describe('engine audio upload', () => {
   it('creates, presigns, PUTs, completes, then the source shows as attached', async () => {
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     await screen.findByTestId('audio-attached');
     expect(audioCalls('POST', `/sessions/${backend.sessionId}/audio`)).toHaveLength(1);
@@ -44,6 +46,7 @@ describe('engine audio upload', () => {
 
   it('rejects a wrong type, an oversized clip and a clip over 120 s before any request', async () => {
     render(<App />);
+    await openEngineStep();
     await pick(wav(100, 'rec.webm', 'audio/webm'));
     expect((await screen.findByTestId('audio-rejection')).textContent).toContain('WAV, MP3 or M4A');
     const big = wav(10);
@@ -59,6 +62,7 @@ describe('engine audio upload', () => {
   it('shows a server refusal, and Try again then succeeds', async () => {
     backend.audioCreateScript = [500];
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     expect(await screen.findByRole('alert')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
@@ -69,6 +73,7 @@ describe('engine audio upload', () => {
   it('cancels an upload in flight and aborts the server attempt', async () => {
     backend.holdPuts = true;
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel upload' }));
     await waitFor(() => expect(audioCalls('DELETE', '/audio/')).toHaveLength(1));
@@ -79,6 +84,7 @@ describe('engine audio upload', () => {
 
   it('posts the engine_audio source with the upload id and sha256, labeled cached for a chosen file', async () => {
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     await screen.findByTestId('audio-attached');
     expect(sourcePosts()).toHaveLength(1);
@@ -91,6 +97,7 @@ describe('engine audio upload', () => {
 
   it('labels a clip recorded in the app live, and a sample clip synthetic', async () => {
     render(<App />);
+    await openEngineStep();
     fireEvent.change(await screen.findByLabelText('Record engine audio'), { target: { files: [wav()] } });
     await screen.findByTestId('audio-attached');
     expect(sourcePosts()[0]!.body).toMatchObject({ provenance: 'live', device: 'phone-mic' });
@@ -98,6 +105,7 @@ describe('engine audio upload', () => {
 
     backend.sources = [];
     render(<App />);
+    await openEngineStep();
     fireEvent.click(await screen.findByTestId('engine-audio-synthetic'));
     await pick(wav());
     await waitFor(() => expect(sourcePosts()).toHaveLength(2));
@@ -107,6 +115,7 @@ describe('engine audio upload', () => {
   it('does not show Attached until the source POST succeeds, and retries only the attach', async () => {
     backend.sourcePostScript = [500];
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByTestId('audio-attached')).toBeNull();
@@ -121,6 +130,7 @@ describe('engine audio upload', () => {
   it('treats 409 as already attached and re-reads the sources; a 404 or 401 is an error', async () => {
     backend.sourcePostScript = [409];
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     await waitFor(() => expect(sourcePosts()).toHaveLength(1));
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
@@ -128,6 +138,7 @@ describe('engine audio upload', () => {
 
     backend.sourcePostScript = [404];
     render(<App />);
+    await openEngineStep();
     await pick(wav());
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByTestId('audio-attached')).toBeNull();

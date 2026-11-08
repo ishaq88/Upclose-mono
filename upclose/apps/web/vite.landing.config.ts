@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
@@ -62,7 +61,7 @@ export default defineConfig(({ command, mode }) => {
   return {
     root: fileURLToPath(new URL("./marketing", import.meta.url)),
     envDir: webRoot,
-    plugins: [react(), tailwindcss()],
+    plugins: [react()],
     define: {
       "import.meta.env.VITE_APP_ORIGIN": JSON.stringify(origin),
       "import.meta.env.VITE_REPO_URL": JSON.stringify(repoUrl(process.env.VITE_REPO_URL ?? env.VITE_REPO_URL)),

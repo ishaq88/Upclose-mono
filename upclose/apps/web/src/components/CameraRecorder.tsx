@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import '../capture/capture.css';
 import { classifyCameraError, detectCameraSupport, pickRecorderMimeType, type CameraFailure } from '../capture/media';
+import { Button } from '../ui/Button';
+import { Notice } from '../ui/Notice';
 
 type CameraState =
   | { kind: 'idle' }
@@ -119,11 +121,11 @@ export function CameraRecorder({ partNo, maxSeconds, onRecorded }: Props): React
 
   if (support !== 'available') {
     return (
-      <p className="notice cam-note">
+      <Notice className="cam-note">
         {support === 'insecure_context'
           ? 'Recording inside this page needs a secure (HTTPS) connection. You can still film with your phone\'s camera app using the options above.'
           : 'This browser cannot record video inside the page. Use the options above to film with your camera app or choose a video.'}
-      </p>
+      </Notice>
     );
   }
 
@@ -131,7 +133,7 @@ export function CameraRecorder({ partNo, maxSeconds, onRecorded }: Props): React
   return (
     <div className="cam">
       {state.kind === 'failed' && (
-        <p role="alert" className="notice notice-warn">{FAILURE_COPY[state.reason]}</p>
+        <Notice tone="warn"><p role="alert">{FAILURE_COPY[state.reason]}</p></Notice>
       )}
       {live && (
         <video ref={videoRef} autoPlay muted playsInline aria-label={`Live camera preview for ${partNo === 0 ? 'one continuous video' : partNo === 7 ? 'the low underbody sweep' : `part ${partNo}`}`}
@@ -139,18 +141,18 @@ export function CameraRecorder({ partNo, maxSeconds, onRecorded }: Props): React
       )}
       <div className="cam-row">
         {(state.kind === 'idle' || state.kind === 'failed') && (
-          <button type="button" onClick={() => { void openCamera(); }} className="btn btn-ghost btn-sm">Open camera</button>
+          <Button variant="secondary" size="sm" onClick={() => { void openCamera(); }}>Open camera</Button>
         )}
         {state.kind === 'starting' && <span className="hint" role="status">Waiting for camera permission...</span>}
         {state.kind === 'live' && (
           <>
-            <button type="button" onClick={startRecording} className="btn btn-sm">Start recording</button>
-            <button type="button" onClick={closeCamera} className="textlink">Close camera</button>
+            <Button size="sm" onClick={startRecording}>Start recording</Button>
+            <Button variant="text" size="sm" onClick={closeCamera}>Close camera</Button>
           </>
         )}
         {state.kind === 'recording' && (
           <>
-            <button type="button" onClick={stopRecording} className="btn btn-sm btn-rec">Stop recording</button>
+            <Button variant="danger" size="sm" onClick={stopRecording}>Stop recording</Button>
             <span role="timer" aria-live="off" className="hint num">
               {state.seconds}s of up to {maxSeconds}s
             </span>

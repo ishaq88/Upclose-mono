@@ -19,26 +19,24 @@ describe('advisory citations', () => {
     questions_for_seller: [{ text: 'Ask about maintenance.', cites: ['rig_telemetry:rpm_estimate', 'nope'] }],
     mechanic_checks: [{ text: 'Have a mechanic check the idle.', cites: ['obd_snapshot:mil_on'] }],
   });
-  const view = (summary: string) => render(<ReportAdvice report={{ ...SAMPLE_REPORT, narration_audio: null, advisory: advisory(summary) } as never} />);
+  const view = (summary: string) => render(<ReportAdvice report={{ ...SAMPLE_REPORT, advisory: advisory(summary) } as never} />);
 
-  it('never prints a raw id', () => {
-    view('x');
-    const text = screen.getByTestId('advisory').textContent!;
-    expect(text).toContain('(From the sensor pod)');
-    expect(text).toContain('(From the OBD snapshot)');
-    expect(text).not.toMatch(/rig_telemetry|obd_snapshot|nope/);
+  it('shows the advice with plain-word sources and never a raw id', () => {
+    view('The idle is rough; have a mechanic check the idle.');
+    const block = screen.getByTestId('advisory');
+    expect(screen.getByRole('heading', { level: 2, name: 'Advice' })).toBeTruthy();
+    expect(block.textContent).toContain('AI advisory · not a finding');
+    expect(block.textContent).toContain('Ask the seller');
+    expect(block.textContent).toContain('Ask a mechanic');
+    expect(block.textContent).toContain('(From the sensor pod)');
+    expect(block.textContent).toContain('(From the OBD snapshot)');
+    expect(block.textContent).not.toMatch(/rig_telemetry|obd_snapshot|nope/);
+    expect(screen.getByTestId('advisory-summary').textContent).toContain('The idle is rough');
   });
 
-  it('renders the summary once, as the lead paragraph before the first list heading', () => {
-    const text = 'The idle is rough; have a mechanic check the idle.';
-    view(text);
-    const html = screen.getByTestId('advisory').textContent!;
-    expect(html.split(text)).toHaveLength(2);
-    expect(html.indexOf(text)).toBeLessThan(html.indexOf('Questions for the seller'));
-  });
-
-  it('renders nothing for an empty summary', () => {
-    view('');
-    expect(screen.queryByTestId('advisory-summary')).toBeNull();
+  it('renders nothing when the advisory is unavailable (it becomes a line in the end list)', () => {
+    const report = { ...SAMPLE_REPORT, advisory: { ...advisory('x'), status: 'not_available' } } as never;
+    const { container } = render(<ReportAdvice report={report} />);
+    expect(container.textContent).toBe('');
   });
 });

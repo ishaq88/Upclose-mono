@@ -82,7 +82,7 @@ export function verdict(findings: readonly PaidFinding[], possible = 0): Verdict
     return {
       serious, minor,
       headline: `${serious} serious ${serious === 1 ? 'issue' : 'issues'}`,
-      advice: `Have a mechanic check ${serious === 1 ? 'it' : 'them'} before you agree a price.${minor ? ` The other ${minorText} ${minor === 1 ? 'is' : 'are'} lower risk.` : ''}`,
+      advice: `Have a mechanic check ${serious === 1 ? 'it' : 'them'} before a price is agreed.${minor ? ` The other ${minorText} ${minor === 1 ? 'is' : 'are'} lower risk.` : ''}`,
     };
   }
   if (minor > 0) return { serious, minor, headline: minorText.replace(/^./, (c) => c.toUpperCase()), advice: 'Nothing we found is flagged as serious. Check the zones we couldn’t see.' };
@@ -90,7 +90,7 @@ export function verdict(findings: readonly PaidFinding[], possible = 0): Verdict
     return {
       serious, minor,
       headline: `${possible} possible ${possible === 1 ? 'issue' : 'issues'} to check`,
-      advice: `We spotted ${possible === 1 ? 'something' : 'spots'} we couldn’t confirm. Look at ${possible === 1 ? 'it' : 'them'} yourself or ask a mechanic before you agree a price.`,
+      advice: `We spotted ${possible === 1 ? 'something' : 'spots'} we couldn’t confirm. Look at ${possible === 1 ? 'it' : 'them'} yourself or ask a mechanic before a price is agreed.`,
     };
   }
   return { serious, minor, headline: 'Nothing found', advice: 'Nothing visible in the zones we checked. Check the zones we couldn’t see.' };

@@ -5,12 +5,14 @@ import { CheckoutReturn } from './components/CheckoutReturn';
 import { CaptureFlow } from './components/CaptureFlow';
 import { ConsentForm } from './components/ConsentForm';
 import { clearSession, loadSession, saveSession, type StoredSession } from './session/storage';
-import { AppHeader } from './ui/AppHeader';
+import { ConnectedHeader, HeaderSlotProvider } from './capture/headerSlot';
 
 // Screens off the capture path load on demand.
 const SignInPage = lazy(() => import('./accounts/SignInPage').then((m) => ({ default: m.SignInPage })));
 const ResetPasswordPage = lazy(() => import('./accounts/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
 const MyReportsPage = lazy(() => import('./accounts/MyReportsPage').then((m) => ({ default: m.MyReportsPage })));
+// Development only: the kit gallery. The import sits inside the DEV branch, so production builds drop it.
+const Gallery = import.meta.env.DEV ? lazy(() => import('./ui/gallery/Gallery')) : null;
 const ReportPage = lazy(() => import('./report/ReportPage').then((m) => ({ default: m.ReportPage })));
 
 /** Path-based switch; no router dependency. `pathname` is injectable for tests. */
@@ -21,7 +23,9 @@ export interface AppProps {
 export function App({ pathname }: AppProps = {}): ReactElement {
   return (
     <AccountProvider>
-      <Screens pathname={pathname ?? window.location.pathname} />
+      <HeaderSlotProvider>
+        <Screens pathname={pathname ?? window.location.pathname} />
+      </HeaderSlotProvider>
     </AccountProvider>
   );
 }
@@ -52,7 +56,8 @@ function Screens({ pathname }: { pathname: string }): ReactElement {
 
   let screen: ReactElement;
   const report = /^\/report\/([^/]+)$/.exec(path);
-  if (path === '/checkout/return') screen = <main className="wrap app-main"><CheckoutReturn /></main>;
+  if (import.meta.env.DEV && Gallery && path === '/__gallery') screen = <Gallery />;
+  else if (path === '/checkout/return') screen = <main className="wrap app-main"><CheckoutReturn /></main>;
   else if (path === '/signin') screen = <SignInPage />;
   else if (path === '/reset-password') screen = <ResetPasswordPage />;
   else if (path === '/reports') screen = <MyReportsPage />;
@@ -68,7 +73,7 @@ function Screens({ pathname }: { pathname: string }): ReactElement {
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
-      <AppHeader />
+      <ConnectedHeader />
       <div id="main">
         <Suspense fallback={<main className="wrap app-main"><p role="status" className="muted">Loading…</p></main>}>{screen}</Suspense>
       </div>

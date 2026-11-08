@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactElement } from 'react';
 import type { Api } from '../api/client';
 import { describeError } from '../errors';
+import { Button, Notice } from '../ui';
 
 const MAX_LABEL_CHARS = 80;
 
@@ -35,7 +36,7 @@ export function RenameLabel({ api, sessionId, label, onRenamed }: Props): ReactE
   };
 
   if (!editing) {
-    return <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDraft(label ?? ''); setError(null); setEditing(true); }}>Rename</button>;
+    return <Button variant="secondary" size="sm" onClick={() => { setDraft(label ?? ''); setError(null); setEditing(true); }}>Rename</Button>;
   }
   return (
     <form className="rename" onSubmit={(event) => { void save(event); }}>
@@ -43,9 +44,9 @@ export function RenameLabel({ api, sessionId, label, onRenamed }: Props): ReactE
         <span className="sr-only">Inspection name</span>
         <input type="text" value={draft} maxLength={MAX_LABEL_CHARS} placeholder="For example, 2014 Honda Civic" onChange={(event) => setDraft(event.target.value)} />
       </label>
-      <button type="submit" className="btn btn-sm" disabled={busy || draft.trim() === ''}>Save name</button>
-      <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
-      {error && <p role="alert" className="notice notice-error">{error}</p>}
+      <Button type="submit" size="sm" disabled={busy || draft.trim() === ''}>Save name</Button>
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => setEditing(false)}>Cancel</Button>
+      {error && <Notice tone="error">{error}</Notice>}
     </form>
   );
 }

@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { LandingPage } from "./LandingPage";
 import "../ui/base.css";
+import "../ui/kit.css";
 import "./landing.css";
 
 const root = document.getElementById("root");

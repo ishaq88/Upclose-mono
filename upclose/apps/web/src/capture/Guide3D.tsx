@@ -2,7 +2,8 @@ import { useEffect, useRef, type ReactElement } from 'react';
 import { mountGuide, type GuideHandle } from './mountGuide';
 
 interface Props {
-  partNo: number;
+  /** The zone to highlight, or null for the whole-car overview. */
+  partNo: number | null;
   /** Part numbers already filmed. */
   done?: readonly number[];
   onReady: () => void;

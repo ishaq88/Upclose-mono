@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactElement } from 'react';
-import type { Api, PartSummary } from '../api/client';
+import { ApiError, type Api, type PartSummary } from '../api/client';
 import { SaveInspection } from '../accounts/SaveInspection';
 import { GUIDE_STEPS, guideFor } from '../capture/guide';
 import { OPTIONAL_PARTS, sortForDisplay } from '../capture/zones';
@@ -108,6 +108,10 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
       refresh();
     } catch (caught) {
       handleFailure(caught, null);
+      // A generic 409 from finalize means work is still queued, not that the page was stale. Other 409 codes keep their own text.
+      if (caught instanceof ApiError && caught.status === 409 && caught.code !== 'UPLOAD_INCOMPLETE' && caught.code !== 'REPORT_NOT_READY') {
+        setFinishError({ title: 'Not quite ready to finish', message: 'A video is still waiting to be processed. Try Finish again in a minute.', action: 'retry' });
+      }
     } finally {
       setFinishing(false);
     }
@@ -115,12 +119,14 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
 
   const capturing = session?.state === 'capturing';
   const serverUploading = parts.some((part) => part.state === 'uploading');
-  const uploadActive = uploads.anyActive || serverUploading || sourceUpload.blocksFinish;
+  const uploadActive = uploads.anyActive || serverUploading || audioUpload.busy || sourceUpload.blocksFinish;
+  // The page sees a clip as 'uploaded' until processing starts, then 'processing'; 'uploaded' is the queued, not-yet-started state.
+  const waitingVideos = parts.filter((part) => part.state === 'uploaded').length;
   const sources = useCaptureSources(api, sessionId, capturing && !unauthorized, undefined, audioUpload.phase === 'attached');
   const phoneVideoAttached = sourceUpload.source?.state === 'accepted' || parts.some((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed');
   const kits = kitRows(phoneVideoAttached, sources);
   const unattached = missingKits(kits);
-  const canFinish = capturing && !uploadActive && !finishing;
+  const canFinish = capturing && !uploadActive && waitingVideos === 0 && !finishing;
   const notFilmed = parts.filter((part) => part.state === 'pending');
   const skipped = parts.filter((part) => part.state === 'skipped');
 
@@ -233,6 +239,7 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
                 {capturing ? (
                   <>
                     {uploadActive && <p className="notice notice-warn" role="status">{singleVideo && sourceUpload.blocksFinish ? 'Source status is loading, an upload is unfinished, or source preparation is pending. Finish becomes available after the source settles; you can discard an unfinished upload.' : 'An upload is still in progress. Finish is available once it completes or you cancel it.'}</p>}
+                    {!uploadActive && waitingVideos > 0 && <p className="notice notice-warn" role="status" data-testid="finish-waiting">Waiting for {waitingVideos} video{waitingVideos === 1 ? '' : 's'} to start processing. You can finish as soon as {waitingVideos === 1 ? 'it starts' : 'they start'}; the report keeps building in the background.</p>}
                     {finishError && <ErrorNotice error={finishError} onDismiss={() => setFinishError(null)} />}
                     {confirmFinish ? (
                       <div className="notice stack">

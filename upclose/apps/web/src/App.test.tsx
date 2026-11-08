@@ -154,6 +154,32 @@ describe('skip and finish', () => {
     expect(screen.getByText(/An upload is still in progress/)).toBeTruthy();
   });
 
+  it('disables Finish with a plain waiting message while a clip is queued, and maps a finalize 409 to a friendly message', async () => {
+    backend.parts[1].state = 'uploaded';
+    seedSession();
+    render(<App />);
+    await screen.findByRole('heading', { name: 'Capture steps' });
+    expect((screen.getByRole('button', { name: 'Finish capture' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByTestId('finish-waiting').textContent).toContain('Waiting for 1 video to start processing');
+    backend.parts[1].state = 'processing';
+    await waitFor(() => expect((screen.getByRole('button', { name: 'Finish capture' }) as HTMLButtonElement).disabled).toBe(false), { timeout: 8000 });
+  }, 15000);
+
+  it('shows a friendly message when finalize returns 409', async () => {
+    seedSession();
+    render(<App />);
+    const original = backend.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/finalize')) return new Response(JSON.stringify({ code: 'STATE_CONFLICT', detail: '' }), { status: 409 });
+      return original(url, init);
+    });
+    await screen.findByRole('heading', { name: 'Capture steps' });
+    fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' })); });
+    expect(await screen.findByText(/A video is still waiting to be processed/)).toBeTruthy();
+    expect(screen.queryByText('That step has already changed')).toBeNull();
+  });
+
   it('disables Finish during a local upload, and re-enables it after a retake releases the part', async () => {
     backend.holdPuts = true;
     seedSession();

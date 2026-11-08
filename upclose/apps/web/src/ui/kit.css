@@ -53,6 +53,7 @@
 .notice-title { font-weight: 700; }
 .notice-error { background: var(--risk-soft); color: var(--risk-ink); }
 .notice-warn { background: var(--part-soft); color: #6f4700; }
+.notice-ok { background: var(--ok-soft); color: #155f36; }
 .notice-info { background: var(--filmed-soft); color: #14506a; }
 .notice-action { margin-top: 2px; }
 
@@ -92,6 +93,11 @@
 .disc-sum + .disc-mark { margin-left: 0; }
 .disc-mark::before { content: "+"; }
 .disc[open] > summary .disc-mark::before { content: "\2013"; }
+/* A labelled toggle: title and "Show details +" share the first row, the one-line summary sits under them. */
+.disc-labelled > summary { flex-wrap: wrap; row-gap: 2px; }
+.disc-labelled .disc-title { order: 1; flex: 1; }
+.disc-labelled .disc-toggle { order: 2; display: inline-flex; align-items: center; gap: 8px; margin-left: auto; font-size: var(--fs-small); font-weight: 600; }
+.disc-labelled .disc-sum { order: 3; flex-basis: 100%; text-align: left; }
 .disc-body { padding: 4px 16px 16px; display: flex; flex-direction: column; gap: 12px; }
 
 /* ActionBar: a sticky bottom bar on phone and tablet, inline on a laptop. */
@@ -127,8 +133,8 @@
 /* CoverageBar */
 .coverage { display: flex; flex-direction: column; gap: 8px; }
 .coverage-bar { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; }
-.coverage-seg { height: 12px; border-radius: 4px; background: var(--ink); }
-.coverage-partial { background: linear-gradient(90deg, var(--ink) 50%, #d4d8dc 50%); }
+.coverage-seg { height: 12px; border-radius: 4px; background: var(--filmed); }
+.coverage-partial { background: linear-gradient(90deg, var(--filmed) 50%, #d4d8dc 50%); }
 .coverage-not_checked { background: var(--hatch); box-shadow: inset 0 0 0 1px var(--line-2); }
 .coverage-optional { background: #d4d8dc; }
 .coverage-line { font-size: var(--fs-small); color: var(--ink-2); }
@@ -162,3 +168,12 @@
 .section-sub { color: var(--ink-2); font-size: var(--fs-small); margin-top: -6px; }
 
 @media (prefers-reduced-motion: reduce) { .btn:hover, .btn:active { transform: none; } }
+
+/* Utilities used by pages instead of inline styles */
+.fw { font-weight: 600; }
+.fw-b { font-weight: 700; }
+.hint-center { text-align: center; }
+.stack-sm { display: flex; flex-direction: column; gap: 10px; }
+.stack-md { display: flex; flex-direction: column; gap: 16px; }
+.row-wrap { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.page-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }

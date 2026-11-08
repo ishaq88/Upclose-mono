@@ -6,6 +6,10 @@ import { orderedParts, stagesFor } from '../progress/stages';
 import { OPTIONAL_ZONES } from '../report/model';
 import { defaultNavigate, isSafeCheckoutUrl } from '../results/checkout';
 import { ResultError } from '../results/ResultError';
+import { Button } from '../ui/Button';
+import { Notice } from '../ui/Notice';
+import { Pill, type PillTone } from '../ui/Pill';
+import { cx } from '../ui/cx';
 import { useUnlock } from '../results/useUnlock';
 import '../results/results.css';
 
@@ -41,7 +45,7 @@ export function ProgressPanel({ api, progress, onRefresh, onUnauthorized, naviga
   }
   return (
     <section aria-labelledby="progress-heading" className="res-col">
-      <h2 id="progress-heading" style={{ margin: 0, fontSize: 28, fontWeight: 800, lineHeight: 1.05 }}>Processing and report</h2>
+      <h2 id="progress-heading" className="section-title">Processing and report</h2>
       <div className="prog">
         <div className="res-col">
           <Stages progress={progress} />
@@ -120,16 +124,17 @@ function ZoneRow({ part, capturing }: { part: PartSummary; capturing: boolean })
 }
 
 function ZonePill({ part, capturing }: { part: PartSummary; capturing: boolean }): ReactElement {
+  const pill = (tone: PillTone, label: string, spin = false): ReactElement => (
+    <Pill tone={tone} className={cx(spin && 'pill-run')}>{spin && <span className="spin" aria-hidden="true" />}{label}</Pill>
+  );
   switch (part.state) {
-    case 'processed': return <span className="pill p-ok">Done</span>;
-    case 'processing': return <span className="pill p-run"><span className="spin" aria-hidden="true" />Checking damage</span>;
-    case 'uploaded': return <span className="pill p-wait">Queued</span>;
-    case 'uploading': return <span className="pill p-run"><span className="spin" aria-hidden="true" />Uploading</span>;
-    case 'skipped': return <span className="pill p-not">Skipped</span>;
-    case 'failed': return isQualityReason(part.reason)
-      ? <span className="pill p-warn">Too blurry</span>
-      : <span className="pill p-bad">Could not check</span>;
-    case 'pending': return <span className="pill p-wait">{capturing ? 'Next' : 'Not filmed'}</span>;
+    case 'processed': return pill('ok', 'Done');
+    case 'processing': return pill('warn', 'Checking damage', true);
+    case 'uploaded': return pill('optional', 'Queued');
+    case 'uploading': return pill('warn', 'Uploading', true);
+    case 'skipped': return pill('not', 'Skipped');
+    case 'failed': return isQualityReason(part.reason) ? pill('warn', 'Too blurry') : pill('risk', 'Could not check');
+    case 'pending': return pill('optional', capturing ? 'Next' : 'Not filmed');
   }
 }
 
@@ -147,12 +152,12 @@ function ReportStatus(props: ReportStatusProps): ReactElement {
   else if (progress.report.state === 'building') body = <p role="status" className="muted">Your report is being built. Zones still processing finish in the background.</p>;
   else if (progress.report.state === 'failed') {
     body = (
-      <p role="alert" className="notice notice-error">
-        The report could not be built. Failed or skipped zones were not assessed, which is not a clean result.
-      </p>
+      <Notice tone="error">
+        <p>The report could not be built. Failed or skipped zones were not assessed, which is not a clean result.</p>
+      </Notice>
     );
   } else body = <ReadyReport {...props} slug={progress.report.slug} unlocked={progress.report.unlocked} />;
-  return <div className="res-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{body}</div>;
+  return <div className="res-card res-stack">{body}</div>;
 }
 
 function ReadyReport({ api, slug, unlocked, onRefresh, onUnauthorized, navigate }: ReportStatusProps & { slug: string; unlocked: boolean }): ReactElement {
@@ -164,15 +169,15 @@ function ReadyReport({ api, slug, unlocked, onRefresh, onUnauthorized, navigate 
   });
   return (
     <>
-      <p role="status" style={{ fontWeight: 700 }}>{unlocked ? 'Your report is ready and unlocked.' : 'Your report is ready.'}</p>
-      <div className="res-actions" style={{ marginTop: 0 }}>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onRefresh}>Refresh report status</button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={open}>{unlocked ? 'Open your full report' : 'Open your free report'}</button>
-        {!unlocked && <button type="button" className="btn btn-sm" disabled={unlock.busy} onClick={unlock.start}>
+      <p role="status" className="res-strong">{unlocked ? 'Your report is ready and unlocked.' : 'Your report is ready.'}</p>
+      <div className="res-actions res-actions-flush">
+        <Button variant="secondary" size="sm" onClick={onRefresh}>Refresh report status</Button>
+        <Button variant="secondary" size="sm" onClick={open}>{unlocked ? 'Open your full report' : 'Open your free report'}</Button>
+        {!unlocked && <Button size="sm" disabled={unlock.busy} onClick={unlock.start}>
           {unlock.busy ? 'Opening checkout…' : 'Unlock full report · $19'}
-        </button>}
+        </Button>}
       </div>
-      {unlock.error && <ResultError error={unlock.error}><button type="button" className="textlink" onClick={unlock.dismiss}>Dismiss</button></ResultError>}
+      {unlock.error && <ResultError error={unlock.error}><Button variant="text" size="sm" onClick={unlock.dismiss}>Dismiss</Button></ResultError>}
       <p className="res-note">
         Unlocks only after the payment is verified.
       </p>

@@ -3,6 +3,7 @@ import { useAccount } from './AccountContext';
 import { CredentialsForm } from './CredentialsForm';
 import { accountErrorMessage } from './errors';
 import { nav } from './nav';
+import { Button, Card, Field, Notice } from '../ui';
 import './accounts.css';
 
 type Tab = 'signin' | 'register';
@@ -23,8 +24,8 @@ export function SignInPage(): ReactElement {
     <main className="wrap app-main">
       <div className="acct-narrow">
         <h1 className="page-title">{forgot ? 'Reset password' : tab === 'register' ? 'Create account' : 'Sign in'}</h1>
-        <p className="muted" style={{ margin: '12px 0 24px' }}>Keep your inspections together and open them on any device.</p>
-        <div className="card acct-card">
+        <p className="muted acct-lede">Keep your inspections together and open them on any device.</p>
+        <Card padding="lg" className="acct-card">
           {forgot ? (
             <ForgotForm request={(email) => api.requestPasswordReset(email)} onBack={() => setForgot(false)} />
           ) : (
@@ -37,12 +38,12 @@ export function SignInPage(): ReactElement {
                 <CredentialsForm key={tab} mode={tab} submitLabel={tab === 'register' ? 'Create account' : 'Sign in'} onSubmit={enter} />
               </div>
               <div className="acct-links">
-                {tab === 'signin' && <button type="button" className="textlink" onClick={() => setForgot(true)}>Forgot password?</button>}
-                <a className="textlink" href="/">Continue without an account</a>
+                {tab === 'signin' && <Button variant="text" onClick={() => setForgot(true)}>Forgot password?</Button>}
+                <Button variant="text" href="/">Continue without an account</Button>
               </div>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </main>
   );
@@ -72,16 +73,15 @@ function ForgotForm({ request, onBack }: { request: (email: string) => Promise<v
 
   return (
     <form className="acct-form" onSubmit={(e) => { void submit(e); }}>
-      <div className="field">
-        <label htmlFor={`${id}-email`}>Email</label>
+      <Field label="Email">
         <input id={`${id}-email`} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
+      </Field>
       <div aria-live="polite">
-        {sent && <p className="notice notice-ok">If that email has an account, we've sent a link to reset the password.</p>}
-        {error && <p className="notice notice-error" role="alert">{error}</p>}
+        {sent && <Notice tone="ok" role="status">If that email has an account, we've sent a link to reset the password.</Notice>}
+        {error && <Notice tone="error">{error}</Notice>}
       </div>
-      {!sent && <button className="btn" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send reset link'}</button>}
-      <button type="button" className="textlink" onClick={onBack}>Back to sign in</button>
+      {!sent && <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send reset link'}</Button>}
+      <Button variant="text" onClick={onBack}>Back to sign in</Button>
     </form>
   );
 }

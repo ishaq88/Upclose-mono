@@ -48,7 +48,7 @@ describe('flexible capture', () => {
     expect(finish().disabled).toBe(false);
     expect(screen.getByText(/Add a clip for any area the video missed/)).toBeTruthy();
     fireEvent.click(finish());
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish and build report' }));
     await screen.findByText(/Capture is finished/);
     expect(backend.parts.every((part) => part.state === 'skipped')).toBe(true);
   });

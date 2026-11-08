@@ -115,6 +115,15 @@ describe('Disclosure', () => {
     expect(details.open).toBe(true);
   });
 
+  it('shows a visible text label that follows the open state', () => {
+    render(<Disclosure title="Part 1 free result" summary="Provisional index 94.0" toggleLabel={['Show details', 'Hide details']}>text</Disclosure>);
+    const details = document.querySelector('details') as HTMLDetailsElement;
+    expect(screen.getByText('Show details')).toBeTruthy();
+    details.open = true;
+    fireEvent(details, new Event('toggle'));
+    expect(screen.getByText('Hide details')).toBeTruthy();
+  });
+
   it('defaultOpen renders open', () => {
     render(<Disclosure title="About" defaultOpen>text</Disclosure>);
     expect((document.querySelector('details') as HTMLDetailsElement).open).toBe(true);
@@ -159,7 +168,7 @@ describe('ScoreTiles', () => {
     expect(screen.getByTestId('category-visual').textContent).not.toContain('95');
     expect(screen.getByTestId('category-mechanical').textContent).toContain('Not checked');
     expect(screen.getByTestId('category-overall').textContent).toContain('Visual only');
-    expect(screen.getByTestId('category-scores').textContent).toContain('89.9');
+    expect(screen.getByTestId('category-scores').textContent).not.toContain('Condition index');
     expect(screen.getByTestId('category-scores').textContent).toContain('Mechanical was not checked');
   });
 
@@ -178,9 +187,9 @@ describe('CoverageBar', () => {
   ];
 
   it('names every state in a plain-text line', () => {
-    expect(coverageLine(zones)).toBe('3 of 8 zones assessed · 1 only partly checked · 2 not checked · 2 optional');
+    expect(coverageLine(zones)).toBe('In the index: driver side, passenger side, underbody (3 of 6). Partly checked: front. Not checked: tires, engine. Optional: dashboard, interior.');
     render(<CoverageBar zones={zones} />);
-    expect(screen.getByText(/3 of 8 zones assessed/)).toBeTruthy();
+    expect(screen.getByText(/In the index: driver side, passenger side, underbody \(3 of 6\)/)).toBeTruthy();
     expect(document.querySelectorAll('.coverage-seg')).toHaveLength(8);
     expect(document.querySelectorAll('.coverage-not_checked')).toHaveLength(2);
   });

@@ -3,13 +3,23 @@ import { useAccount } from '../accounts/AccountContext';
 import type { Api, CaptureMode } from '../api/client';
 import { CONSENT_VERSION, MAX_LISTING_CHARS } from '../config';
 import { describeError, type UiError } from '../errors';
+import { SAMPLE_REPORT, sampleFrameUrl } from '../sample/sample';
+import { ActionBar, Button, Card, ChoiceTiles, Disclosure, EvidenceFrame, Field, Pill } from '../ui';
 import { ErrorNotice } from './PartCard';
-import '../capture/capture.css';
+import '../ui/intake.css';
 
 interface Props {
   api: Api;
   onCreated: (session: { sessionId: string; token: string }) => void;
 }
+
+const MODES = [
+  { value: 'single_video', title: 'One video', description: 'One walk around the car, up to 3 minutes.', tag: 'Quickest' },
+  { value: 'guided', title: 'Guided clips', description: 'A short clip per zone, led by a 3D guide.', tag: 'Most thorough', tagTone: 'quiet' },
+] as const;
+
+/** The synthetic sample finding shown beside the form so people see what they will get. */
+const SAMPLE_FINDING = SAMPLE_REPORT.findings.find((finding) => finding.evidence_available) ?? SAMPLE_REPORT.findings[0];
 
 export function ConsentForm({ api, onCreated }: Props): ReactElement {
   const { account } = useAccount();
@@ -35,58 +45,52 @@ export function ConsentForm({ api, onCreated }: Props): ReactElement {
   };
 
   return (
-    <section aria-labelledby="start-heading">
-      <form onSubmit={(event) => { void submit(event); }} className="start" noValidate>
+    <section aria-labelledby="start-heading" className="intake">
+      <form onSubmit={(event) => { void submit(event); }} className="intake-form" noValidate>
         <div>
           <h1 id="start-heading" className="page-title">New inspection</h1>
-          <p className="muted start-lede">How do you want to film the car? Partial footage is fine; anything not shown stays unassessed.</p>
+          <p className="muted intake-lede">About 3 minutes at the car, in daylight. Anything you don't film is marked not checked, never clean.</p>
         </div>
-        <fieldset className="tiles">
-          <legend className="sr-only">How would you like to capture?</legend>
-          <label className="tile">
-            <input type="radio" name="capture-mode" value="single_video" checked={captureMode === 'single_video'} onChange={() => setCaptureMode('single_video')} />
-            <span className="tile-top"><span className="tag">Quickest</span><span className="radio" aria-hidden="true" /></span>
-            <strong>One video</strong>
-            <span className="muted">One walk around the car, up to 3 minutes.</span>
-          </label>
-          <label className="tile">
-            <input type="radio" name="capture-mode" value="guided" checked={captureMode === 'guided'} onChange={() => setCaptureMode('guided')} />
-            <span className="tile-top"><span className="tag tag-quiet">Most thorough</span><span className="radio" aria-hidden="true" /></span>
-            <strong>Guided clips</strong>
-            <span className="muted">A short clip per zone, led by a 3D guide.</span>
-          </label>
-        </fieldset>
-        <details className="start-listing">
-          <summary>Add seller listing text <span className="optional">(optional)</span></summary>
-          <div className="field">
-            <label htmlFor="listing">Seller listing text</label>
-            <textarea id="listing" value={listing} onChange={(event) => setListing(event.target.value)} maxLength={MAX_LISTING_CHARS} rows={3}
-              placeholder="Paste the ad text" aria-describedby="listing-help" />
-            <span id="listing-help" className="hint">Plain text, up to {MAX_LISTING_CHARS.toLocaleString()} characters. No personal details.</span>
-          </div>
-        </details>
-        <div className="consent">
+        <ChoiceTiles name="capture-mode" legend="How would you like to capture?" value={captureMode} onChange={setCaptureMode} options={MODES} />
+        <Disclosure title="Add seller listing text" summary="Optional">
+          <Field label="Seller listing text" hint={`Plain text, up to ${MAX_LISTING_CHARS.toLocaleString()} characters. No personal details.`}>
+            <textarea value={listing} onChange={(event) => setListing(event.target.value)} maxLength={MAX_LISTING_CHARS} rows={3} placeholder="Paste the ad text" />
+          </Field>
+        </Disclosure>
+        <div className="intake-consent">
           <label className="check" htmlFor="consent">
             <input id="consent" type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} aria-describedby="consent-terms" />
             <span>I understand and agree. I have permission to record or upload this footage, and results are a screening aid, not a mechanic's inspection.</span>
           </label>
-          <details className="consent-details">
-            <summary>What this means</summary>
+          <Disclosure title="What this means" className="intake-terms">
             <ul id="consent-terms" className="consent-list">
               <li>Videos you record or select are uploaded for processing. The report labels findings as synthetic test data or real model output.</li>
               <li>Avoid filming people, number plates and private documents.</li>
               <li>You can delete the session's media at any time. Your session lives in this tab, so closing it can lose access to it.</li>
             </ul>
-          </details>
+          </Disclosure>
         </div>
         {error && <ErrorNotice error={error} />}
-        <div className="thumbbar">
-          <button type="submit" disabled={!consent || busy} className="btn btn-block" aria-describedby="consent-hint">
+        <ActionBar className="intake-actions">
+          <Button type="submit" block disabled={!consent || busy} aria-describedby="consent-hint">
             {busy ? 'Starting...' : captureMode === 'single_video' ? 'Continue with one video' : 'Continue with guided clips'}
-          </button>
+          </Button>
           <p id="consent-hint" className="hint start-hint" aria-live="polite">{consent ? '' : 'Tick the box to continue.'}</p>
-        </div>
+          <p className="hint intake-price">Driver side free · full report $19</p>
+        </ActionBar>
       </form>
+      {SAMPLE_FINDING && (
+        <Card as="aside" padding="lg" className="intake-sample" aria-label="A sample finding">
+          <Pill tone="synthetic">Synthetic sample</Pill>
+          <EvidenceFrame src={sampleFrameUrl(SAMPLE_FINDING.id)} bbox={SAMPLE_FINDING.bbox} timestampMs={SAMPLE_FINDING.source_timestamp_ms}
+            label="Sample finding: rust on the driver-side sill" />
+          <ul className="intake-ticks">
+            <li>Every finding comes with the exact frame it was found in.</li>
+            <li>Zones you don't film are listed as not checked.</li>
+            <li>You leave with questions for the seller and a mechanic.</li>
+          </ul>
+        </Card>
+      )}
     </section>
   );
 }

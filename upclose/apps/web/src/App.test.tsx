@@ -99,18 +99,19 @@ describe('guide steps', () => {
     await screen.findByRole('heading', { name: 'Capture steps' });
     const nav = screen.getByRole('navigation', { name: 'Zones' });
     const zones = within(nav).getAllByRole('button');
-    expect(zones).toHaveLength(8);
+    // Eight zones, then the optional engine check as the last item of the list.
+    expect(zones).toHaveLength(9);
     expect(zones.map((zone) => zone.querySelector('.zt')!.textContent)).toEqual([
-      'Driver side', 'Passenger side', 'Front and rear, with glass', 'Tires', 'Engine bay', 'Underbody, low sweep', 'DashboardOptional', 'InteriorOptional',
+      'Driver side', 'Passenger side', 'Front and rear, with glass', 'Tires', 'Engine bay', 'Underbody, low sweep', 'DashboardOptional', 'InteriorOptional', 'Engine checkOptional',
     ]);
     expect(screen.getAllByText('Not filmed yet')).toHaveLength(8);
     expect(zones.filter((zone) => zone.getAttribute('aria-current') === 'step')).toHaveLength(1);
     expect(zones[0]!.getAttribute('aria-current')).toBe('step');
     // The progress line follows the selected zone's position in the display order, not its part number.
-    expect(screen.getByText(/Zone 1 of 8 \u00b7 Driver side/)).toBeTruthy();
+    expect(screen.getByText('Zone 1 of 8')).toBeTruthy();
     const underbody = await zoneCard('Underbody');
     expect(zones[5]!.getAttribute('aria-current')).toBe('step');
-    expect(screen.getByText(/Zone 6 of 8 \u00b7 Underbody, low sweep/)).toBeTruthy();
+    expect(screen.getByText('Zone 6 of 8')).toBeTruthy();
     expect(within(underbody).getByText(/Stay standing and keep your whole body outside the car/)).toBeTruthy();
     expect(within(underbody).getByText(/Do not crawl, kneel under, lie down, or reach beneath the vehicle/)).toBeTruthy();
     expect(screen.getByRole('img', { name: /never go under the car/ })).toBeTruthy();
@@ -175,7 +176,7 @@ describe('skip and finish', () => {
     });
     await screen.findByRole('heading', { name: 'Capture steps' });
     fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Finish and build report' })); });
     expect(await screen.findByText(/A video is still waiting to be processed/)).toBeTruthy();
     expect(screen.queryByText('That step has already changed')).toBeNull();
   });
@@ -211,7 +212,7 @@ describe('skip and finish', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
     expect(backend.callsTo('POST', '/finalize')).toHaveLength(0);
     expect(screen.getByText(/8 zones not yet filmed will be marked skipped/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish and build report' }));
     await screen.findByText(/Capture is finished/);
     expect(backend.callsTo('POST', '/finalize')).toHaveLength(1);
     await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Zones' })).getAllByText('Skipped')).toHaveLength(8));
@@ -255,7 +256,7 @@ describe('saving the inspection to an account during capture', () => {
     backend.parts[0].state = 'processing';
     await waitFor(() => expect((screen.getByRole('button', { name: 'Finish capture' }) as HTMLButtonElement).disabled).toBe(false), { timeout: 8000 });
     fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish and build report' }));
     await screen.findByText(/Capture is finished/);
     backend.report = { slug: 'slug-abc', state: 'ready', unlocked: false };
     expect(await screen.findByRole('button', { name: 'Open your free report' }, { timeout: 5000 })).toBeTruthy();
@@ -392,7 +393,7 @@ describe('error handling', () => {
     });
     await screen.findByRole('heading', { name: 'Capture steps' });
     fireEvent.click(screen.getByRole('button', { name: 'Finish capture' }));
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Yes, finish' })); });
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Finish and build report' })); });
     expect((await screen.findByText('Too many requests')).closest('[role="alert"]')!.textContent).toContain('9 seconds');
   });
 

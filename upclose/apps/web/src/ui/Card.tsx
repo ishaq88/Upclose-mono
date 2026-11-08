@@ -7,7 +7,7 @@ export interface CardProps extends HTMLAttributes<HTMLElement> {
   tone?: CardTone;
   padding?: 'md' | 'lg';
   /** Element to render; a div by default. */
-  as?: 'div' | 'section' | 'article' | 'aside';
+  as?: 'div' | 'section' | 'article' | 'aside' | 'figure' | 'li';
 }
 
 export function Card({ tone = 'default', padding, as: Tag = 'div', className, ...rest }: CardProps): ReactElement {

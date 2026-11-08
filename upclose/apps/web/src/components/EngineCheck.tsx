@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { ENGINE_FINISH_LINE, ENGINE_STEPS, LEARNING_SECONDS } from '../capture/engineCheck';
 import { PROVENANCE_LABEL, type KitRow } from '../capture/kits';
 import { useVoiceGuide } from '../capture/voiceGuide';
+import { Button } from '../ui/Button';
+import { Pill } from '../ui/Pill';
 
 interface Props {
   rows: readonly KitRow[];
@@ -68,12 +70,12 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
         {ENGINE_STEPS.map((candidate, position) => (
           <li key={candidate.id} aria-current={position === index ? 'step' : undefined} className={position === index ? 'engine-step engine-step-current' : 'engine-step'}>
             <span className="engine-step-title">{candidate.title}</span>
-            {position < index || finished ? <span className="tag tag-quiet">Done</span> : null}
+            {position < index || finished ? <Pill tone="filmed">Done</Pill> : null}
           </li>
         ))}
       </ol>
       {index < 0 && (
-        <button type="button" className="btn btn-sm" disabled={!capturing} data-testid="engine-check-start" onClick={() => go(0)}>Start engine check</button>
+        <Button size="sm" disabled={!capturing} data-testid="engine-check-start" onClick={() => go(0)}>Start engine check</Button>
       )}
       {step && (
         <div className="stack" data-testid="engine-current">
@@ -81,11 +83,11 @@ export function EngineCheck({ rows, capturing, learningSeconds = LEARNING_SECOND
           {status(step.kit)}
           {step.countdown && remaining !== null && <p role="timer" className="num" data-testid="engine-countdown">{remaining} s of {learningSeconds} s</p>}
           <div className="cap-actions">
-            {step.countdown && remaining === null && <button type="button" className="btn btn-sm" data-testid="engine-check-learn" onClick={startLearning}>Start {learningSeconds} s learning</button>}
+            {step.countdown && remaining === null && <Button size="sm" data-testid="engine-check-learn" onClick={startLearning}>Start {learningSeconds} s learning</Button>}
             {!step.countdown && (
-              <button type="button" className="btn btn-sm" data-testid="engine-check-next" onClick={() => go(index + 1)}>{index === ENGINE_STEPS.length - 1 ? 'Finish engine check' : 'Next step'}</button>
+              <Button size="sm" data-testid="engine-check-next" onClick={() => go(index + 1)}>{index === ENGINE_STEPS.length - 1 ? 'Finish engine check' : 'Next step'}</Button>
             )}
-            {voice.enabled && <button type="button" className="btn btn-ghost btn-sm" onClick={() => voice.play(step.lineId, step.text)}>Hear this step again</button>}
+            {voice.enabled && <Button variant="secondary" size="sm" onClick={() => voice.play(step.lineId, step.text)}>Hear this step again</Button>}
           </div>
           {step.id === 'audio' && <p className="hint">Add the recording under Engine audio above.</p>}
         </div>

@@ -130,7 +130,7 @@ describe('paid report kit integration', () => {
   it('keeps written evidence when protected media fails', async () => {
     render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(WITH_KITS) }, FRAMES, { match: /\/(narration|audio|spectrogram)$/, respond: () => problem(403, 'TOKEN_INVALID') }])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     expect(await screen.findByText(/Spectrogram unavailable. The written report/)).toBeTruthy();
-    expect(screen.getByTestId('advisory').textContent).toContain('Ask about maintenance.');
+    expect(document.body.textContent).toContain('Ask about maintenance.');
     expect(document.querySelector('audio[src]')).toBeNull();
   });
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { clearPendingCheckout, defaultNavigate, pendingCheckout } from '../results/checkout';
+import { Button, Card } from '../ui';
 import '../results/results.css';
 
 export interface CheckoutReturnProps {
@@ -25,15 +26,15 @@ export function CheckoutReturn({ navigate = defaultNavigate, redirectMs = 2500 }
     return () => window.clearTimeout(timer);
   }, [navigate, redirectMs, target]);
   return (
-    <section aria-labelledby="return-heading" className="res-card build-card" style={{ margin: '0 auto' }}>
-      <h1 id="return-heading" className="page-title" style={{ fontSize: 'clamp(28px, 4vw, 36px)' }}>Checking your payment…</h1>
+    <Card as="section" padding="lg" aria-labelledby="return-heading" className="build-card build-card-center">
+      <h1 id="return-heading" className="page-title">Checking your payment…</h1>
       <p role="status" className="muted">
         <span className="spin" aria-hidden="true" />
         Taking you back. Your full report opens once our payment provider confirms the payment to our server, which can take a short while. Opening this page does not unlock anything. If you cancelled, you can start again from your report.
       </p>
       <div className="res-actions">
-        <a className="btn btn-sm" href={target} onClick={() => { if (target === '/') clearPendingCheckout(); }}>{target === '/' ? 'Back to your session' : 'Back to your report'}</a>
+        <Button size="sm" href={target} onClick={() => { if (target === '/') clearPendingCheckout(); }}>{target === '/' ? 'Back to your session' : 'Back to your report'}</Button>
       </div>
-    </section>
+    </Card>
   );
 }

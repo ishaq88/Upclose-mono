@@ -3,6 +3,7 @@ import { loadSession } from '../session/storage';
 import { useAccount } from './AccountContext';
 import type { AccountSessionSummary } from './api';
 import { accountErrorMessage, MIN_PASSWORD, passwordProblem } from './errors';
+import { Button, Card, Field, Notice, PageHeader } from '../ui';
 import './accounts.css';
 
 type Load = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; rows: AccountSessionSummary[] };
@@ -68,12 +69,12 @@ export function MyReportsPage(): ReactElement {
     return (
       <main className="wrap app-main">
         <div className="acct-narrow">
-          <h1 className="page-title">My reports</h1>
-          <div className="card acct-card" style={{ marginTop: 24 }}>
+          <PageHeader title="My reports" />
+          <Card padding="lg" className="acct-card">
             <p>Sign in to see the inspections you've saved.</p>
-            <a className="btn" href="/signin">Sign in</a>
-            <a className="textlink" href="/">Continue without an account</a>
-          </div>
+            <Button href="/signin">Sign in</Button>
+            <Button variant="text" href="/">Continue without an account</Button>
+          </Card>
         </div>
       </main>
     );
@@ -83,24 +84,18 @@ export function MyReportsPage(): ReactElement {
 
   return (
     <main className="wrap app-main">
-      <div className="acct-head">
-        <h1 className="page-title">My reports</h1>
-        <a className="btn" href="/">New inspection</a>
-      </div>
+      <PageHeader title="My reports" actions={<Button href="/">New inspection</Button>} />
       <div className="acct-layout">
         <section aria-label="Your inspections" aria-busy={load.status === 'loading'}>
           {load.status === 'loading' && <p className="muted" role="status">Loading your reports…</p>}
           {load.status === 'error' && (
-            <div className="notice notice-error" role="alert">
-              <p>{load.message}</p>
-              <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 12 }} onClick={() => setAttempt((n) => n + 1)}>Try again</button>
-            </div>
+            <Notice tone="error" action={<Button variant="secondary" size="sm" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}>{load.message}</Notice>
           )}
           {load.status === 'ready' && load.rows.length === 0 && (
-            <div className="card acct-card">
-              <h2>No saved inspections yet</h2>
+            <Card padding="lg" className="acct-card">
+              <h2 className="section-title">No saved inspections yet</h2>
               <p className="muted">After you inspect a car, choose "Save to my account" and it will show up here.</p>
-            </div>
+            </Card>
           )}
           {load.status === 'ready' && load.rows.length > 0 && (
             <ul className="rep-list">
@@ -124,7 +119,7 @@ export function MyReportsPage(): ReactElement {
             </ul>
           )}
         </section>
-        <aside className="card acct-side" aria-label="Account">
+        <Card as="aside" padding="lg" className="acct-side" aria-label="Account">
           <div className="acct-who">
             <span className="avatar" aria-hidden="true">{account.email.slice(0, 1).toUpperCase()}</span>
             <span>{account.email}</span>
@@ -133,8 +128,8 @@ export function MyReportsPage(): ReactElement {
             <summary>Change password</summary>
             <ChangePassword change={(a, b) => api.changePassword(a, b)} />
           </details>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void signOut(); }}>Sign out</button>
-        </aside>
+          <Button variant="secondary" size="sm" onClick={() => { void signOut(); }}>Sign out</Button>
+        </Card>
       </div>
     </main>
   );
@@ -170,20 +165,17 @@ function ChangePassword({ change }: { change: (current: string, next: string) =>
 
   return (
     <form className="acct-form" onSubmit={(e) => { void submit(e); }}>
-      <div className="field">
-        <label htmlFor={`${id}-cur`}>Current password</label>
+      <Field label="Current password">
         <input id={`${id}-cur`} type="password" autoComplete="current-password" required value={current} onChange={(e) => setCurrent(e.target.value)} />
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-new`}>New password</label>
-        <input id={`${id}-new`} type="password" autoComplete="new-password" required aria-describedby={`${id}-hint`} value={next} onChange={(e) => setNext(e.target.value)} />
-        <span className="hint" id={`${id}-hint`}>At least {MIN_PASSWORD} characters. Other devices will be signed out.</span>
-      </div>
+      </Field>
+      <Field label="New password" hint={`At least ${MIN_PASSWORD} characters. Other devices will be signed out.`}>
+        <input id={`${id}-new`} type="password" autoComplete="new-password" required value={next} onChange={(e) => setNext(e.target.value)} />
+      </Field>
       <div aria-live="polite">
-        {done && <p className="notice notice-ok">Password changed. Other devices were signed out.</p>}
-        {error && <p className="notice notice-error" role="alert">{error}</p>}
+        {done && <Notice tone="ok" role="status">Password changed. Other devices were signed out.</Notice>}
+        {error && <Notice tone="error">{error}</Notice>}
       </div>
-      <button type="submit" className="btn btn-dark btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</button>
+      <Button type="submit" variant="dark" size="sm" disabled={busy}>{busy ? 'Saving…' : 'Change password'}</Button>
     </form>
   );
 }

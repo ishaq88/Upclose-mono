@@ -10,6 +10,9 @@ import type { UiError } from '../errors';
 import type { LocalUpload } from '../upload/useUploads';
 import type { UploadContentType, UploadRecord } from '../upload/multipart';
 import { describeReason } from '../progress/reasons';
+import { ActionBar } from '../ui/ActionBar';
+import { Button } from '../ui/Button';
+import { Notice } from '../ui/Notice';
 import { CameraRecorder } from './CameraRecorder';
 import '../capture/capture.css';
 
@@ -62,11 +65,14 @@ export interface PartCardProps {
   onDismissError: () => void;
 }
 
+/** The card shows the first few steps only; the goal and the seconds carry the rest. */
+const MAX_STEPS = 3;
+
 export function PartCard(props: PartCardProps): ReactElement {
   const { guide, part, optional } = props;
   const headingId = `part-${part.part_no}-heading`;
   return (
-    <article className="guide" aria-labelledby={headingId} data-part={part.part_no}>
+    <article className="guide card" aria-labelledby={headingId} data-part={part.part_no}>
       {props.showViewer !== false && <GuideViewer guide={guide} />}
       <div className="guide-body">
         <div className="guide-lead">
@@ -78,11 +84,11 @@ export function PartCard(props: PartCardProps): ReactElement {
           {guide.prototypeNote && <p className="hint">{guide.prototypeNote}</p>}
         </div>
         <ol className="guide-steps">
-          {guide.steps.map((step) => <li key={step}>{step}</li>)}
+          {guide.steps.slice(0, MAX_STEPS).map((step) => <li key={step}>{step}</li>)}
         </ol>
       </div>
-      {part.state === 'failed' && part.reason && <p className="notice notice-error guide-note">{describeReason(part.reason)}</p>}
-      {part.state === 'skipped' && <p className="notice guide-note">Skipped. This zone will show as not assessed.</p>}
+      {part.state === 'failed' && part.reason && <Notice tone="error" className="guide-note">{describeReason(part.reason)}</Notice>}
+      {part.state === 'skipped' && <Notice className="guide-note">Skipped. This zone will show as not assessed.</Notice>}
       <Actions {...props} />
     </article>
   );
@@ -105,7 +111,7 @@ function Actions(props: PartCardProps): ReactElement | null {
         <p className="hint">Clip accepted. To replace it, start a new session.</p>
       )}
       {props.next && part.state !== 'pending' && !busy && (
-        <button type="button" className="btn btn-ghost btn-sm next-zone" onClick={props.next.go}>Next zone: {props.next.title}</button>
+        <Button variant="secondary" size="sm" className="next-zone" onClick={props.next.go}>Next zone: {props.next.title}</Button>
       )}
     </div>
   );
@@ -113,11 +119,10 @@ function Actions(props: PartCardProps): ReactElement | null {
 
 export function ErrorNotice({ error, onDismiss }: { error: UiError; onDismiss?: () => void }): ReactElement {
   return (
-    <div role="alert" className="notice notice-error">
-      <p className="notice-title">{error.title}</p>
-      <p>{error.message}</p>
-      {onDismiss && error.action !== 'new_session' && <button type="button" onClick={onDismiss} className="textlink">Dismiss</button>}
-    </div>
+    <Notice tone="error" title={error.title}
+      action={onDismiss && error.action !== 'new_session' ? <Button variant="text" size="sm" onClick={onDismiss}>Dismiss</Button> : undefined}>
+      {error.message}
+    </Notice>
   );
 }
 
@@ -131,7 +136,7 @@ function UploadProgress({ local, onCancel }: { local: LocalUpload; onCancel: () 
         {label}
         <progress className="meter" max={100} value={percent} aria-label="Upload progress" />
       </label>
-      <button type="button" onClick={onCancel} className="btn btn-ghost btn-sm">Cancel and retake</button>
+      <Button variant="secondary" size="sm" onClick={onCancel}>Cancel and retake</Button>
     </div>
   );
 }
@@ -141,11 +146,11 @@ function FailedControls(props: PartCardProps): ReactElement {
   return (
     <div className="stack">
       {hasFile ? (
-        <button type="button" onClick={props.onRetry} className="btn">Try again</button>
+        <Button onClick={props.onRetry}>Try again</Button>
       ) : record ? (
         <ReselectFile label="Select the same video to continue" onFile={props.onResumeWith} />
       ) : null}
-      <div><button type="button" onClick={props.onRetake} className="textlink">Start this zone over</button></div>
+      <div><Button variant="text" size="sm" onClick={props.onRetake}>Start this zone over</Button></div>
     </div>
   );
 }
@@ -153,28 +158,27 @@ function FailedControls(props: PartCardProps): ReactElement {
 function InterruptedControls({ record, ...props }: PartCardProps): ReactElement {
   if (!record) {
     return (
-      <div className="notice notice-warn stack">
+      <Notice tone="warn"
+        action={props.part.active_upload_id ? <Button variant="secondary" size="sm" onClick={props.onDiscardStranded}>Discard stranded upload</Button> : undefined}>
         <p>This zone has an upload this tab cannot continue. Discard it, then film or choose the video again.</p>
-        {props.part.active_upload_id
-          ? <button type="button" onClick={props.onDiscardStranded} className="btn btn-ghost btn-sm">Discard stranded upload</button>
-          : <p>Nothing to discard; unfinished uploads close on their own after 24 hours.</p>}
-      </div>
+        {!props.part.active_upload_id && <p>Nothing to discard; unfinished uploads close on their own after 24 hours.</p>}
+      </Notice>
     );
   }
   return (
-    <div className="notice notice-warn stack">
+    <Notice tone="warn">
       <p>
         An upload for this zone was interrupted ({formatBytes(record.size)}{record.fileName ? `, ${record.fileName}` : ''}). Select the same video file again to continue; only missing pieces are sent. A clip recorded in the browser cannot be recovered, so use Start this zone over.
       </p>
       <ReselectFile label="Select the same video to continue" onFile={props.onResumeWith} />
-      <div><button type="button" onClick={props.onRetake} className="textlink">Start this zone over</button></div>
-    </div>
+      <div><Button variant="text" size="sm" onClick={props.onRetake}>Start this zone over</Button></div>
+    </Notice>
   );
 }
 
 function ReselectFile({ label, onFile }: { label: string; onFile: (file: File) => void }): ReactElement {
   return (
-    <label className="btn btn-ghost btn-sm file-btn">
+    <label className="btn btn-secondary btn-sm file-btn">
       {label}
       <input type="file" accept="video/*" className="sr-only" onChange={(event) => pickFile(event, onFile)} />
     </label>
@@ -226,16 +230,16 @@ function CaptureControls(props: PartCardProps): ReactElement {
         <p className="review-title">Review your clip for {guide.title}</p>
         {draft.previewUrl && <video src={draft.previewUrl} controls muted playsInline className="review-video" aria-label="Preview of your clip" />}
         <p className="hint">{formatBytes(draft.file.size)}</p>
-        {draft.tooLarge && <p role="alert" className="notice notice-error">This clip is larger than {MAX_CLIP_BYTES / (1024 * 1024)} MiB, which is the limit for one clip. Retake a shorter one.</p>}
-        {draft.contentType === null && <p role="alert" className="notice notice-error">This file type is not supported. Use an MP4, MOV or WebM video.</p>}
+        {draft.tooLarge && <Notice tone="error">This clip is larger than {MAX_CLIP_BYTES / (1024 * 1024)} MiB, which is the limit for one clip. Retake a shorter one.</Notice>}
+        {draft.contentType === null && <Notice tone="error">This file type is not supported. Use an MP4, MOV or WebM video.</Notice>}
         <HintList hints={draft.hints} />
-        <div className="cap-actions review-actions">
-          <button type="button" className="btn" disabled={!canUpload}
+        <ActionBar className="cap-actions" label="Upload or retake">
+          <Button disabled={!canUpload}
             onClick={() => { if (draft.contentType) { props.onStart(draft.file, draft.contentType); discard(); } }}>
             Upload this clip
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={discard}>Retake</button>
-        </div>
+          </Button>
+          <Button variant="secondary" onClick={discard}>Retake</Button>
+        </ActionBar>
         <p className="hint">Hints are advice only; weak footage may be marked as not fully assessed.</p>
       </div>
     );
@@ -243,18 +247,18 @@ function CaptureControls(props: PartCardProps): ReactElement {
 
   return (
     <>
-      <div className="thumbbar">
+      <ActionBar className="cap-actions" label={`Actions for ${guide.title}`}>
         {confirmSkip ? (
           <div className="skip-confirm">
             <p>Skip {guide.title}? This cannot be undone, and the zone will show as not assessed.</p>
-            <div className="cap-actions">
-              <button type="button" className="btn btn-dark" onClick={() => { setConfirmSkip(false); props.onSkip(); }}>Yes, skip {guide.title}</button>
-              <button type="button" className="btn btn-ghost" onClick={() => setConfirmSkip(false)}>Keep it</button>
+            <div className="cap-confirm">
+              <Button variant="dark" onClick={() => { setConfirmSkip(false); props.onSkip(); }}>Yes, skip {guide.title}</Button>
+              <Button variant="secondary" onClick={() => setConfirmSkip(false)}>Keep it</Button>
             </div>
           </div>
         ) : (
-          <div className="cap-actions">
-            <label className="btn primary hide-lg file-btn">
+          <>
+            <label className="btn btn-primary hide-lg file-btn">
               <RecordIcon />
               <span>Record {name}</span>
               <input type="file" accept="video/*" capture="environment" className="sr-only" onChange={(event) => pickFile(event, (file) => accept(file, null))} />
@@ -264,10 +268,10 @@ function CaptureControls(props: PartCardProps): ReactElement {
               <span>Upload<span className="hide-sm"> {name} clip</span></span>
               <input type="file" accept="video/*" className="sr-only" onChange={(event) => pickFile(event, (file) => accept(file, null))} />
             </label>
-            <button type="button" className="textlink" onClick={() => setConfirmSkip(true)}>Skip this zone</button>
-          </div>
+            <Button variant="text" size="sm" onClick={() => setConfirmSkip(true)}>Skip this zone</Button>
+          </>
         )}
-      </div>
+      </ActionBar>
       <div className="webcam hide-sm">
         <p className="webcam-title">Or record with your webcam</p>
         <CameraRecorder partNo={part.part_no} maxSeconds={MAX_RECORDING_SECONDS} onRecorded={(file, seconds) => accept(file, seconds)} />

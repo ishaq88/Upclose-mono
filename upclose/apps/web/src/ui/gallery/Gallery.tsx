@@ -3,9 +3,9 @@ import { createApi } from '../../api/client';
 import type { CategoryScores } from '../../api/client';
 import { CaptureFlow } from '../../components/CaptureFlow';
 import { ConsentForm } from '../../components/ConsentForm';
-import { Part1Slot } from '../../components/FreeVerdictCard';
+import { FreeVerdictCard, Part1Slot } from '../../components/FreeVerdictCard';
 import { ReportView } from '../../report/ReportView';
-import { SAMPLE_REPORT } from '../../sample/sample';
+import { SAMPLE_REPORT, sampleFrameUrl } from '../../sample/sample';
 import { FakeBackend, syntheticVerdict } from '../../testing/fakeBackend';
 import {
   ActionBar, Banner, Button, Card, ChoiceTiles, CoverageBar, Disclosure, EvidenceFrame, Field, Notice, PageHeader, Pill, ScoreTiles,
@@ -23,6 +23,7 @@ export const STATES = [
   ['finished', 'Finished, progress'],
   ['free-result', 'Free result'],
   ['paid-report', 'Paid report (sample)'],
+  ['paid-report-scored', 'Paid report (sample, with category scores)'],
 ] as const;
 
 type StateId = (typeof STATES)[number][0];
@@ -64,7 +65,8 @@ function useFake(id: StateId): { backend: FakeBackend; api: ReturnType<typeof cr
 
 function CaptureState({ id }: { id: StateId }): ReactElement {
   const { backend, api } = useFake(id);
-  return <CaptureFlow api={api} sessionId={backend.sessionId} ownerToken={backend.token} onNewSession={() => undefined} />;
+  const initialView = id === 'capture-engine' ? 'engine' : id === 'wrapup' ? 'wrapup' : undefined;
+  return <CaptureFlow api={api} sessionId={backend.sessionId} ownerToken={backend.token} onNewSession={() => undefined} initialView={initialView} />;
 }
 
 function StartState(): ReactElement {
@@ -72,8 +74,34 @@ function StartState(): ReactElement {
   return <ConsentForm api={api} onCreated={() => undefined} />;
 }
 
-/** Sample frames are served by the landing build; the app's dev server has none, so a local landing server supplies them. */
-const frameUrl = (frameId: string): string => `http://127.0.0.1:5181/sample/frames/${frameId}.jpg`;
+const frameUrl = sampleFrameUrl;
+
+/** Synthetic category scores for review of the ScoreTiles path: Visual is the condition index, as the API sends it. */
+const SCORED_REPORT = {
+  ...SAMPLE_REPORT,
+  categories: {
+    visual: { state: 'assessed', score: 94.9, reason: null },
+    mechanical: { state: 'assessed', score: 64.0, reason: null },
+    overall: { state: 'assessed', score: 82.5, basis: 'blend', note: 'Synthetic scores for review.' },
+  },
+} as unknown as typeof SAMPLE_REPORT;
+
+const PAID_HEADER = {
+  crumbs: [{ label: 'My reports', href: '/reports' }, { label: SAMPLE_REPORT.vehicle_label ?? 'Report' }],
+  title: SAMPLE_REPORT.vehicle_label ?? 'Your report',
+  meta: <><Pill tone="synthetic">Synthetic test result. No real inference was performed.</Pill><span>Issued Nov 4, 2026</span></>,
+  actions: <><Button variant="secondary" size="sm">Share with mechanic</Button><Button variant="secondary" size="sm" href="#r-advice">Listen</Button><Button variant="secondary" size="sm">Rename</Button></>,
+};
+
+function FreeResult(): ReactElement {
+  return (
+    <>
+      <PageHeader crumbs={[{ label: 'My reports', href: '/reports' }, { label: 'Report' }]} title="Your report" />
+      <FreeVerdictCard data={syntheticVerdict()} layout="page" unlock={{ onUnlock: () => undefined, busy: false, error: null }} />
+      <div className="gal-slot"><Part1Slot part1={undefined} verdict={syntheticVerdict()} /></div>
+    </>
+  );
+}
 
 function Screen({ id }: { id: StateId }): ReactElement {
   const shell = (children: ReactNode): ReactElement => <main className="wrap app-main">{children}</main>;
@@ -84,8 +112,9 @@ function Screen({ id }: { id: StateId }): ReactElement {
     case 'capture-mid':
     case 'wrapup':
     case 'finished': return shell(<CaptureState key={id} id={id} />);
-    case 'free-result': return shell(<Part1Slot part1={undefined} verdict={syntheticVerdict()} />);
-    case 'paid-report': return shell(<ReportView report={SAMPLE_REPORT} frameUrl={frameUrl} />);
+    case 'free-result': return shell(<FreeResult />);
+    case 'paid-report-scored': return shell(<ReportView report={SCORED_REPORT} frameUrl={frameUrl} header={PAID_HEADER} />);
+    case 'paid-report': return shell(<ReportView report={SAMPLE_REPORT} frameUrl={frameUrl} header={PAID_HEADER} />);
   }
 }
 

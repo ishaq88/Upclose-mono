@@ -1,4 +1,4 @@
-import { useId, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type MouseEvent, type ReactElement, type ReactNode } from 'react';
+import { useId, type AnchorHTMLAttributes, type ButtonHTMLAttributes, type MouseEvent, type ReactElement, type ReactNode, type Ref } from 'react';
 import { cx } from './cx';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'dark' | 'danger' | 'text';
@@ -17,7 +17,7 @@ interface CommonProps {
   children: ReactNode;
 }
 
-export type ButtonProps = CommonProps & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'> & { href?: undefined };
+export type ButtonProps = CommonProps & Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'className' | 'children'> & { href?: undefined; ref?: Ref<HTMLButtonElement> };
 export type LinkButtonProps = CommonProps & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'className' | 'children'> & { href: string };
 
 /** The one button. Renders an `<a>` when `href` is given. Hover lifts 1px, press scales to 0.98. */

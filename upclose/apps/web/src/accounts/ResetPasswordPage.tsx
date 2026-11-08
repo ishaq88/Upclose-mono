@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type FormEvent, type ReactElement } from 'react';
 import { useAccount } from './AccountContext';
 import { accountErrorMessage, MIN_PASSWORD, passwordProblem } from './errors';
+import { Button, Card, Field, Notice } from '../ui';
 import './accounts.css';
 
 // Held in memory so a StrictMode double effect (or re-mount) still finds the token after the hash is stripped.
@@ -64,39 +65,36 @@ export function ResetPasswordPage(): ReactElement {
     <main className="wrap app-main">
       <div className="acct-narrow">
         <h1 className="page-title">{done ? 'Password changed' : 'New password'}</h1>
-        <div className="card acct-card" style={{ marginTop: 24 }}>
+        <Card padding="lg" className="acct-card acct-card-gap">
           {done ? (
             <>
-              <p className="notice notice-ok" role="status">Your password is changed and every device has been signed out.</p>
-              <a className="btn" href="/signin">Sign in</a>
+              <Notice tone="ok" role="status">Your password is changed and every device has been signed out.</Notice>
+              <Button href="/signin">Sign in</Button>
             </>
           ) : token ? (
             <form className="acct-form" onSubmit={(e) => { void submit(e); }}>
-              <div className="field">
-                <label htmlFor={`${id}-pw`}>New password</label>
-                <input id={`${id}-pw`} type="password" autoComplete="new-password" required aria-describedby={`${id}-hint`}
+              <Field label="New password" hint={`At least ${MIN_PASSWORD} characters`}>
+                <input id={`${id}-pw`} type="password" autoComplete="new-password" required
                   value={password} onChange={(e) => setPassword(e.target.value)} />
-                <span className="hint" id={`${id}-hint`}>At least {MIN_PASSWORD} characters</span>
-              </div>
-              <div aria-live="polite">{error && <p className="notice notice-error" role="alert">{error}</p>}</div>
-              <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Set new password'}</button>
+              </Field>
+              <div aria-live="polite">{error && <Notice tone="error">{error}</Notice>}</div>
+              <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Set new password'}</Button>
             </form>
           ) : (
             <form className="acct-form" onSubmit={(e) => { void resend(e); }}>
-              <p className="notice notice-error" role="alert">{invalid ? 'That reset link is invalid or has expired.' : 'This page needs a reset link.'} Request a new one below.</p>
-              <div className="field">
-                <label htmlFor={`${id}-email`}>Email</label>
+              <Notice tone="error">{invalid ? 'That reset link is invalid or has expired.' : 'This page needs a reset link.'} Request a new one below.</Notice>
+              <Field label="Email">
                 <input id={`${id}-email`} type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
+              </Field>
               <div aria-live="polite">
-                {sent && <p className="notice notice-ok">If that email has an account, we've sent a link to reset the password.</p>}
-                {error && <p className="notice notice-error" role="alert">{error}</p>}
+                {sent && <Notice tone="ok" role="status">If that email has an account, we've sent a link to reset the password.</Notice>}
+                {error && <Notice tone="error">{error}</Notice>}
               </div>
-              {!sent && <button className="btn" type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send reset link'}</button>}
-              <a className="textlink" href="/signin">Back to sign in</a>
+              {!sent && <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send reset link'}</Button>}
+              <Button variant="text" href="/signin">Back to sign in</Button>
             </form>
           )}
-        </div>
+        </Card>
       </div>
     </main>
   );

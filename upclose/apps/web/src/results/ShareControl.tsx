@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactElement } from 'react';
 import type { Api } from '../api/client';
 import { describeError, type UiError } from '../errors';
+import { Button } from '../ui';
 import { ResultError } from './ResultError';
 
 /** Copy with the clipboard API; fall back to selecting the field and execCommand. Returns whether it worked. */
@@ -61,19 +62,19 @@ export function ShareControl({ api, slug }: { api: Api; slug: string }): ReactEl
   };
 
   return (
-    <div className="share-bar" data-testid="share-control">
+    <div className={link === null ? 'share-bar' : 'share-bar share-bar-open'} data-testid="share-control">
       {link === null ? (
-        <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { void enable(); }}>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => { void enable(); }}>
           {busy ? 'Turning on…' : 'Share with mechanic'}
-        </button>
+        </Button>
       ) : (
         <>
           <input ref={field} readOnly value={link} aria-label="Share link" onFocus={(e) => e.currentTarget.select()} />
-          <button type="button" className="btn btn-sm" onClick={() => { void copy(); }}>Copy link</button>
-          <button type="button" className="btn btn-sm btn-ghost" disabled={busy} onClick={() => { void disable(); }}>Stop sharing</button>
+          <Button size="sm" onClick={() => { void copy(); }}>Copy link</Button>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => { void disable(); }}>Stop sharing</Button>
         </>
       )}
-      <p className="res-note" style={{ flexBasis: '100%' }} role="status">
+      <p className="res-note share-note" role="status">
         {link !== null && !active ? 'The link is saved, but public sharing is switched off right now, so it will not open yet. ' : ''}
         {note ?? (link === null ? 'Gives your mechanic a read-only link. You can turn it off any time.' : 'Anyone with this link can read the report.')}
       </p>

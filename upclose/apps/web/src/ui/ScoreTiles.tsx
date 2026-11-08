@@ -12,7 +12,7 @@ function scoreOf(category: Category): string | null {
 
 export interface ScoreTilesProps {
   categories: CategoryScores;
-  /** The zone-weighted condition index out of 100, when the report has one. */
+  /** The condition index out of 100. Shown only when Visual is not assessed: otherwise Visual is the condition index and repeating it would double-count. */
   conditionIndex?: number | null;
 }
 
@@ -43,7 +43,7 @@ export function ScoreTiles({ categories, conditionIndex }: ScoreTilesProps): Rea
         </div>
       </dl>
       {visualOnly && <p className="hint">{overall.note || 'Mechanical was not checked, so there is no overall score.'}</p>}
-      {conditionIndex !== undefined && conditionIndex !== null && Number.isFinite(conditionIndex) && (
+      {visualScore === null && conditionIndex !== undefined && conditionIndex !== null && Number.isFinite(conditionIndex) && (
         <p className="score-index">Condition index <b>{formatIndex(conditionIndex)}</b> out of 100</p>
       )}
     </section>

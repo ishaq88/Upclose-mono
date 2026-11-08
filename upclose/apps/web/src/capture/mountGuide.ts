@@ -10,7 +10,8 @@ const ORANGE = new THREE.Color('#ff5a1f');
 const DONE = new THREE.Color('#1f6f8b');
 
 export interface GuideHandle {
-  setZone: (partNo: number) => void;
+  /** A part number highlights that zone and flies the camera to it; null shows the whole car with no zone highlighted (the wrap-up overview). */
+  setZone: (partNo: number | null) => void;
   /** Zones already filmed: drawn as a quiet green wash on the car so progress reads at a glance. */
   setDone: (partNos: readonly number[]) => void;
   dispose: () => void;
@@ -51,7 +52,7 @@ function prefersReducedMotion(): boolean {
 }
 
 /** Mounts the guide into `el`. Rejects when WebGL or the model is unavailable; the caller shows the text steps. */
-export async function mountGuide(el: HTMLElement, initialPartNo: number): Promise<GuideHandle> {
+export async function mountGuide(el: HTMLElement, initialPartNo: number | null): Promise<GuideHandle> {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // throws without WebGL
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -141,7 +142,7 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
   };
   const track = <T extends { dispose: () => void }>(item: T): T => { fxDisposables.push(item); return item; };
 
-  let activePart = initialPartNo;
+  let activePart: number | null = initialPartNo;
   let donePartsList: readonly number[] = [];
   const drawDone = (): void => {
     doneFx.clear();
@@ -177,11 +178,25 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
     drawDone();
   };
 
-  const setZone = (partNo: number): void => {
+  const flyTo = (dir: THREE.Vector3, pad: number): void => {
+    camera.aspect = el.clientWidth / Math.max(1, el.clientHeight);
+    from = { cam: camera.position.clone(), at: controls.target.clone() };
+    to = { cam: target.clone().add(dir.multiplyScalar(distance(pad))), at: target.clone() };
+    tween = reduceMotion || from.cam.lengthSq() === 0 ? 1 : 0;
+    if (tween === 1) { camera.position.copy(to.cam); controls.target.copy(to.at); }
+  };
+
+  const setZone = (partNo: number | null): void => {
     activePart = partNo;
     drawDone();
-    const z = zoneSpec(partNo, dims);
     clearFx();
+    if (partNo === null) {
+      // Overview: no highlight, no path, no tinted wheels; every filmed zone stays washed by drawDone.
+      wheels.forEach((w, i) => { w.material = wheelMats[i]!; });
+      flyTo(new THREE.Vector3(0.8, 0.62, 0.85).normalize(), 0.4);
+      return;
+    }
+    const z = zoneSpec(partNo, dims);
     for (const [x, y, zz, w, hh, d] of z.boxes) {
       const geo = track(new THREE.BoxGeometry(w, hh, d));
       let mesh: THREE.Object3D;
@@ -216,12 +231,7 @@ export async function mountGuide(el: HTMLElement, initialPartNo: number): Promis
       startDot.position.copy(curve.getPoint(0)).setY(0.02);
       fx.add(startDot);
     }
-    camera.aspect = el.clientWidth / Math.max(1, el.clientHeight);
-    const dir = new THREE.Vector3(...z.dir).normalize();
-    from = { cam: camera.position.clone(), at: controls.target.clone() };
-    to = { cam: target.clone().add(dir.multiplyScalar(distance(z.pad))), at: target.clone() };
-    tween = reduceMotion || from.cam.lengthSq() === 0 ? 1 : 0;
-    if (tween === 1) { camera.position.copy(to.cam); controls.target.copy(to.at); }
+    flyTo(new THREE.Vector3(...z.dir).normalize(), z.pad ?? 0);
   };
 
   const ease = (x: number): number => 1 - Math.pow(1 - x, 3);

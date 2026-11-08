@@ -3,10 +3,10 @@ import type { CategoryScores as CategoryScoresData, FreeReport, FreeFinding, Loc
 import type { UiError } from '../errors';
 import { conceptLabel, COVERAGE_LABEL, zoneTitle } from '../progress/labels';
 import { describeReason } from '../progress/reasons';
-import { CategoryScores } from '../report/CategoryScores';
 import { formatIndex } from '../report/model';
 import { freeVerdictLine, isSeriousFree, isSyntheticFree } from '../results/freeModel';
 import { ResultError } from '../results/ResultError';
+import { Button, Card, Disclosure, Pill, ScoreTiles } from '../ui';
 import '../results/results.css';
 
 /** Exact wording required for an assessed zone with no verified findings. Never "damage free". */
@@ -38,14 +38,14 @@ export interface Part1SlotProps {
  */
 export function Part1Slot({ part1, verdict }: Part1SlotProps): ReactElement {
   return (
-    <section aria-labelledby="free-verdict-heading" data-testid="free-verdict-slot" className={`slot${verdict ? '' : ' slot-empty'}`}>
+    <Card as="section" padding="md" aria-labelledby="free-verdict-heading" data-testid="free-verdict-slot" className={`slot${verdict ? '' : ' slot-empty'}`}>
       {verdict ? <VerdictDisclosure verdict={verdict} /> : (
         <>
-          <h2 id="free-verdict-heading" style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Part 1 free result</h2>
-          <p role="status" className="muted" style={{ marginTop: 6 }}>{placeholderText(part1)}</p>
+          <h2 id="free-verdict-heading" className="slot-title">Part 1 free result</h2>
+          <p role="status" className="muted slot-status">{placeholderText(part1)}</p>
         </>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -65,18 +65,12 @@ function placeholderText(part1: PartSummary | undefined): string {
 function VerdictDisclosure({ verdict }: { verdict: Part1Verdict }): ReactElement {
   const findingCount = verdict.findings.length;
   return (
-    <details>
-      <summary>
-        <h2 id="free-verdict-heading">Part 1 free result</h2>
-        <span data-testid="verdict-headline">
-          {verdict.part1_score === null ? 'Not scored' : `Provisional index ${formatIndex(verdict.part1_score)}`} · {findingCount} {findingCount === 1 ? 'finding' : 'findings'}
-        </span>
-        <span className="res-note" style={{ flexBasis: '100%' }}>Tap to show or hide the details. This card never moves your capture steps by itself.</span>
-      </summary>
-      <div style={{ marginTop: 14 }}>
-        <FreeVerdictCard data={verdict} layout="inline" />
-      </div>
-    </details>
+    <Disclosure
+      className="slot-disc" title="Part 1 free result" titleId="free-verdict-heading" headingLevel={2} summaryTestId="verdict-headline" toggleLabel={['Show details', 'Hide details']}
+      summary={`${verdict.part1_score === null ? 'Not scored' : `Provisional index ${formatIndex(verdict.part1_score)}`} · ${findingCount} ${findingCount === 1 ? 'finding' : 'findings'}`}>
+      <p className="res-note">This card never moves your capture steps by itself.</p>
+      <FreeVerdictCard data={verdict} layout="inline" />
+    </Disclosure>
   );
 }
 
@@ -95,11 +89,11 @@ export function FreeVerdictCard({ data, layout, unlock }: FreeVerdictCardProps):
   const main = (
     <div className="res-col">
       {isSyntheticFree(data) && (
-        <p className="res-badge" data-testid="synthetic-badge">Synthetic test result. No real inference was performed.</p>
+        <Pill tone="synthetic" data-testid="synthetic-badge">Synthetic test result. No real inference was performed.</Pill>
       )}
       <p className="vline" data-testid="verdict-line"><span className={`k${line.serious ? ' k-risk' : ''}`} aria-hidden="true" />{line.text}</p>
       <ScoreBlock score={data.part1_score} coverage={coverage} />
-      {data.categories && <CategoryScores categories={data.categories} />}
+      {data.categories && <ScoreTiles categories={data.categories} />}
       {data.dashboard && <p data-testid="dashboard-summary">Dashboard: {data.dashboard.checked ? `Checked · ${data.dashboard.flag_count} flags` : 'Not checked. This is not a pass.'}</p>}
       <Findings findings={data.findings} coverage={coverage} />
       <p className="muted" data-testid="part1-summary">{data.part1_summary}</p>
@@ -119,23 +113,23 @@ function ScoreBlock({ score, coverage }: { score: number | null; coverage: Publi
   const reason = coverage?.reason ?? null;
   return (
     <div>
-      <p className="muted" style={{ fontWeight: 600 }}>
+      <p className="muted fw">
         Provisional visual-condition index (Part 1, {zoneTitle('driver_side')})
       </p>
       {score === null ? (
         <div>
           <p className="score-none" data-testid="part1-score">Not scored</p>
-          <p style={{ marginTop: 6 }} data-testid="not-scored-reason">
+          <p className="score-reason" data-testid="not-scored-reason">
             {reason ?? 'Coverage was not sufficient to give this zone a score. This is not a clean result.'}
           </p>
         </div>
       ) : (
         <p className="score-big" data-testid="part1-score">
-          {formatIndex(score)} <span className="muted" style={{ fontSize: 18, fontWeight: 500, fontFamily: 'var(--font)' }}>out of 100</span>
+          {formatIndex(score)} <span className="muted score-of">out of 100</span>
         </p>
       )}
       {coverage && (
-        <p className="muted" style={{ marginTop: 8 }} data-testid="coverage-state">
+        <p className="muted coverage-state" data-testid="coverage-state">
           Coverage: <b>{COVERAGE_LABEL[coverage.state]}</b>
           {score !== null && reason && !isNoFindingsReason(reason) ? `. ${reason}` : ''}
         </p>
@@ -151,15 +145,15 @@ function isNoFindingsReason(reason: string): boolean {
 function Findings({ findings, coverage }: { findings: readonly FreeFinding[]; coverage: PublicCoverage | undefined }): ReactElement {
   if (findings.length === 0) {
     return coverage?.state === 'assessed'
-      ? <p style={{ fontWeight: 700 }} data-testid="no-findings">{NO_FINDINGS_TEXT}.</p>
+      ? <p className="fw-b" data-testid="no-findings">{NO_FINDINGS_TEXT}.</p>
       : <p data-testid="no-findings">No findings are listed, but this zone was not fully assessed, so this is not a clean result.</p>;
   }
   return (
     <ul className="fnd-list" aria-label="Part 1 findings">
       {findings.map((finding) => (
-        <li key={finding.id} className="fnd" data-testid="free-finding">
+        <li key={finding.id} data-testid="free-finding"><Card padding="md" className="fnd">
           {isSeriousFree(finding) && <span className="risk-tag">Serious</span>}
-          <h3>{conceptLabel(finding.concept)} <span className="muted" style={{ fontWeight: 500, fontSize: 16 }}>· severity {finding.severity}</span></h3>
+          <h3>{conceptLabel(finding.concept)} <span className="muted fnd-sev">· severity {finding.severity}</span></h3>
           <p>{finding.evidence_note}</p>
           {finding.source_timestamp_ms != null && <p className="meta">Source video: {formatSourceTime(finding.source_timestamp_ms)}. {finding.mapping_basis === 'user_declared' && 'Section marked by uploader; area coverage unverified.'}</p>}
           <p className="meta">
@@ -168,7 +162,7 @@ function Findings({ findings, coverage }: { findings: readonly FreeFinding[]; co
           </p>
           {finding.flags.length > 0 && <p className="meta">Flags: {finding.flags.join(', ')}</p>}
           <p className="hatch">{finding.evidence_available ? 'Evidence image not shown in this view' : 'Evidence image withheld'}</p>
-        </li>
+        </Card></li>
       ))}
     </ul>
   );
@@ -176,7 +170,7 @@ function Findings({ findings, coverage }: { findings: readonly FreeFinding[]; co
 
 function UnlockPanel({ zones, unlock }: { zones: readonly LockedZoneSummary[]; unlock: UnlockControl | undefined }): ReactElement {
   return (
-    <aside className="unlock" aria-labelledby="unlock-heading">
+    <Card as="aside" padding="lg" className="unlock" aria-labelledby="unlock-heading">
       <h2 id="unlock-heading">See the whole car</h2>
       {zones.length > 0 && (
         <>
@@ -193,15 +187,15 @@ function UnlockPanel({ zones, unlock }: { zones: readonly LockedZoneSummary[]; u
       )}
       <p className="res-note">The full report also adds the listing check, repair cost ranges and a checklist for the seller and a mechanic.</p>
       {unlock && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button type="button" className="btn btn-block" disabled={unlock.busy} onClick={unlock.onUnlock}>
+        <div className="stack-sm">
+          <Button block disabled={unlock.busy} onClick={unlock.onUnlock}>
             {unlock.busy ? 'Opening checkout…' : 'Unlock full report · $19'}
-          </button>
-          <p className="hint" style={{ textAlign: 'center' }}>One-time payment through our payment provider. Returning from checkout unlocks nothing until the payment is verified.</p>
+          </Button>
+          <p className="hint hint-center">One-time payment through our payment provider. Returning from checkout unlocks nothing until the payment is verified.</p>
           {unlock.error && <ResultError error={unlock.error} />}
         </div>
       )}
-    </aside>
+    </Card>
   );
 }
 

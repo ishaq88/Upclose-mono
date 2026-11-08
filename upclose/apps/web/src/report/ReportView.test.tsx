@@ -15,8 +15,12 @@ describe('ReportView', () => {
   it('leads with the verdict, then the index and lowest zone', () => {
     render(<ReportView report={SAMPLE_REPORT} frameUrl={sampleFrameUrl} />);
     expect(screen.getByRole('heading', { name: '1 serious issue' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'What needs attention' })).toBeTruthy();
     expect(screen.getByText('94.9')).toBeTruthy();
-    expect(screen.getByText(/Based on 3 of 6 zones fully checked/)).toBeTruthy();
+    expect(screen.getByText(/In the index: driver side, passenger side, front & rear with glass \(3 of 6\)./)).toBeTruthy();
+    expect(screen.getByText(/Partly checked: tires./)).toBeTruthy();
+    expect(screen.getByText(/It measures visible damage, not whether the car is a good buy./)).toBeTruthy();
+    expect(screen.queryByText(/Based on 3 of 6/)).toBeNull();
   });
 
   it('numbers findings serious-first and gives every frame an accessible enlarge control', () => {
@@ -29,7 +33,8 @@ describe('ReportView', () => {
 
   it('shows partly checked and unchecked zones without a score', () => {
     render(<ReportView report={SAMPLE_REPORT} frameUrl={sampleFrameUrl} />);
-    const zones = screen.getByRole('region', { name: 'All zones' });
+    expect(screen.getByRole('heading', { level: 2, name: 'All zones' })).toBeTruthy();
+    const zones = document.getElementById('r-zones')!;
     const tires = within(zones).getByRole('rowheader', { name: 'Tires' }).closest('tr')!;
     expect(tires.textContent).toMatch(/Partly checked, so no score/);
     expect(tires.textContent).not.toMatch(/\d+\.\d/);

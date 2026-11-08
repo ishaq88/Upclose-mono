@@ -1,3 +1,5 @@
+.acct-lede { margin: 12px 0 24px; }
+.acct-card-gap { margin-top: 24px; }
 .acct-narrow { max-width: 520px; margin-inline: auto; }
 .acct-card { display: flex; flex-direction: column; gap: 16px; }
 .acct-form { display: flex; flex-direction: column; gap: 16px; }
@@ -6,8 +8,6 @@
 .acct-tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .acct-links { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
 .acct-links a, .acct-links button { min-height: 44px; display: inline-flex; align-items: center; }
-.notice-ok { background: var(--ok-soft); color: #155f36; }
-.acct-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
 .acct-layout { display: grid; gap: 24px; }
 @media (min-width: 821px) { .acct-layout { grid-template-columns: 1fr 340px; align-items: start; } }
 .rep-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
@@ -25,7 +25,7 @@ a.rep-row:hover { box-shadow: 0 0 0 1.5px var(--ink); }
 .acct-who span:last-child { overflow-wrap: anywhere; font-weight: 600; }
 .acct-details summary { min-height: 44px; display: flex; align-items: center; font-weight: 600; cursor: pointer; }
 
-.save-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: var(--surface); border-radius: 18px; padding: 20px 24px; }
+.save-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .save-card h2 { font-size: var(--fs-h3); }
 .save-dialog { border: 0; padding: 0; background: var(--surface); color: var(--ink); width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); border-radius: 18px; overflow: auto; }
 .save-dialog::backdrop { background: rgba(17,19,21,.5); }

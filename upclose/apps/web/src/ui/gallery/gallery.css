@@ -12,3 +12,4 @@
 .gal-num { font: 800 var(--fs-h1)/1 var(--display); }
 .gal-state { white-space: normal; text-align: center; max-width: 100%; }
 .gal .action-bar { position: static; border: 0; padding: 0; flex-direction: row; flex-wrap: wrap; background: none; }
+.gal-slot { margin-top: 24px; }

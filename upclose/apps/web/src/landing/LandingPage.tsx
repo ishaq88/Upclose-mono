@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { findingTitle, formatIndex, formatTime, notChecked, OPTIONAL_ZONES, orderFindings, scoredZones, verdict, ZONE_LABEL } from '../report/model';
 import { HERO_PHOTO, HERO_POINTS, SAMPLE_REPORT, sampleFrameUrl } from '../sample/sample';
-import { Wordmark } from '../ui/Wordmark';
+import { Button, Pill, Wordmark } from '../ui';
 import { HeroLoupe, type LoupePoint } from './HeroLoupe';
 
 export interface LandingPageProps {
@@ -44,11 +44,11 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
   });
 
   const primary = live
-    ? <a className="btn" href={appOrigin}>Start an inspection</a>
-    : <a className="btn" href={SAMPLE_HREF}>See a sample report</a>;
+    ? <Button href={appOrigin}>Start an inspection</Button>
+    : <Button href={SAMPLE_HREF}>See a sample report</Button>;
   const secondary = live
-    ? <a className="textlink" href={SAMPLE_HREF}>See a sample report</a>
-    : <a className="textlink with-icon" href={repoUrl} target="_blank" rel="noopener noreferrer"><GitHubMark />View the code on GitHub</a>;
+    ? <Button variant="text" href={SAMPLE_HREF}>See a sample report</Button>
+    : <Button variant="text" href={repoUrl} target="_blank" rel="noopener noreferrer" icon={<GitHubMark />}>View the code on GitHub</Button>;
 
   return (
     <>
@@ -60,8 +60,8 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
           <a className="hide-sm" href={SAMPLE_HREF}>Sample report</a>
           <a className="hide-sm" href="#pricing">Pricing</a>
           {live
-            ? <a className="btn btn-sm" href={appOrigin}>Start an inspection</a>
-            : <a className="btn btn-sm btn-ghost" href={repoUrl} target="_blank" rel="noopener noreferrer"><GitHubMark /><span className="hide-xs">GitHub</span></a>}
+            ? <Button size="sm" href={appOrigin}>Start an inspection</Button>
+            : <Button variant="secondary" size="sm" href={repoUrl} target="_blank" rel="noopener noreferrer" icon={<GitHubMark />}><span className="hide-xs">GitHub</span></Button>}
         </nav>
       </div></header>
 
@@ -91,8 +91,8 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
             <li className="step"><span className="step-k">Step 3</span><h3>Know what to ask</h3>
               <p>Every finding comes with its frame and timestamp, plus what couldn't be checked and questions for the seller.</p>
               <div className="step-vis step-pills" aria-hidden="true">
-                {driver?.score != null && <span className="pill pill-ok">Driver side · {formatIndex(driver.score)}</span>}
-                {missing[0] && <span className="pill pill-not">{ZONE_LABEL[missing[missing.length - 1]!.zone]} · not checked</span>}
+                {driver?.score != null && <Pill tone="ok">Driver side · {formatIndex(driver.score)}</Pill>}
+                {missing[0] && <Pill tone="not">{ZONE_LABEL[missing[missing.length - 1]!.zone]} · not checked</Pill>}
               </div></li>
           </ol>
         </section>
@@ -107,14 +107,14 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
                 <li><Check /><span>The seller's listing checked against your footage</span></li>
                 <li><Check /><span>Repair cost ranges and a checklist for your mechanic</span></li>
               </ul>
-              <a className="btn" href={SAMPLE_HREF}>Open the sample report</a>
+              <Button href={SAMPLE_HREF}>Open the sample report</Button>
             </div>
             <a className="phone" href={SAMPLE_HREF} aria-label="Open the sample report">
               <div className="phone-in">
                 <div className="phone-top"><span className="wordmark wordmark-xs">upclose<i /></span><span>{SAMPLE_REPORT.vehicle_label}</span></div>
                 <div><b className="phone-verdict">{v.headline}</b><span className="phone-sub">{SAMPLE_REPORT.scores.headline !== null ? `Index ${formatIndex(SAMPLE_REPORT.scores.headline)} · ` : ''}based on {scoredZones(zones).length} of {scorable} zones</span></div>
                 {top && <div className="phone-print"><div className="ev-frame"><img src={sampleFrameUrl(top.id)} alt="" loading="lazy" /><span className="ev-stamp">{formatTime(top.source_timestamp_ms)}</span></div><b>1 · {findingTitle(top)}</b></div>}
-                <div className="phone-pills">{missing.map((z) => <span key={z.zone} className="pill pill-not">{ZONE_LABEL[z.zone]} · {z.state === 'partial' ? 'partly checked' : 'not checked'}</span>)}</div>
+                <div className="phone-pills">{missing.map((z) => <Pill key={z.zone} tone="not">{ZONE_LABEL[z.zone]} · {z.state === 'partial' ? 'partly checked' : 'not checked'}</Pill>)}</div>
               </div>
             </a>
           </div>
@@ -125,10 +125,10 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
           <div className="plans">
             <div className="plan"><h3>Driver side</h3><div className="price">Free</div>
               <ul><li>Condition index for the driver side</li><li>Driver-side findings with frames</li><li>See which zones you've covered</li></ul>
-              {live && <a className="btn btn-ghost" href={appOrigin}>Start free</a>}</div>
+              {live && <Button variant="secondary" href={appOrigin}>Start free</Button>}</div>
             <div className="plan plan-hot"><h3>Full report</h3><div className="price">$19 <span>per vehicle</span></div>
               <ul><li>All eight zones</li><li>Every finding with its frame</li><li>Listing claims checked</li><li>Repair cost ranges</li><li>A checklist for the seller and your mechanic</li></ul>
-              <a className="btn" href={live ? appOrigin : SAMPLE_HREF}>{live ? 'Start an inspection' : 'See a full report'}</a></div>
+              <Button href={live ? appOrigin : SAMPLE_HREF}>{live ? 'Start an inspection' : 'See a full report'}</Button></div>
           </div>
         </section>
 
@@ -143,7 +143,7 @@ export function LandingPage({ appOrigin, repoUrl }: LandingPageProps): ReactElem
           </div>
           <div className="closer">
             <h2 className="h-lg">{live ? 'Standing next to it right now?' : 'See what a report looks like.'}</h2>
-            {live ? <a className="btn" href={appOrigin}>Start with the driver side</a> : <a className="btn" href={SAMPLE_HREF}>Open the sample report</a>}
+            {live ? <Button href={appOrigin}>Start with the driver side</Button> : <Button href={SAMPLE_HREF}>Open the sample report</Button>}
           </div>
         </section>
       </main>

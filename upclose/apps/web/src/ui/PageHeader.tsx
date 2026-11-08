@@ -26,7 +26,7 @@ export function PageHeader({ crumbs, title, titleId, meta, actions }: PageHeader
           </nav>
         )}
         <h1 id={titleId} className="page-title">{title}</h1>
-        {meta && <p className="page-meta">{meta}</p>}
+        {meta && <div className="page-meta">{meta}</div>}
       </div>
       {actions && <div className="page-header-actions">{actions}</div>}
     </header>

@@ -8,6 +8,10 @@ import type { SourceUploadController } from '../upload/useSourceUpload';
 import { CameraRecorder } from './CameraRecorder';
 import { ErrorNotice } from './PartCard';
 import '../capture/capture.css';
+import { ActionBar } from '../ui/ActionBar';
+import { Button } from '../ui/Button';
+import { Card } from '../ui/Card';
+import { Notice } from '../ui/Notice';
 
 export function SingleVideoCapture({ upload, capturing }: { upload: SourceUploadController; capturing: boolean }): ReactElement {
   const [file, setFile] = useState<File | null>(null);
@@ -53,14 +57,14 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
 
   return <section aria-labelledby="single-video-heading" className="svc">
     <div className="svc-head">
-      <h2 id="single-video-heading" className="page-title">One video</h2>
+      <h2 id="single-video-heading" className="section-title">One video</h2>
       <p className="muted">Record a walkaround or upload one. MP4, MOV or WebM, up to 180 s and 200 MiB.</p>
     </div>
     <div className="prog">
       <div className="stack">
-        <div className="card stack">
+        <Card className="stack">
           {upload.error && <ErrorNotice error={upload.error} />}
-          {validation && <p role="alert" className="notice notice-error">{validation}</p>}
+          {validation && <Notice tone="error">{validation}</Notice>}
           {source === undefined && <p role="status">Checking source video status…</p>}
           {accepted && <>
             <p role="status" className="svc-status">Video accepted. {source.processing_state === 'ready' ? 'Source preparation complete.' : source.processing_state === 'failed' ? 'Source preparation failed.' : 'Preparing source video…'}</p>
@@ -68,23 +72,23 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
             {source.processing_state === 'ready' && <p>Add a clip for any area the video missed, or finish.</p>}
           </>}
           {busy && <div role="status" className="stack"><p className="svc-status">{progress?.phase === 'completing' ? 'Confirming video upload with the server…' : 'Uploading source video…'}</p><progress aria-label="Source upload progress" className="meter" max={progress?.totalBytes ?? 1} value={progress?.uploadedBytes ?? 0} /><p className="hint">Keep this tab open until it finishes.</p></div>}
-          {picking && unfinished && <p className="notice notice-warn">Unfinished upload. {record ? 'Select the same video to resume. Browser recordings are lost after a reload.' : 'Discard it before starting again.'}</p>}
+          {picking && unfinished && <Notice tone="warn">Unfinished upload. {record ? 'Select the same video to resume. Browser recordings are lost after a reload.' : 'Discard it before starting again.'}</Notice>}
           {choosing && <>
             <div className="cap-actions svc-pick">
-              {!unfinished && <label className="btn file-btn"><RecordIcon />Record one video with phone camera<input type="file" accept="video/*" capture="environment" className="sr-only" onChange={pickInto} /></label>}
-              <label className={unfinished ? 'btn file-btn' : 'btn btn-ghost file-btn'}>{unfinished ? 'Select the same source video to resume' : 'Choose one video from this device'}<input type="file" accept="video/*" className="sr-only" onChange={pickInto} /></label>
+              {!unfinished && <label className="btn btn-primary file-btn"><RecordIcon />Record one video with phone camera<input type="file" accept="video/*" capture="environment" className="sr-only" onChange={pickInto} /></label>}
+              <label className={unfinished ? 'btn btn-primary file-btn' : 'btn btn-secondary file-btn'}>{unfinished ? 'Select the same source video to resume' : 'Choose one video from this device'}<input type="file" accept="video/*" className="sr-only" onChange={pickInto} /></label>
             </div>
             {!unfinished && !file && <div className="webcam"><p className="webcam-title">Or record with your webcam</p><CameraRecorder partNo={0} maxSeconds={180} onRecorded={(value, seconds) => select(value, seconds)} /></div>}
             {file && <div className="svc-file stack">
               {preview && <video aria-label="Preview of your source video" src={preview} controls muted playsInline className="review-video" />}
               <p className="svc-meta"><b>{file.name}</b><span className="muted num">{formatBytes(file.size)}{duration !== null ? ` · ${duration.toFixed(1)} seconds` : ' · Duration will be checked by the server'}</span></p>
-              {!type && <p role="alert" className="notice notice-error">Choose an MP4, MOV or WebM video.</p>}
-              {file.size > MAX_CLIP_BYTES && <p role="alert" className="notice notice-error">This video exceeds the 200 MiB limit.</p>}
-              {duration !== null && duration > 180 && <p role="alert" className="notice notice-error">This video exceeds the 180-second limit.</p>}
+              {!type && <Notice tone="error">Choose an MP4, MOV or WebM video.</Notice>}
+              {file.size > MAX_CLIP_BYTES && <Notice tone="error">This video exceeds the 200 MiB limit.</Notice>}
+              {duration !== null && duration > 180 && <Notice tone="error">This video exceeds the 180-second limit.</Notice>}
             </div>}
           </>}
-          {capturing && !accepted && (unfinished || busy) && <div><button type="button" className="textlink" onClick={() => { void upload.abort(); }}>Discard unfinished source upload</button></div>}
-        </div>
+          {capturing && !accepted && (unfinished || busy) && <div><Button variant="text" size="sm" onClick={() => { void upload.abort(); }}>Discard unfinished source upload</Button></div>}
+        </Card>
       </div>
       {choosing && file && <div className="stack">
         {!unfinished && <fieldset className="marks stack">
@@ -94,13 +98,13 @@ export function SingleVideoCapture({ upload, capturing }: { upload: SourceUpload
             <label>Area {index + 1}<select value={range.partNo} onChange={(event) => setRange(index, { partNo: Number(event.target.value) })}>{GUIDE_STEPS.map((guide) => <option key={guide.partNo} value={guide.partNo}>{guide.title}</option>)}</select></label>
             <label>Start seconds {index + 1}<input type="number" min="0" max="180" step="0.001" value={range.start} onChange={(event) => setRange(index, { start: event.target.value })} /></label>
             <label>End seconds {index + 1}<input type="number" min="0" max="180" step="0.001" value={range.end} onChange={(event) => setRange(index, { end: event.target.value })} /></label>
-            <button type="button" className="textlink" aria-label={`Remove section ${index + 1}`} onClick={() => setRanges((items) => items.filter((_, i) => i !== index))}>Remove</button>
+            <Button variant="text" size="sm" aria-label={`Remove section ${index + 1}`} onClick={() => setRanges((items) => items.filter((_, i) => i !== index))}>Remove</Button>
           </div>)}
-          <div><button type="button" className="btn btn-ghost btn-sm" disabled={ranges.length >= 8} onClick={() => setRanges((items) => [...items, { partNo: GUIDE_STEPS.find((guide) => !items.some((item) => item.partNo === guide.partNo))?.partNo ?? 1, start: '', end: '' }])}>Add a marked section</button></div>
+          <div><Button variant="secondary" size="sm" disabled={ranges.length >= 8} onClick={() => setRanges((items) => [...items, { partNo: GUIDE_STEPS.find((guide) => !items.some((item) => item.partNo === guide.partNo))?.partNo ?? 1, start: '', end: '' }])}>Add a marked section</Button></div>
         </fieldset>}
-        <div className="thumbbar">
-          <button type="button" className="btn btn-block" disabled={!type || file.size === 0 || file.size > MAX_CLIP_BYTES || (duration !== null && duration > 180)} onClick={send}>{record ? 'Resume source upload' : 'Upload this video'}</button>
-        </div>
+        <ActionBar label="Upload the video">
+          <Button block disabled={!type || file.size === 0 || file.size > MAX_CLIP_BYTES || (duration !== null && duration > 180)} onClick={send}>{record ? 'Resume source upload' : 'Upload this video'}</Button>
+        </ActionBar>
       </div>}
     </div>
     <details className="svc-guide"><summary>Optional filming guide</summary>

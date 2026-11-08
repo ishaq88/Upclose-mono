@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent, type ReactElement } from 'react';
 import { accountErrorMessage, MIN_PASSWORD, passwordProblem } from './errors';
+import { Button, Field, Notice } from '../ui';
 import './accounts.css';
 
 export interface CredentialsFormProps {
@@ -36,20 +37,16 @@ export function CredentialsForm({ mode, submitLabel, onSubmit }: CredentialsForm
 
   return (
     <form className="acct-form" onSubmit={(e) => { void submit(e); }}>
-      <div className="field">
-        <label htmlFor={`${id}-email`}>Email</label>
+      <Field label="Email">
         <input id={`${id}-email`} type="email" name="email" autoComplete={register ? 'email' : 'username'} required
           value={email} onChange={(e) => setEmail(e.target.value)} />
-      </div>
-      <div className="field">
-        <label htmlFor={`${id}-pw`}>Password</label>
+      </Field>
+      <Field label="Password" hint={register ? `At least ${MIN_PASSWORD} characters` : undefined}>
         <input id={`${id}-pw`} type="password" name="password" autoComplete={register ? 'new-password' : 'current-password'} required
-          aria-describedby={register ? `${id}-hint` : undefined}
           value={password} onChange={(e) => setPassword(e.target.value)} />
-        {register && <span className="hint" id={`${id}-hint`}>At least {MIN_PASSWORD} characters</span>}
-      </div>
-      <div aria-live="polite">{error && <p className="notice notice-error" role="alert">{error}</p>}</div>
-      <button className="btn" type="submit" disabled={busy}>{busy ? 'One moment…' : submitLabel}</button>
+      </Field>
+      <div aria-live="polite">{error && <Notice tone="error">{error}</Notice>}</div>
+      <Button type="submit" disabled={busy}>{busy ? 'One moment…' : submitLabel}</Button>
     </form>
   );
 }

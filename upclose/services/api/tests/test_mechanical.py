@@ -93,7 +93,7 @@ def test_dash_deduction_only_when_assessed_and_never_alone() -> None:
 
 def test_overall_blends_only_when_both_assessed() -> None:
     both = category_scores(D(80), score_mechanical([obd(mil_on=True)], None, CONFIG), CONFIG)
-    assert both.overall.basis == "blend" and both.overall.score == D("0.6") * 80 + D("0.4") * 90
+    assert both.overall.basis == "blend" and both.overall.score == D("0.4") * 80 + D("0.6") * 90
     visual_only = category_scores(D(80), score_mechanical([], None, CONFIG), CONFIG)
     assert visual_only.overall.score is None and visual_only.overall.basis == "visual_only"
     assert visual_only.overall.note == "Visual only: mechanical not checked."

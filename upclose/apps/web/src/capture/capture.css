@@ -101,7 +101,7 @@
 /* Phone: the zone list becomes a horizontal strip and the state text is read aloud only. */
 @media (max-width: 900px) {
   .zones-count { display: none; }
-  .zones-list { flex-direction: row; overflow-x: auto; padding: 0 0 4px; gap: 8px; background: none; border-radius: 0; scrollbar-width: none; }
+  .zones-list { position: relative; flex-direction: row; overflow-x: auto; padding: 0 0 4px; gap: 8px; background: none; border-radius: 0; scrollbar-width: none; }
   .zones-list li { flex: none; }
   .zone { width: auto; min-height: 44px; padding: 0 14px 0 6px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); font: 600 15px var(--font); gap: 8px; }
   .zone[aria-current="step"] { border-color: var(--ink); }

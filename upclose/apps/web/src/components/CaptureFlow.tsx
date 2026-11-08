@@ -15,6 +15,9 @@ import { ProgressPanel } from './ProgressPanel';
 import { CaptureKits, MissingKitsNotice } from './CaptureKits';
 import { kitRows, missingKits } from '../capture/kits';
 import { useCaptureSources } from '../capture/useCaptureSources';
+import { useAudioUpload } from '../upload/audioUpload';
+import { useVoiceGuide, VoiceGuideBar, VoiceGuideProvider, zoneLineId } from '../capture/voiceGuide';
+import { EngineCheck } from './EngineCheck';
 import '../capture/capture.css';
 
 interface Props {
@@ -26,11 +29,17 @@ interface Props {
   onNewSession: () => void;
 }
 
-export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props): ReactElement {
+export function CaptureFlow(props: Props): ReactElement {
+  return <VoiceGuideProvider api={props.api}><CaptureFlowBody {...props} /></VoiceGuideProvider>;
+}
+
+function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): ReactElement {
+  const voice = useVoiceGuide();
   const { session, progress, error, unauthorized, refresh, markUnauthorized } = useSession(api, sessionId);
   const singleVideo = session?.capture_mode === 'single_video';
   const sourceUpload = useSourceUpload({ api, sessionId, enabled: singleVideo && session?.state !== 'deleting' && session?.state !== 'deleted' && !unauthorized, onChanged: refresh, onUnauthorized: markUnauthorized });
   const uploads = useUploads({ api, sessionId, onChanged: refresh, onUnauthorized: markUnauthorized });
+  const audioUpload = useAudioUpload({ api, sessionId, onChanged: refresh, onUnauthorized: markUnauthorized });
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<UiError | null>(null);
@@ -107,7 +116,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
   const capturing = session?.state === 'capturing';
   const serverUploading = parts.some((part) => part.state === 'uploading');
   const uploadActive = uploads.anyActive || serverUploading || sourceUpload.blocksFinish;
-  const sources = useCaptureSources(api, sessionId, capturing && !unauthorized);
+  const sources = useCaptureSources(api, sessionId, capturing && !unauthorized, undefined, audioUpload.phase === 'accepted');
   const phoneVideoAttached = sourceUpload.source?.state === 'accepted' || parts.some((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed');
   const kits = kitRows(phoneVideoAttached, sources);
   const unattached = missingKits(kits);
@@ -119,6 +128,11 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
   const filmed = parts.filter((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed').length;
   const currentIndex = current ? display.indexOf(current) : -1;
   const nextPending = display.find((part) => part.state === 'pending' && part.part_no !== current?.part_no);
+  // Opening a zone from a tap also speaks its guidance, when the voice guide is on. Audio never gates the zone.
+  const openZone = (part: PartSummary): void => {
+    setOpen(part.part_no);
+    voice.play(zoneLineId(part.zone), (guideFor(part.part_no) ?? GUIDE_STEPS[0]!).goal);
+  };
   const nextGuide = nextPending ? (guideFor(nextPending.part_no) ?? GUIDE_STEPS[0]!) : null;
 
   return (
@@ -144,6 +158,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
 
       {session && !unauthorized && !deleting && session.state !== 'deleting' && session.state !== 'deleted' && (
         <>
+          <VoiceGuideBar />
           {singleVideo && <SingleVideoCapture upload={sourceUpload} capturing={capturing && !confirmDelete} />}
 
           <section aria-labelledby="steps-heading" className="cap">
@@ -160,7 +175,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
                   return (
                     <li key={part.id}>
                       <button type="button" className={`zone zone-${part.state}`} aria-current={part.part_no === current?.part_no ? 'step' : undefined}
-                        onClick={() => setOpen(part.part_no)}>
+                        onClick={() => openZone(part)}>
                         <span className="zn" aria-hidden="true">{index + 1}</span>
                         <span className="zt">{guide.title}{OPTIONAL_PARTS.has(part.part_no) && <span className="opt-tag">Optional</span>}</span>
                         <span className="st" data-testid={`state-${part.part_no}`}>{zoneStateLabel(part.state, uploads.local[part.part_no])}</span>
@@ -180,7 +195,7 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
                     local={uploads.local[part.part_no]} record={uploads.records[part.part_no]}
                     hasFile={uploads.getFile(part.part_no) !== undefined} sessionCapturing={capturing && !confirmDelete && (!singleVideo || sourceUpload.followupsAllowed)}
                     actionError={actionErrors[part.part_no]}
-                    next={nextPending && nextGuide ? { title: nextGuide.title, go: () => setOpen(nextPending.part_no) } : null}
+                    next={nextPending && nextGuide ? { title: nextGuide.title, go: () => openZone(nextPending) } : null}
                     onStart={(file, contentType) => { setPartError(part.part_no, null); void uploads.start(part.part_no, file, contentType); }}
                     onRetry={() => {
                       const file = uploads.getFile(part.part_no);
@@ -201,7 +216,8 @@ export function CaptureFlow({ api, sessionId, ownerToken, onNewSession }: Props)
                 <ClockIcon />
                 <span><b>Keep this tab open.</b> <span className="muted">Reloading is fine, but closing the tab may lose access to this session and its uploads, with no recovery from another device. An interrupted upload continues only if you select the same video file again; a clip recorded in the page cannot be recovered after a reload.</span></span>
               </div>
-              <CaptureKits rows={kits} sessionId={sessionId} ownerToken={ownerToken} capturing={capturing && !confirmDelete} />
+              <CaptureKits rows={kits} sessionId={sessionId} ownerToken={ownerToken} capturing={capturing && !confirmDelete} audio={audioUpload} />
+              <EngineCheck rows={kits} capturing={capturing && !confirmDelete} />
               <SaveInspection sessionId={sessionId} ownerToken={ownerToken} />
 
               <Part1Slot part1={parts.find((part) => part.part_no === 1)} verdict={progress?.free_verdict} />

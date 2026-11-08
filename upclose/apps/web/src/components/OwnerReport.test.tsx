@@ -75,6 +75,25 @@ describe('owner report (JSON)', () => {
     expect(screen.getByRole('button', { name: 'Share with mechanic' })).toBeTruthy();
   });
 
+  it('offers an inline Rename for the owner, and renames the visible title', async () => {
+    const calls: Call[] = [];
+    const sid = '11111111-1111-4111-8111-111111111111';
+    const api = apiFor([
+      { match: REPORT_URL, respond: () => json(SAMPLE_REPORT) }, FRAMES,
+      { match: /\/sessions\/[^/]+\/label$/, respond: () => json({ vehicle_label: '2014 Honda Civic' }) },
+    ], calls);
+    const view = render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} sessionId={sid} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename' }));
+    fireEvent.change(screen.getByLabelText('Inspection name'), { target: { value: '2014 Honda Civic' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    expect(await screen.findByRole('heading', { name: '2014 Honda Civic', level: 1 })).toBeTruthy();
+    expect(calls.find((c) => c.init?.method === 'PUT')?.url).toBe(`/api/v1/sessions/${sid}/label`);
+    view.unmount();
+    render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
+    await screen.findByRole('heading', { name: '1 serious issue' });
+    expect(screen.queryByRole('button', { name: 'Rename' })).toBeNull();
+  });
+
   it('shows a free report with its unlock panel, never requests evidence, and checks out on click', async () => {
     const calls: Call[] = [];
     const api = apiFor([

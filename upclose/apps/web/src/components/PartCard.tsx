@@ -4,6 +4,7 @@ import { formatBytes, normalizeVideoType } from '../capture/media';
 import { qualityHints, readVideoMetadata, type QualityHint } from '../capture/quality';
 import type { GuideStep } from '../capture/guide';
 import { GuideViewer } from '../capture/GuideViewer';
+import { QUALITY_WARNING_LINE, useVoiceGuide } from '../capture/voiceGuide';
 import { MAX_CLIP_BYTES, MAX_RECORDING_SECONDS } from '../config';
 import type { UiError } from '../errors';
 import type { LocalUpload } from '../upload/useUploads';
@@ -204,6 +205,7 @@ function CaptureControls(props: PartCardProps): ReactElement {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const name = guide.title.toLowerCase();
+  const voice = useVoiceGuide();
 
   const accept = (file: File, recordedSeconds: number | null): void => {
     const tooLarge = file.size > MAX_CLIP_BYTES;
@@ -211,7 +213,12 @@ function CaptureControls(props: PartCardProps): ReactElement {
     const previewUrl = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : null;
     setDraft({ file, contentType, hints: null, tooLarge, previewUrl });
     void readVideoMetadata(file).then((meta) => {
-      setDraft((current) => (current?.file === file ? { ...current, hints: qualityHints(meta, recordedSeconds) } : current));
+      const hints = qualityHints(meta, recordedSeconds);
+      setDraft((current) => (current?.file === file ? { ...current, hints } : current));
+      for (const hint of hints) {
+        const line = QUALITY_WARNING_LINE[hint.id];
+        if (line) voice.play(line, hint.message);
+      }
     });
   };
 

@@ -11,6 +11,7 @@ import { ShareControl } from '../results/ShareControl';
 import { useUnlock } from '../results/useUnlock';
 import '../results/results.css';
 import { FreeVerdictCard } from './FreeVerdictCard';
+import { RenameLabel } from './RenameLabel';
 
 type Loaded = FreeReport | PaidReport | ReportStatus;
 
@@ -32,6 +33,8 @@ export interface OwnerReportProps {
   /** Base poll interval for a report that is still building. */
   pollMs?: number;
   navigate?: (url: string) => void;
+  /** The owner's inspection id. When given, the title gets an inline Rename (owner token only). */
+  sessionId?: string;
 }
 
 /**
@@ -39,7 +42,7 @@ export interface OwnerReportProps {
  * fetched one by one as data URLs (token in a header). Free reports show the driver-side result with
  * unlock. A building report polls with backoff. Which of these shows is decided only by the server's response.
  */
-export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SESSION_POLL_MS, navigate }: OwnerReportProps): ReactElement {
+export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SESSION_POLL_MS, navigate, sessionId }: OwnerReportProps): ReactElement {
   const [report, setReport] = useState<Loaded | null>(null);
   const [error, setError] = useState<UiError | null>(null);
   const [fatal, setFatal] = useState(false);
@@ -47,6 +50,7 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
   // Remember a checkout return once, so a still-free report is re-read while the provider's confirmation arrives.
   const [awaiting, setAwaiting] = useState(() => pendingCheckout() === slug);
   const [gaveUp, setGaveUp] = useState(false);
+  const [renamed, setRenamed] = useState<string | null | undefined>(undefined);
   const awaitingRef = useRef(awaiting);
   awaitingRef.current = awaiting;
   const frames = useRef<{ cache: Map<string, Promise<string>>; signal: AbortSignal | undefined }>({ cache: new Map(), signal: undefined });
@@ -121,7 +125,7 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
   });
 
   const retry = (): void => { setAwaiting(false); setAttempt((n) => n + 1); };
-  const label = report && 'vehicle_label' in report ? report.vehicle_label : null;
+  const label = renamed !== undefined ? renamed : report && 'vehicle_label' in report ? report.vehicle_label : null;
   const kind = report ? kindOf(report) : null;
 
   return (
@@ -129,6 +133,7 @@ export function OwnerReport({ api, slug, onUnauthorized, onRefresh, pollMs = SES
       <header className="res-head">
         <nav className="crumbs" aria-label="Breadcrumb"><a href="/reports">My reports</a><span aria-hidden="true">/</span><span>{label ?? 'Report'}</span></nav>
         <h1 className="page-title">{label ?? 'Your report'}</h1>
+        {sessionId && report && <RenameLabel api={api} sessionId={sessionId} label={label} onRenamed={setRenamed} />}
       </header>
       {error && (
         <ResultError error={error}>

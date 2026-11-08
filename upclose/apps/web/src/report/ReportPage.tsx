@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import type { Api } from '../api/client';
 import { OwnerReport } from '../components/OwnerReport';
+import { loadSession } from '../session/storage';
 import '../results/results.css';
 
 const noop = (): void => {};
@@ -12,7 +13,7 @@ const noop = (): void => {};
 export function ReportPage({ slug, api }: { slug: string; api: Api }): ReactElement {
   return (
     <main className="wrap app-main">
-      <OwnerReport api={api} slug={slug} onUnauthorized={noop} onRefresh={noop} />
+      <OwnerReport api={api} slug={slug} onUnauthorized={noop} onRefresh={noop} sessionId={loadSession()?.sessionId} />
     </main>
   );
 }

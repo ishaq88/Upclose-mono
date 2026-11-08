@@ -46,6 +46,19 @@ export interface CaptureSource {
   summary: { state: 'assessed' | 'not_assessed'; flag_count?: number } & Record<string, unknown>;
 }
 
+/**
+ * Engine-audio upload wire format. PLACEHOLDER shapes mirroring the API contract draft; switch to the generated
+ * `Schemas[...]` types once they exist. The create response carries no chunk size: pieces are 8 MiB.
+ */
+export type AudioContentType = 'audio/wav' | 'audio/x-wav' | 'audio/mpeg' | 'audio/mp4' | 'audio/x-m4a';
+export interface CreateAudioUploadRequest { content_type: AudioContentType; content_length: number }
+export interface AudioUploadResponse { upload_id: string; chunk_count: number }
+export interface AudioAcceptedResponse { upload_id: string; state: 'accepted' }
+
+/** Spoken-guide catalog served by GET /voice-guide (PLACEHOLDER shape matching the current API; no generated type yet). */
+export interface VoiceGuideLine { id: string; kind: string; zone: string | null; caption: string; approx_seconds: number }
+export interface VoiceGuideCatalog { version: string; voice_label: string; provenance: string; lines: VoiceGuideLine[] }
+
 export type ApiErrorCode = ProblemCode | 'NETWORK' | 'UNKNOWN';
 
 /** A failed API call. `detail` comes from the server's problem document and carries no secrets. */
@@ -125,6 +138,14 @@ export interface Api {
   deleteMedia(sessionId: string): Promise<void>;
   /** Owner-only. Evidence sources attached by capture kits. A 404 (an API without the route) means none yet. */
   listSources(sessionId: string): Promise<CaptureSource[]>;
+  createAudioUpload(sessionId: string, request: CreateAudioUploadRequest): Promise<AudioUploadResponse>;
+  audioUploadUrls(uploadId: string, partNumbers: readonly number[]): Promise<UploadUrl[]>;
+  completeAudioUpload(uploadId: string): Promise<AudioAcceptedResponse>;
+  abortAudioUpload(uploadId: string): Promise<void>;
+  /** Owner-only. Fixed catalog of spoken guidance lines with captions. */
+  getVoiceGuide(): Promise<VoiceGuideCatalog>;
+  /** Owner-only. Audio for one catalog line; the token goes in a header, so the bytes come back as a Blob. */
+  getVoiceGuideAudio(lineId: string, signal?: AbortSignal): Promise<Blob>;
 }
 
 interface RequestOptions {
@@ -212,6 +233,26 @@ export function createApi(options: ApiOptions): Api {
         if (error instanceof ApiError && error.status === 404) return [];
         throw error;
       }
+    },
+    createAudioUpload: (id, body) => request('POST', `/sessions/${id}/audio`, { body }),
+    audioUploadUrls: async (id, numbers) => {
+      const result = await request<{ items: UploadUrl[] }>('POST', `/audio/${id}/urls`, { body: { part_numbers: [...numbers] } });
+      return result.items;
+    },
+    completeAudioUpload: (id) => request('POST', `/audio/${id}/complete`, { body: {} }),
+    abortAudioUpload: async (id) => { await request('DELETE', `/audio/${id}`); },
+    getVoiceGuide: () => request('GET', '/voice-guide'),
+    getVoiceGuideAudio: async (lineId, signal) => {
+      const token = options.getToken();
+      let response: Response;
+      try {
+        response = await doFetch(`${base}/voice-guide/${encodeURIComponent(lineId)}`, {
+          headers: { Accept: 'audio/*', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer', signal,
+        });
+      } catch { throw new ApiError(0, 'NETWORK', 'The voice guide could not be reached.'); }
+      if (!response.ok) throw await toApiError(response, now());
+      return response.blob();
     },
     getReport: (slug) => request('GET', `/reports/${encodeURIComponent(slug)}`),
     updateLabel: (id, label) => request('PUT', `/sessions/${id}/label`, { body: { label } }),

@@ -1,5 +1,7 @@
 import { useState, type ReactElement } from 'react';
 import { PROVENANCE_LABEL, rigCommand, type KitRow } from '../capture/kits';
+import type { AudioUploadController } from '../upload/audioUpload';
+import { EngineAudioUpload } from './EngineAudioUpload';
 
 interface Props {
   rows: readonly KitRow[];
@@ -7,6 +9,8 @@ interface Props {
   /** Read at click time and written only to the clipboard; it is never rendered. */
   ownerToken: string;
   capturing: boolean;
+  /** Engine-audio upload controller; without it the card only reports status. */
+  audio?: AudioUploadController;
 }
 
 type CopyState = 'idle' | 'copied' | 'failed';
@@ -21,7 +25,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
-export function CaptureKits({ rows, sessionId, ownerToken, capturing }: Props): ReactElement {
+export function CaptureKits({ rows, sessionId, ownerToken, capturing, audio }: Props): ReactElement {
   const [idState, setIdState] = useState<CopyState>('idle');
   const [commandState, setCommandState] = useState<CopyState>('idle');
   const [tokenState, setTokenState] = useState<CopyState>('idle');
@@ -48,6 +52,7 @@ export function CaptureKits({ rows, sessionId, ownerToken, capturing }: Props): 
           </li>
         ))}
       </ul>
+      {audio && <EngineAudioUpload upload={audio} attached={rows.some((row) => row.id === 'engine_audio' && row.attached)} capturing={capturing} />}
       {capturing && (
         <details className="kit-connect">
           <summary>Connect the sensor pod</summary>

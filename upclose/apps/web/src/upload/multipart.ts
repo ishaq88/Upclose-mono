@@ -5,12 +5,14 @@
  * behaviour is unit-testable with a mocked fetch. The browser sets Content-Length itself; this module
  * never sets it. Presigned URLs are secrets and are never logged, persisted or put in error messages.
  */
-import { ApiError, type Api, type FetchLike, type PartAcceptedResponse, type UploadResponse, type UploadUrl } from '../api/client';
+import { ApiError, type Api, type AudioContentType, type FetchLike, type PartAcceptedResponse, type UploadResponse, type UploadUrl } from '../api/client';
 import { MAX_URLS_PER_REQUEST } from '../config';
 
 export const DEFAULT_CHUNK_SIZE_BYTES = 8 * 1024 * 1024;
 
 export type UploadContentType = 'video/mp4' | 'video/webm' | 'video/quicktime';
+/** What an attempt may carry: a video clip, or an engine-audio clip (which reuses this protocol). */
+export type AttemptContentType = UploadContentType | AudioContentType;
 
 export type UploadSource = Blob & { readonly name?: string; readonly lastModified?: number };
 
@@ -19,7 +21,7 @@ export interface UploadRecord {
   uploadId: string;
   partId: string;
   partNo: number;
-  contentType: UploadContentType;
+  contentType: AttemptContentType;
   size: number;
   chunkSize: number;
   chunkCount: number;
@@ -420,7 +422,7 @@ export interface StartUploadInput {
   sessionId: string;
   partNo: number;
   file: UploadSource;
-  contentType: UploadContentType;
+  contentType: AttemptContentType;
   /** Reuse the same key when retrying creation so a lost response replays the original result. */
   idempotencyKey: string;
   /** Called as soon as the attempt exists so the caller can persist it for resume. */
@@ -434,7 +436,8 @@ export async function startUpload<T>(
   throwIfAborted(options.signal);
   const { file } = input;
   const created = await env.api.createUpload(input.sessionId,
-    { part_no: input.partNo, content_type: input.contentType, content_length: file.size }, input.idempotencyKey);
+    // An audio attempt carries its own type in its adapter, which ignores this video-typed field.
+    { part_no: input.partNo, content_type: input.contentType as UploadContentType, content_length: file.size }, input.idempotencyKey);
   const chunkSize = created.chunk_size_bytes;
   const record: UploadRecord = {
     uploadId: created.upload_id, partId: created.part_id ?? '', partNo: input.partNo, contentType: input.contentType,

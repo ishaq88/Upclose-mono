@@ -3,7 +3,7 @@
  * It enforces the documented rules that matter to the client: bearer auth, <=10 URLs per request, URL refresh
  * rate limit, expiring presigned URLs (403), exact piece sizes at completion, and Retry-After on 429.
  */
-import type { CaptureSource, Part1Verdict, PartSummary, ReportProgress, VideoUploadResponse, CreateVideoUploadRequest } from '../api/client';
+import type { CaptureSource, Part1Verdict, VoiceGuideCatalog, PartSummary, ReportProgress, VideoUploadResponse, CreateVideoUploadRequest } from '../api/client';
 
 const CHUNK = 8 * 1024 * 1024;
 const ZONES = ['driver_side', 'passenger_side', 'front_rear_body', 'tires', 'dash_electrical', 'engine_bay', 'underbody', 'interior'] as const;
@@ -90,6 +90,26 @@ export class FakeBackend {
   /** Sources served by GET /sessions/{id}/sources; `sourcesStatus` 404 mimics an API without the route. */
   sources: CaptureSource[] = [];
   sourcesStatus: 200 | 404 = 200;
+  /** Engine-audio route scripting: statuses answered for upcoming creates (consumed first). */
+  audioCreateScript: number[] = [];
+  /** Vehicle label stored by PUT /sessions/{id}/label; `labelStatus` other than 200 makes the rename fail. */
+  label: string | null = null;
+  labelStatus = 200;
+  /** Voice guide: `voiceCatalogStatus` / `voiceAudioStatus` other than 200 make the route fail. */
+  voiceCatalogStatus = 200;
+  voiceAudioStatus = 200;
+  voiceCatalog: VoiceGuideCatalog = {
+    version: 'voice-guide-v1', voice_label: 'synthesized voice', provenance: 'synthetic',
+    lines: [
+      { id: 'zone_driver_side', kind: 'zone', zone: 'driver_side', caption: 'Driver side. Start at the rear corner and walk to the front.', approx_seconds: 4 },
+      { id: 'zone_passenger_side', kind: 'zone', zone: 'passenger_side', caption: 'Passenger side. Start at the front corner and walk to the rear.', approx_seconds: 4 },
+      { id: 'engine_pod_on', kind: 'engine', zone: null, caption: 'Switch the pod on while the engine is off.', approx_seconds: 3 },
+      { id: 'engine_start', kind: 'engine', zone: null, caption: 'Now start the engine.', approx_seconds: 2 },
+      { id: 'engine_hands_off', kind: 'engine', zone: null, caption: 'Hands off. The pod is learning for twenty seconds.', approx_seconds: 4 },
+      { id: 'engine_baseline_learned', kind: 'engine', zone: null, caption: 'Baseline learned.', approx_seconds: 1 },
+      { id: 'finish', kind: 'finish', zone: null, caption: 'That is everything. You can finish the inspection now.', approx_seconds: 4 },
+    ],
+  };
   checkoutUrl = 'https://checkout.test/c/cs_test_123';
   private sequence = 0;
   private readonly issued = new Map<string, { uploadId: string; part: number; expiresAt: number; revoked: boolean }>();
@@ -156,6 +176,21 @@ export class FakeBackend {
     if ((m = /^\/sessions\/([^/]+)\/delete-media$/.exec(path)) && method === 'POST') return json(202, { state: 'deleting' });
     if (/^\/sessions\/([^/]+)\/sources$/.test(path) && method === 'GET') return this.sourcesStatus === 404 ? problem(404, 'NOT_FOUND') : json(200, { sources: this.sources });
     if ((m = /^\/sessions\/([^/]+)\/progress$/.exec(path)) && method === 'GET') return this.getProgress(m[1]);
+    if (path === '/voice-guide' && method === 'GET') return this.voiceCatalogStatus === 200 ? json(200, this.voiceCatalog) : problem(this.voiceCatalogStatus, 'INTERNAL');
+    if ((m = /^\/voice-guide\/([^/]+)$/.exec(path)) && method === 'GET') {
+      if (this.voiceAudioStatus !== 200) return problem(this.voiceAudioStatus, 'INTERNAL');
+      if (!this.voiceCatalog.lines.some((line) => line.id === m![1])) return problem(404, 'NOT_FOUND');
+      return new Response(new Blob([new Uint8Array([82, 73, 70, 70])], { type: 'audio/wav' }), { status: 200, headers: { 'Content-Type': 'audio/wav' } });
+    }
+    if ((m = /^\/sessions\/([^/]+)\/label$/.exec(path)) && method === 'PUT') {
+      if (this.labelStatus !== 200) return problem(this.labelStatus, this.labelStatus === 422 ? 'VALIDATION' : 'INTERNAL');
+      this.label = (body as { label: string }).label;
+      return this.getSession(m[1]);
+    }
+    if ((m = /^\/sessions\/([^/]+)\/audio$/.exec(path)) && method === 'POST') return this.createAudio(body as { content_length: number });
+    if ((m = /^\/audio\/([^/]+)\/urls$/.exec(path)) && method === 'POST') return this.urls(m[1], body as { part_numbers: number[] });
+    if ((m = /^\/audio\/([^/]+)\/complete$/.exec(path)) && method === 'POST') return this.completeAudio(m[1]);
+    if ((m = /^\/audio\/([^/]+)$/.exec(path)) && method === 'DELETE') return this.abort(m[1]);
     if ((m = /^\/reports\/([^/]+)\/checkout$/.exec(path)) && method === 'POST') return this.checkout(m[1], body);
     if ((m = /^\/sessions\/([^/]+)\/video$/.exec(path))) {
       if (method === 'GET') return json(200, { source: this.source?.state === 'aborted' ? null : this.source });
@@ -209,7 +244,7 @@ export class FakeBackend {
     if (id !== this.sessionId) return problem(404, 'NOT_FOUND');
     return json(200, {
       session_id: this.sessionId, capture_mode: this.captureMode, purpose: 'buyer', state: this.sessionState, consent_at: '2026-10-28T12:00:00Z',
-      listing_text: null, listing_version: 1, parts: this.parts,
+      listing_text: null, listing_version: 1, parts: this.parts, vehicle_label: this.label,
     });
   }
 
@@ -243,6 +278,28 @@ export class FakeBackend {
     return json(201, {
       part_id: part.id, upload_id: id, chunk_size_bytes: CHUNK, chunk_count: Math.ceil(body.content_length / CHUNK),
     });
+  }
+
+  private createAudio(body: { content_length: number }): Response {
+    const scripted = this.audioCreateScript.shift();
+    if (scripted !== undefined) return problem(scripted, scripted === 413 ? 'UPLOAD_TOO_LARGE' : 'INTERNAL');
+    if ([...this.uploads.values()].some((row) => row.partNo === -1 && row.state === 'open')) return problem(409, 'STATE_CONFLICT');
+    this.sequence += 1;
+    const id = `audio-${this.sequence}`;
+    this.uploads.set(id, { id, partId: '', partNo: -1, size: body.content_length, state: 'open', pieces: new Map() });
+    return json(201, { upload_id: id, chunk_count: Math.ceil(body.content_length / CHUNK) });
+  }
+
+  private completeAudio(id: string): Response {
+    const upload = this.uploads.get(id);
+    if (upload?.state === 'accepted') return json(200, { upload_id: id, state: 'accepted' });
+    const response = this.complete(id);
+    if (!response.ok || !upload) return response;
+    this.sources = [...this.sources, {
+      source_id: '44444444-4444-4444-8444-444444444444', kind: 'engine_audio', provenance: 'live', device: 'phone',
+      captured_at: '2026-11-07T21:20:00Z', data_sha256: 'b'.repeat(64), summary: { state: 'assessed', flag_count: 0 },
+    }];
+    return json(200, { upload_id: id, state: 'accepted' });
   }
 
   private urls(uploadId: string, body: { part_numbers: number[] }): Response {

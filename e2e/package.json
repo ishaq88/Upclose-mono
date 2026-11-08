@@ -1,0 +1,22 @@
+{
+  "name": "upclose-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "End-to-end verifier for the UpClose stack",
+  "scripts": {
+    "manual": "tsx scripts/manual.ts",
+    "clips": "tsx src/make-clips.ts",
+    "e2e": "playwright test --config playwright.config.ts journey",
+    "e2e:camera": "playwright test --config playwright.config.ts camera",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^26.6.6",
+    "fflate": "^0.8.3",
+    "ffmpeg-static": "^5.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

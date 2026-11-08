@@ -25,6 +25,9 @@
     {"id": "warn_too_shaky", "kind": "warning", "text": "Too shaky. Hold the phone steady."},
     {"id": "warn_too_fast", "kind": "warning", "text": "Moving too fast. Slow down."},
     {"id": "warn_car_not_in_frame", "kind": "warning", "text": "The car is not in frame. Point the phone at the car."},
+    {"id": "clip_too_short", "kind": "warning", "text": "That clip is too short. Retake it and move a little slower."},
+    {"id": "clip_too_long", "kind": "warning", "text": "That clip is too long. Retake a shorter pass."},
+    {"id": "low_resolution", "kind": "warning", "text": "The video quality is low. Move closer or use a higher camera setting."},
 
     {"id": "finish", "kind": "finish", "text": "That is everything. You can finish the inspection now."}
   ]

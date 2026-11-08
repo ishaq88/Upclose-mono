@@ -41,6 +41,16 @@ def test_catalog_covers_every_zone_engine_sequence_and_warnings():
     assert all(line.text and line.approx_seconds >= 1 for line in catalog.lines)
 
 
+def test_client_quality_warning_lines_exist_with_captions():
+    catalog = load_catalog()
+    for line_id in ("clip_too_short", "clip_too_long", "low_resolution"):
+        line = catalog.get(line_id)
+        assert line is not None and line.kind == "warning"
+        assert line.caption.strip() and line.approx_seconds >= 1
+    described = {row["id"]: row for row in VoiceGuide(MemoryStorage(), environ={}).describe()["lines"]}
+    assert all(described[i]["caption"] for i in ("clip_too_short", "clip_too_long", "low_resolution"))
+
+
 def test_invalid_catalogs_are_rejected(tmp_path):
     raw = json.loads(CATALOG_PATH.read_text())
     bad = {**raw, "lines": raw["lines"] + [raw["lines"][0]]}

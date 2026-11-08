@@ -11,7 +11,7 @@
     {"prompt_id": "glass_crack", "concept": "glass_crack", "text": "cracked glass"},
     {"prompt_id": "tire_wear", "concept": "tire_wear", "text": "worn tire"},
     {"prompt_id": "fluid_leak", "concept": "fluid_leak", "text": "fluid leak"},
-    {"prompt_id": "dash_cluster", "concept": null, "text": "instrument panel"}
+    {"prompt_id": "dash_cluster", "concept": null, "text": "dashboard gauges"}
   ],
   "parts": [
     {"part_no": 1, "zone": "driver_side", "disposition": "planned", "media": "video", "prompt_ids": ["rust_a", "rust_b", "paint_bubbling", "dent", "scratch"]},

@@ -144,7 +144,7 @@ def test_prompt_plan_matches_contract_and_scoring_requirements() -> None:
     assert len(PROMPTS.expected_prompts(1)[Concept.RUST]) == 2 and Concept.GLASS_CRACK in PROMPTS.expected_prompts(3)
     assert PROMPTS.part(4).media == "stills" and PROMPTS.part(4).still_count == 8
     assert PROMPTS.part(5).disposition == "planned" and PROMPTS.part(8).disposition == "no_concept"
-    assert PROMPTS.prompt("dash_cluster").text == "instrument panel"
+    assert PROMPTS.prompt("dash_cluster").text == "dashboard gauges"
     assert PROMPTS.expected_prompts(5) == {}  # mechanical reading never becomes visual coverage
     assert PROMPTS.expected_prompts(8) == {}
     assert set(PROMPTS.expected_prompts(7)) == {Concept.RUST, Concept.FLUID_LEAK}

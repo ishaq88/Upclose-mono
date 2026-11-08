@@ -26,5 +26,5 @@
     "sharpness_weight": "0.5",
     "crop_margin_fraction": "0.08"
   },
-  "sam_prompt": {"prompt_id": "dash_cluster", "text": "instrument panel"}
+  "sam_prompt": {"prompt_id": "dash_cluster", "text": "dashboard gauges"}
 }

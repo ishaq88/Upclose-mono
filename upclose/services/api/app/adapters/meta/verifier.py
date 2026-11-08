@@ -239,9 +239,12 @@ class MetaSparkVerifier:
                 raise ValueError
             step = "verdict_rules"
             verdict = parse_verdict(raw_verdict)
-            if verdict.finding_id != prepared.finding_id or (verdict.duplicate_of is not None
-                                                            and (verdict.duplicate_of not in prepared.context_ids
-                                                                 or verdict.duplicate_of == prepared.finding_id)):
+            if verdict.finding_id != prepared.finding_id:
+                step = "verdict_rules:finding_id_mismatch"
+                raise ValueError
+            if verdict.duplicate_of is not None and (verdict.duplicate_of not in prepared.context_ids
+                                                     or verdict.duplicate_of == prepared.finding_id):
+                step = "verdict_rules:duplicate_of_invalid"
                 raise ValueError
             step = "usage"
             usage = payload.get("usage")
@@ -261,7 +264,9 @@ class MetaSparkVerifier:
             if inputs is not None and cached is not None and cached > inputs:
                 raise ValueError
             return VerificationResponse(json.loads(verdict.model_dump_json()), MODEL, inputs, cached, outputs)
-        except (ValueError, TypeError, KeyError, AttributeError, VerdictRejected):
+        except (ValueError, TypeError, KeyError, AttributeError, VerdictRejected) as error:
             # Structure only (step, model id, item/part types): never verdict text or image data.
+            if isinstance(error, VerdictRejected):
+                step = f"{step}:{error.code.value}"  # rule code only; detail may name fields
             logging.warning("Spark response rejected step=%s shape=%s", step, shape)
             raise ProviderFailure("malformed_record") from None

@@ -24,6 +24,8 @@ from .dedup import DedupConfig
 RUBRIC_UNSUPPORTED = "rubric_unsupported"
 SEVERITIES = (1, 2, 3, 4, 5)
 MAX_REASON_CHARS = 240
+EXTENT_INSTRUCTION = ("Use the full frame to judge how much of the panel the damage covers; choose the highest "
+                      "severity whose extent or character the visible damage meets.")
 
 PromptId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,63}$")]
 PromptText = Annotated[str, Field(min_length=1, max_length=48, pattern=r"^[a-z][a-z ]*$")]
@@ -244,6 +246,7 @@ def load_rubric_registry(path: str | Path) -> RubricRegistry:
 def render_rubric_text(rubric: EnabledRubric) -> str:
     """Stable text handed to a Verifier as its `rubric` argument."""
     lines = [f"Rubric {rubric.rubric_id} (uncalibrated design default; describes visible evidence only)"]
+    lines.append(EXTENT_INSTRUCTION)
     lines += [f"Severity {row.severity}: {row.description}" for row in rubric.anchors]
     lines.append(f"Limitations: {rubric.limitations}")
     return "\n".join(lines)

@@ -83,6 +83,21 @@ def test_every_concept_has_complete_visible_only_anchors() -> None:
     assert "perforation_suspected" in RUBRICS.get(Concept.RUST).suggested_flags
 
 
+def test_shipped_rubric_has_every_concept_enabled_and_no_measurement_numbers() -> None:
+    assert RUBRICS.disabled == () and {row.concept for row in RUBRICS.enabled} == set(Concept)
+    for rubric in RUBRICS.enabled:
+        assert not any(char.isdigit() for row in rubric.anchors for char in row.description), rubric.concept
+        assert "not measured" in rubric.limitations
+
+
+def test_rendered_rubric_text_tells_the_verifier_to_weigh_extent() -> None:
+    line = ("Use the full frame to judge how much of the panel the damage covers; choose the highest "
+            "severity whose extent or character the visible damage meets.")
+    for rubric in RUBRICS.enabled:
+        lines = render_rubric_text(rubric).splitlines()
+        assert line in lines and lines.index(line) < lines.index(next(x for x in lines if x.startswith("Severity 1:")))
+
+
 def mutated(update: dict[str, Any]) -> RubricConfig:
     data = json.loads((ROOT / "config/rubrics.v1.json").read_text(encoding="utf-8"))
     for row in data["concepts"]:

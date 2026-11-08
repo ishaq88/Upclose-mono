@@ -37,6 +37,8 @@ const PLACE: Record<string, string> = {
   tire_fl: 'front left tire', tire_fr: 'front right tire', tire_rl: 'rear left tire', tire_rr: 'rear right tire',
   driver_front_door: 'driver front door', driver_rear_door: 'driver rear door',
   passenger_front_door: 'passenger front door', passenger_rear_door: 'passenger rear door',
+  passenger_sliding_door: 'passenger sliding door', driver_sliding_door: 'driver sliding door',
+  front_left_tire: 'front left tire', front_right_tire: 'front right tire', rear_left_tire: 'rear left tire', rear_right_tire: 'rear right tire',
   hood: 'hood', roof: 'roof', trunk: 'trunk', front_bumper: 'front bumper', rear_bumper: 'rear bumper',
 };
 
@@ -49,7 +51,8 @@ export function isSerious(finding: PaidFinding): boolean {
 }
 
 export function findingTitle(finding: PaidFinding | CandidateFinding): string {
-  const place = 'component_id' in finding && finding.component_id ? PLACE[finding.component_id] : ZONE_LABEL[finding.zone].toLowerCase();
+  const named = 'component_id' in finding && finding.component_id ? PLACE[finding.component_id] : undefined;
+  const place = named ?? ZONE_LABEL[finding.zone].toLowerCase();
   return `${CONCEPT_NOUN[finding.concept]}, ${place}`;
 }
 

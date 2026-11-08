@@ -1,10 +1,11 @@
 import type { ReactElement } from 'react';
 import type { CategoryScores as Categories } from '../api/client';
+import { formatIndex } from './model';
 
 const NOT_CHECKED = 'Not checked';
 
 function show(category: Categories['visual']): string {
-  return category.state === 'assessed' && category.score !== null && Number.isFinite(category.score) ? String(Math.round(category.score)) : NOT_CHECKED;
+  return category.state === 'assessed' && category.score !== null && Number.isFinite(category.score) ? formatIndex(category.score) : NOT_CHECKED;
 }
 
 /**
@@ -29,7 +30,7 @@ export function CategoryScores({ categories }: { categories: Categories }): Reac
         <div className="category" data-testid="category-overall">
           <dt>Overall</dt>
           {overallScored
-            ? <dd className="category-score num">{Math.round(overall.score!)}</dd>
+            ? <dd className="category-score num">{formatIndex(overall.score!)}</dd>
             : <dd className="category-none">{visualOnly ? 'Visual only' : NOT_CHECKED}</dd>}
         </div>
       </dl>

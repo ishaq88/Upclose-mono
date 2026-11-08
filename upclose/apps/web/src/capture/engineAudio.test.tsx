@@ -75,4 +75,61 @@ describe('engine audio upload', () => {
     await screen.findByLabelText('Choose audio file');
     expect(audioCalls('POST', '/complete')).toHaveLength(0);
   });
+  const sourcePosts = () => backend.calls.filter((call) => call.method === 'POST' && call.url.endsWith(`/sessions/${backend.sessionId}/sources`));
+
+  it('posts the engine_audio source with the upload id and sha256, labeled cached for a chosen file', async () => {
+    render(<App />);
+    await pick(wav());
+    await screen.findByTestId('audio-attached');
+    expect(sourcePosts()).toHaveLength(1);
+    const body = sourcePosts()[0]!.body as Record<string, unknown> & { data: { upload_id: string; sha256: string } };
+    expect(body).toMatchObject({ kind: 'engine_audio', provenance: 'cached', device: 'audio-file' });
+    expect(body.data.upload_id).toMatch(/^audio-/);
+    expect(body.data.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(Number.isNaN(Date.parse(String(body.captured_at)))).toBe(false);
+  });
+
+  it('labels a clip recorded in the app live, and a sample clip synthetic', async () => {
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText('Record engine audio'), { target: { files: [wav()] } });
+    await screen.findByTestId('audio-attached');
+    expect(sourcePosts()[0]!.body).toMatchObject({ provenance: 'live', device: 'phone-mic' });
+    cleanup();
+
+    backend.sources = [];
+    render(<App />);
+    fireEvent.click(await screen.findByTestId('engine-audio-synthetic'));
+    await pick(wav());
+    await waitFor(() => expect(sourcePosts()).toHaveLength(2));
+    expect(sourcePosts()[1]!.body).toMatchObject({ provenance: 'synthetic', device: 'audio-file' });
+  });
+
+  it('does not show Attached until the source POST succeeds, and retries only the attach', async () => {
+    backend.sourcePostScript = [500];
+    render(<App />);
+    await pick(wav());
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.queryByTestId('audio-attached')).toBeNull();
+    expect(screen.getByTestId('kit-engine_audio').textContent).not.toContain('Attached');
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await screen.findByTestId('audio-attached');
+    expect(sourcePosts()).toHaveLength(2);
+    expect(audioCalls('POST', `/sessions/${backend.sessionId}/audio`)).toHaveLength(1);
+    expect(audioCalls('POST', '/complete')).toHaveLength(1);
+  });
+
+  it('treats 409 as already attached and re-reads the sources; a 404 or 401 is an error', async () => {
+    backend.sourcePostScript = [409];
+    render(<App />);
+    await pick(wav());
+    await waitFor(() => expect(sourcePosts()).toHaveLength(1));
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    cleanup();
+
+    backend.sourcePostScript = [404];
+    render(<App />);
+    await pick(wav());
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.queryByTestId('audio-attached')).toBeNull();
+  });
 });

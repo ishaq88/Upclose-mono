@@ -53,6 +53,7 @@ export type CreateAudioUploadRequest = Schemas['CreateAudioUploadRequest'];
 export type AudioContentType = CreateAudioUploadRequest['content_type'];
 export type AudioUploadResponse = Schemas['AudioUploadResponse'];
 export type AudioAcceptedResponse = Schemas['AudioAcceptedResponse'];
+export type EngineAudioSource = Schemas['EngineAudioSource'];
 
 /** Spoken-guide catalog served by GET /voice-guide (PLACEHOLDER shape matching the current API; no generated type yet). */
 export interface VoiceGuideLine { id: string; kind: string; zone: string | null; caption: string; approx_seconds: number }
@@ -142,6 +143,8 @@ export interface Api {
   audioUploadUrls(uploadId: string, partNumbers: readonly number[]): Promise<UploadUrl[]>;
   completeAudioUpload(uploadId: string): Promise<AudioAcceptedResponse>;
   abortAudioUpload(uploadId: string): Promise<void>;
+  /** Owner-only. Attaches a completed audio upload as an engine_audio source (201); 409 means it is already attached. */
+  attachEngineAudio(sessionId: string, source: EngineAudioSource): Promise<void>;
   /** Owner-only. Fixed catalog of spoken guidance lines with captions. */
   getVoiceGuide(): Promise<VoiceGuideCatalog>;
   /** Owner-only. Audio for one catalog line; the token goes in a header, so the bytes come back as a Blob. */
@@ -254,6 +257,7 @@ export function createApi(options: ApiOptions): Api {
     },
     completeAudioUpload: (id) => request('POST', `/audio/${id}/complete`, { body: {} }),
     abortAudioUpload: async (id) => { await request('DELETE', `/audio/${id}`); },
+    attachEngineAudio: async (id, source) => { await request('POST', `/sessions/${id}/sources`, { body: source }); },
     getVoiceGuide: () => request('GET', '/voice-guide'),
     getVoiceGuideAudio: async (lineId, signal) => {
       const token = options.getToken();

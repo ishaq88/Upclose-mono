@@ -92,6 +92,8 @@ export class FakeBackend {
   sourcesStatus: 200 | 404 = 200;
   /** Engine-audio route scripting: statuses answered for upcoming creates (consumed first). */
   audioCreateScript: number[] = [];
+  /** Statuses answered for upcoming POST /sessions/{id}/sources (consumed first); 201 attaches the engine_audio source. */
+  sourcePostScript: number[] = [];
   /** Vehicle label stored by PUT /sessions/{id}/label; `labelStatus` other than 200 makes the rename fail. */
   label: string | null = null;
   labelStatus = 200;
@@ -187,6 +189,7 @@ export class FakeBackend {
       this.label = (body as { label: string }).label;
       return this.getSession(m[1]);
     }
+    if (/^\/sessions\/([^/]+)\/sources$/.test(path) && method === 'POST') return this.postSource(body as { provenance: string; device: string; captured_at: string; data: { sha256: string } });
     if ((m = /^\/sessions\/([^/]+)\/audio$/.exec(path)) && method === 'POST') return this.createAudio(body as { content_length: number });
     if ((m = /^\/audio\/([^/]+)\/urls$/.exec(path)) && method === 'POST') return this.urls(m[1], body as { part_numbers: number[] });
     if ((m = /^\/audio\/([^/]+)\/complete$/.exec(path)) && method === 'POST') return this.completeAudio(m[1]);
@@ -295,11 +298,17 @@ export class FakeBackend {
     if (upload?.state === 'accepted') return json(200, { upload_id: id, state: 'accepted' });
     const response = this.complete(id);
     if (!response.ok || !upload) return response;
-    this.sources = [...this.sources, {
-      source_id: '44444444-4444-4444-8444-444444444444', kind: 'engine_audio', provenance: 'live', device: 'phone',
-      captured_at: '2026-11-07T21:20:00Z', data_sha256: 'b'.repeat(64), summary: { state: 'assessed', flag_count: 0 },
-    }];
     return json(200, { upload_id: id, state: 'accepted' });
+  }
+
+  private postSource(body: { provenance: string; device: string; captured_at: string; data: { sha256: string } }): Response {
+    const scripted = this.sourcePostScript.shift();
+    if (scripted !== undefined) return problem(scripted, scripted === 409 ? 'STATE_CONFLICT' : scripted === 404 ? 'NOT_FOUND' : 'INTERNAL');
+    this.sources = [...this.sources, {
+      source_id: '44444444-4444-4444-8444-444444444444', kind: 'engine_audio', provenance: body.provenance, device: body.device,
+      captured_at: body.captured_at, data_sha256: body.data.sha256, summary: { state: 'assessed', flag_count: 0 },
+    } as CaptureSource];
+    return json(201, { source_id: '44444444-4444-4444-8444-444444444444' });
   }
 
   private urls(uploadId: string, body: { part_numbers: number[] }): Response {

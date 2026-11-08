@@ -116,7 +116,7 @@ function CaptureFlowBody({ api, sessionId, ownerToken, onNewSession }: Props): R
   const capturing = session?.state === 'capturing';
   const serverUploading = parts.some((part) => part.state === 'uploading');
   const uploadActive = uploads.anyActive || serverUploading || sourceUpload.blocksFinish;
-  const sources = useCaptureSources(api, sessionId, capturing && !unauthorized, undefined, audioUpload.phase === 'accepted');
+  const sources = useCaptureSources(api, sessionId, capturing && !unauthorized, undefined, audioUpload.phase === 'attached');
   const phoneVideoAttached = sourceUpload.source?.state === 'accepted' || parts.some((part) => part.state === 'uploaded' || part.state === 'processing' || part.state === 'processed');
   const kits = kitRows(phoneVideoAttached, sources);
   const unattached = missingKits(kits);

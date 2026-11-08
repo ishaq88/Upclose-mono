@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Api, AudioAcceptedResponse, AudioContentType } from '../api/client';
+import type { Api, AudioAcceptedResponse, AudioContentType, EngineAudioSource } from '../api/client';
+import { ApiError } from '../api/client';
 import { describeError, type UiError } from '../errors';
 import { abortableSleep, DEFAULT_CHUNK_SIZE_BYTES, isUploadAbort, startUpload, type UploadEnv, type UploadProgress } from './multipart';
 
@@ -79,7 +80,24 @@ export function audioUploadEnv(api: Api, contentType: AudioContentType): UploadE
   };
 }
 
-export type AudioPhase = 'idle' | 'uploading' | 'completing' | 'accepted' | 'failed';
+/** Hex SHA-256 of the clip, which the source request carries so the server can verify the stored bytes. */
+export async function sha256Hex(blob: Blob): Promise<string> {
+  const bytes = typeof blob.arrayBuffer === 'function'
+    ? await blob.arrayBuffer()
+    : await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(new Error('The clip could not be read.'));
+      reader.readAsArrayBuffer(blob);
+    });
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** How the clip is labeled as evidence: a clip recorded now is live, a chosen file is a replay, a sample is synthetic. */
+export interface AudioMeta { provenance: EngineAudioSource['provenance']; device: string }
+
+export type AudioPhase = 'idle' | 'uploading' | 'completing' | 'attaching' | 'attached' | 'failed';
 
 interface Options { api: Api; sessionId: string; onChanged: () => void; onUnauthorized: () => void }
 
@@ -94,7 +112,9 @@ export function useAudioUpload({ api, sessionId, onChanged, onUnauthorized }: Op
   const controller = useRef<AbortController | null>(null);
   const work = useRef<Promise<void> | null>(null);
   const uploadId = useRef<string | null>(null);
-  const lastFile = useRef<{ file: File; contentType: AudioContentType } | null>(null);
+  const lastFile = useRef<{ file: File; contentType: AudioContentType; meta: AudioMeta } | null>(null);
+  /** A completed upload whose source has not been attached yet; a retry then only repeats the attach. */
+  const pendingAttach = useRef<{ uploadId: string; sha256: string; meta: AudioMeta } | null>(null);
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -110,27 +130,43 @@ export function useAudioUpload({ api, sessionId, onChanged, onUnauthorized }: Op
     }
   }, [api]);
 
-  const run = useCallback(async (file: File, contentType: AudioContentType) => {
+  const run = useCallback(async (file: File, contentType: AudioContentType, meta: AudioMeta = { provenance: 'cached', device: 'audio-file' }) => {
     if (controller.current) return;
     const active = new AbortController();
     controller.current = active;
-    lastFile.current = { file, contentType };
+    lastFile.current = { file, contentType, meta };
     setError(null);
     setProgress(null);
     setPhase('uploading');
     work.current = (async () => {
       try {
-        await releaseStale();
-        await startUpload(audioUploadEnv(api, contentType), {
-          sessionId, partNo: 0, file, contentType, idempotencyKey: crypto.randomUUID(),
-          onRecord: (record) => { uploadId.current = record.uploadId; },
-        }, {
-          signal: active.signal,
-          onProgress: (value) => { if (mounted.current) { setProgress(value); setPhase(value.phase); } },
-        });
-        uploadId.current = null;
+        let pending = pendingAttach.current;
+        if (!pending) {
+          await releaseStale();
+          await startUpload(audioUploadEnv(api, contentType), {
+            sessionId, partNo: 0, file, contentType, idempotencyKey: crypto.randomUUID(),
+            onRecord: (record) => { uploadId.current = record.uploadId; },
+          }, {
+            signal: active.signal,
+            onProgress: (value) => { if (mounted.current) { setProgress(value); setPhase(value.phase); } },
+          });
+          pending = { uploadId: uploadId.current ?? '', sha256: await sha256Hex(file), meta };
+          pendingAttach.current = pending;
+          uploadId.current = null;
+        }
+        if (mounted.current) setPhase('attaching');
+        try {
+          await api.attachEngineAudio(sessionId, {
+            kind: 'engine_audio', provenance: pending.meta.provenance, device: pending.meta.device,
+            captured_at: new Date().toISOString(), data: { upload_id: pending.uploadId, sha256: pending.sha256 },
+          });
+        } catch (caught) {
+          // 409: the server already finalized this clip as a source, so the listing below shows it.
+          if (!(caught instanceof ApiError && caught.status === 409)) throw caught;
+        }
+        pendingAttach.current = null;
         lastFile.current = null;
-        if (mounted.current) setPhase('accepted');
+        if (mounted.current) setPhase('attached');
       } catch (caught) {
         if (mounted.current) {
           const described = describeError(caught);
@@ -154,6 +190,7 @@ export function useAudioUpload({ api, sessionId, onChanged, onUnauthorized }: Op
   const abort = useCallback(async () => {
     controller.current?.abort();
     await work.current;
+    pendingAttach.current = null;
     await releaseStale();
     lastFile.current = null;
     if (mounted.current) {
@@ -165,12 +202,12 @@ export function useAudioUpload({ api, sessionId, onChanged, onUnauthorized }: Op
 
   const retry = useCallback(async () => {
     const last = lastFile.current;
-    if (last) await run(last.file, last.contentType);
+    if (last) await run(last.file, last.contentType, last.meta);
   }, [run]);
 
   const dismissError = useCallback(() => { setError(null); setPhase('idle'); }, []);
 
-  return { phase, progress, error, busy: phase === 'uploading' || phase === 'completing', upload: run, abort, retry, dismissError, canRetry: phase === 'failed' && lastFile.current !== null };
+  return { phase, progress, error, busy: phase === 'uploading' || phase === 'completing' || phase === 'attaching', upload: run, abort, retry, dismissError, canRetry: phase === 'failed' && lastFile.current !== null };
 }
 
 export type AudioUploadController = ReturnType<typeof useAudioUpload>;

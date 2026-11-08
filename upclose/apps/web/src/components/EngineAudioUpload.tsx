@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type ReactElement } from 'react';
-import { checkAudioFile, MAX_AUDIO_SECONDS, readAudioDuration, type AudioUploadController } from '../upload/audioUpload';
+import { checkAudioFile, type AudioMeta, MAX_AUDIO_SECONDS, readAudioDuration, type AudioUploadController } from '../upload/audioUpload';
 import { ErrorNotice } from './PartCard';
 
 interface Props {
@@ -14,11 +14,12 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
   const [rejection, setRejection] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [sample, setSample] = useState(false);
 
   if (attached) return <p className="hint" data-testid="audio-attached">Engine audio is attached to this inspection.</p>;
   if (!capturing) return null;
 
-  const pick = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
+  const pick = async (event: ChangeEvent<HTMLInputElement>, recorded: boolean): Promise<void> => {
     const file = event.target.files?.[0];
     event.target.value = ''; // allow choosing the same file again
     if (!file) return;
@@ -31,11 +32,13 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
     setChecking(false);
     if (!verdict.ok) { setRejection(verdict.message); return; }
     setNotice(verdict.notice);
-    void upload.upload(file, verdict.contentType);
+    // Recorded now is live, a chosen file is a replay (cached), and the sample box always wins with synthetic.
+    const meta: AudioMeta = { provenance: sample ? 'synthetic' : recorded ? 'live' : 'cached', device: recorded ? 'phone-mic' : 'audio-file' };
+    void upload.upload(file, verdict.contentType, meta);
   };
 
   const percent = upload.progress && upload.progress.totalBytes > 0 ? Math.round((upload.progress.uploadedBytes / upload.progress.totalBytes) * 100) : 0;
-  const label = upload.phase === 'completing' ? 'Finishing upload...' : `Uploading engine audio... ${percent}%`;
+  const label = upload.phase === 'completing' ? 'Finishing upload...' : upload.phase === 'attaching' ? 'Attaching the clip...' : `Uploading engine audio... ${percent}%`;
 
   return (
     <div className="audio-upload stack" data-testid="engine-audio-upload">
@@ -53,22 +56,28 @@ export function EngineAudioUpload({ upload, attached, capturing }: Props): React
           <button type="button" className="btn btn-ghost btn-sm" data-testid="engine-audio-cancel" onClick={() => { void upload.abort(); }}>Cancel upload</button>
         </div>
       )}
-      {upload.phase === 'accepted' && <p role="status" className="hint">Uploaded. Waiting for the clip to be checked and attached.</p>}
+      {upload.phase === 'attached' && <p role="status" className="hint">Attached. The clip is being checked.</p>}
       {upload.phase === 'failed' && upload.canRetry && (
         <div className="cap-actions">
           <button type="button" className="btn btn-sm" data-testid="engine-audio-retry" onClick={() => { void upload.retry(); }}>Try again</button>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void upload.abort(); }}>Discard</button>
         </div>
       )}
-      {!upload.busy && upload.phase !== 'accepted' && upload.phase !== 'failed' && (
+      {!upload.busy && upload.phase !== 'attached' && upload.phase !== 'failed' && (
+        <label className="hint check-row">
+          <input type="checkbox" data-testid="engine-audio-synthetic" checked={sample} onChange={(event) => setSample(event.target.checked)} />
+          {' '}This is a sample or simulated clip
+        </label>
+      )}
+      {!upload.busy && upload.phase !== 'attached' && upload.phase !== 'failed' && (
         <div className="cap-actions">
           <label className="btn btn-sm file-btn">
             <span>Record engine audio</span>
-            <input type="file" accept="audio/*" capture data-testid="engine-audio-record-input" className="sr-only" onChange={(event) => { void pick(event); }} />
+            <input type="file" accept="audio/*" capture data-testid="engine-audio-record-input" className="sr-only" onChange={(event) => { void pick(event, true); }} />
           </label>
           <label className="btn btn-ghost btn-sm file-btn">
             <span>Choose audio file</span>
-            <input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a" data-testid="engine-audio-file-input" className="sr-only" onChange={(event) => { void pick(event); }} />
+            <input type="file" accept="audio/wav,audio/x-wav,audio/mpeg,audio/mp4,audio/x-m4a,.wav,.mp3,.m4a" data-testid="engine-audio-file-input" className="sr-only" onChange={(event) => { void pick(event, false); }} />
           </label>
         </div>
       )}

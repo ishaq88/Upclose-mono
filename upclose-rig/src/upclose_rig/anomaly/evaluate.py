@@ -97,7 +97,7 @@ def build_report(rows: list[dict[str, Any]]) -> str:
     win_fpr, win_tpr = _window_rates(healthy, faulty)
     out: list[str] = []
     w = out.append
-    w("# Engine anomaly model: evaluation report (H16)")
+    w("# Engine anomaly model: evaluation report")
     w("")
     w("**All data here is SYNTHETIC**, produced by `upclose_rig.simulator`. This measures whether a baseline-relative")
     w("detector finds a simulator-style misfire (every Nth firing event dropped) on a simulator engine. It is **not**")

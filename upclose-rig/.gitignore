@@ -8,3 +8,11 @@ recordings/
 elm.log
 .env
 !tests/fixtures/*.upr
+twin/node_modules/
+twin/dist/
+twin/out/
+samples/*.wav
+samples/*.mp3
+samples/*.ogg
+samples/*.flac
+!samples/README.md

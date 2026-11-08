@@ -1,5 +1,5 @@
-"""Pydantic mirror of the UB Hacking evidence-source wire contract
-(.docs/ubhacking-evidence-sources.md in the UpClose repo). Strict, extra forbidden."""
+"""Pydantic mirror of the UpClose evidence-source wire contract
+(docs/evidence-sources.md at the repository root). Strict, extra forbidden."""
 
 from __future__ import annotations
 

@@ -21,6 +21,7 @@ class PostResult:
     ok: bool
     status: int | None
     message: str
+    body: dict | None = None  # parsed JSON of a 201 response
 
 
 def token_from_env() -> str:
@@ -59,6 +60,7 @@ def post_source(
             return PostResult(
                 True, code,
                 f"created source {j.get('source_id')} kind={j.get('kind')} sha256={j.get('data_sha256')} summary={j.get('summary')}",
+                j if isinstance(j, dict) else None,
             )
         except ValueError:
             return PostResult(True, code, "created (response was not JSON)")

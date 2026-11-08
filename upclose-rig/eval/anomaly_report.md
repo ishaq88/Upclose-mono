@@ -1,4 +1,4 @@
-# Engine anomaly model: evaluation report (H16)
+# Engine anomaly model: evaluation report
 
 **All data here is SYNTHETIC**, produced by `upclose_rig.simulator`. This measures whether a baseline-relative
 detector finds a simulator-style misfire (every Nth firing event dropped) on a simulator engine. It is **not**

@@ -1,4 +1,4 @@
-"""Baseline-relative engine anomaly detection (H16). numpy only.
+"""Baseline-relative engine anomaly detection. numpy only.
 
 Learn what "normal" looks like for one engine from a healthy baseline, then
 score new windows by their regularized Mahalanobis distance from it.

@@ -1,6 +1,6 @@
-"""Live Sense -> Understand -> Act loop (H17).
+"""Live Sense -> Understand -> Act loop.
 
-Reads the pod stream, feeds the H16 `StreamScorer`, and sends state commands
+Reads the pod stream, feeds the `StreamScorer`, and sends state commands
 back so the pod itself alerts the inspector (OLED, LED, buzzer).
 
 Host -> pod commands (one line each; the pod answers `#ack,<body>`):

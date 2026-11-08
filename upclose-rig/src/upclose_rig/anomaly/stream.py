@@ -1,7 +1,7 @@
 """Streaming scorer for the bridge: baseline the first N seconds, then score live.
 
 Feed it parsed pod records as they arrive (``push``). It returns events the
-H17 "Act" step can send back to the pod. Vibration only (no live audio).
+"Act" step can send back to the pod. Vibration only (no live audio).
 
 Event dicts: ``{"event": <name>, "t_ms": int, ...}`` with names
 ``baseline_ready``, ``anomaly_suspected``, ``anomaly_cleared``, ``not_assessed``.

@@ -9,7 +9,7 @@ web
 ## Users
 Primary: a private buyer of a cheap-to-mid-priced used car, standing at a seller's driveway or a small lot with a phone in hand, partway through a walkaround. They want to see real visible condition (rust, dents, scratches, cracked glass, worn tires, leaks) before handing over money. Phone-first, outdoors, often one-handed, often in bright daylight.
 
-Secondary: hackathon judges watching a 3-minute demo video (Meta Global AI Developer Hackathon, Indie track, due 2026-11-04).
+Secondary: reviewers watching a 3-minute demo video.
 
 ## Product Purpose
 UpClose screens used-car condition from phone video. The buyer records either one walkaround video (up to 180 s, 200 MiB) or guided clips for eight zones. The backend finds the car, then looks for damage only on the car, and returns a report: a zone-by-zone visual-condition index, findings with evidence frames, and an honest record of which zones were not assessed. Success means the buyer leaves with specific questions for the seller and a mechanic, not a false all-clear.

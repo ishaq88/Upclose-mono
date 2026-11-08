@@ -6,7 +6,7 @@ related_targets: ["apps/web/src/sample"]
 ---
 
 Scope: marketing landing (/) and public sample report (/sample/). Visitor mode: Persuade (landing), Read (sample report).
-Audience: a private used-car buyer, phone in hand at the car; hackathon judges watching the demo.
+Audience: a private used-car buyer, phone in hand at the car; reviewers watching the demo.
 Action: see the sample report; start an inspection when the app is live, or view the code on GitHub until then.
 Constraints:
 - Static hosting (Cloudflare Pages).

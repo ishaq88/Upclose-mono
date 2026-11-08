@@ -156,6 +156,25 @@ appears in arguments, logs, or error messages. The schema lives in
 `sql/tiger_schema.sql`: `pod_runs`, the `pod_samples` hypertable,
 `pod_verdicts`, and a per-second `pod_samples_1s` rollup.
 
+## Synthetic engine audio
+
+```
+python -m upclose_rig simulate-audio --rpm 780 --cylinders 4 --seconds 60 --misfire-every 3 --misfire-from 35 --out recordings/engine.wav
+```
+
+Writes a 16 kHz mono WAV and `engine.wav.json` (the parameters, `provenance: synthetic`). One pulse per firing event over exhaust-like noise; a misfire drops a pulse. The same seed gives the same bytes.
+
+## One-shot demo run
+
+```
+set UPCLOSE_OWNER_TOKEN=...   # environment only, never on the command line
+python -m upclose_rig demo-run --session <uuid> --api http://localhost:8000 --port sim --audio synth --speed 4
+```
+
+Steps (one JSON line each on stdout, progress on stderr; exits non-zero at the first failure): `live` (anomaly model, verdict written), `rig_telemetry` (with `model_verdict`), `obd_snapshot` (emulated adapter: `--obd clean|cleared|dtc:P0301`), `audio_upload` and `engine_audio` (`--audio synth` or a WAV/MP3/M4A path), and `tiger` (`--tiger`, run id = session id). Output goes to `recordings/<session>` unless `--out` is given. `--speed 4` runs a 60 s simulation in about 15 s; `--speed 0` runs as fast as possible; the default is real time. `--misfire-at none` gives a healthy run.
+
+Real engine clips with their licenses are listed in `samples/README.md`.
+
 ## Reference
 
 ### Commands
@@ -163,6 +182,8 @@ appears in arguments, logs, or error messages. The schema lives in
 | Command | What it does |
 |---|---|
 | `simulate` | Synthetic engine recording (RPM, misfire, cold start, scripted button and knob events) |
+| `simulate-audio` | Synthetic engine audio (16 kHz mono WAV plus a `.json` sidecar), same parameters as `simulate` |
+| `demo-run` | One command: live run, then attach `rig_telemetry`, `obd_snapshot` and `engine_audio` to a session |
 | `record`, `monitor` | Record or watch the pod's serial stream |
 | `live` | Learn a baseline, score live, drive the pod's alerts, write a verdict (`--port COMx` or `sim`) |
 | `bundle`, `post` | Build or send a `rig_telemetry` body (`--verdict` embeds the model verdict) |
@@ -230,7 +251,7 @@ Quality rules:
 
 ```
 firmware/grove_pod/    Grove pod firmware
-src/upclose_rig/       bridge, simulator, recording format, OBD emulation, bundles, CLI
+src/upclose_rig/       bridge, simulator, synthetic audio, demo run, recording format, OBD emulation, bundles, CLI
 src/upclose_rig/anomaly/  features, model, live scorer, evaluation
 eval/                  generated evaluation report (synthetic)
 tests/                 pytest; tests/fixtures holds a real still-pod recording

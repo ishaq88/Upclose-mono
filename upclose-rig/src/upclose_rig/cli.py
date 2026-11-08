@@ -65,6 +65,25 @@ def cmd_simulate(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_simulate_audio(a: argparse.Namespace) -> int:
+    from .audio import AudioConfig, write_synthetic
+
+    cfg = AudioConfig(
+        seconds=a.seconds, rpm=a.rpm, cylinders=a.cylinders, misfire_every=a.misfire_every,
+        misfire_from_s=a.misfire_from, misfire_until_s=None if a.misfire_for is None else a.misfire_from + a.misfire_for,
+        cold=a.cold, seed=a.seed,
+    )
+    side = write_synthetic(a.out, cfg)
+    print(f"wrote {a.out} and {side} (16 kHz mono, synthetic)", file=sys.stderr)
+    return 0
+
+
+def cmd_demo_run(a: argparse.Namespace) -> int:
+    from .demo import run_demo
+
+    return run_demo(a)
+
+
 def cmd_record(a: argparse.Namespace) -> int:
     from .serial_io import capture, iter_serial_lines, open_port
 
@@ -306,6 +325,35 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--started-at", help="header start time (UTC, ...Z); default now")
     s.add_argument("--out", required=True)
     s.set_defaults(fn=cmd_simulate)
+
+    sa = sub.add_parser("simulate-audio", help="write synthetic engine audio (16 kHz mono WAV plus a .json sidecar)")
+    sa.add_argument("--seconds", type=float, default=60.0)
+    sa.add_argument("--rpm", type=float, default=780.0)
+    sa.add_argument("--cylinders", type=int, default=4)
+    sa.add_argument("--misfire-every", type=int, default=0, metavar="N", help="drop every Nth firing pulse")
+    sa.add_argument("--misfire-from", type=float, default=0.0, metavar="SEC", help="misfires start here")
+    sa.add_argument("--misfire-for", type=float, metavar="SEC", help="misfire duration (default: to the end)")
+    sa.add_argument("--cold", action="store_true", help="cold start (noisier)")
+    sa.add_argument("--seed", type=int, default=1234)
+    sa.add_argument("--out", required=True, help="WAV path; the sidecar is <out>.json")
+    sa.set_defaults(fn=cmd_simulate_audio)
+
+    dr = sub.add_parser("demo-run", help="attach all kit evidence (rig, OBD, audio) to an UpClose session in one go")
+    dr.add_argument("--session", required=True, help="session UUID")
+    dr.add_argument("--api", default="http://localhost:8000")
+    dr.add_argument("--port", default="sim", help="'sim' (simulated pod) or a COM port")
+    dr.add_argument("--baud", type=int, default=BAUD)
+    dr.add_argument("--seconds", type=float, default=60.0)
+    dr.add_argument("--baseline-s", type=float, default=20.0, help="healthy baseline length (min 20)")
+    dr.add_argument("--misfire-at", default="35", metavar="SEC|none", help="sim only: misfire onset (default 35)")
+    dr.add_argument("--obd", default="clean", metavar="clean|cleared|dtc:P0301", help="emulated OBD state")
+    dr.add_argument("--audio", metavar="synth|PATH", help="engine audio: synthetic, or an existing WAV/MP3/M4A (default: skip)")
+    dr.add_argument("--audio-provenance", choices=PROVENANCES, default="synthetic", help="provenance for a PATH clip")
+    dr.add_argument("--tiger", action="store_true", help="also push the run to the Tiger Data store (run id = session id)")
+    dr.add_argument("--speed", type=float, default=1.0, help="sim only: stream-time factor, 0 = as fast as possible")
+    dr.add_argument("--seed", type=int, default=100, help="sim only")
+    dr.add_argument("--out", help="output directory (default recordings/<session>)")
+    dr.set_defaults(fn=cmd_demo_run)
 
     r = sub.add_parser("record", help="record the board's serial stream")
     r.add_argument("--port", required=True, help="COM port (or pyserial URL)")

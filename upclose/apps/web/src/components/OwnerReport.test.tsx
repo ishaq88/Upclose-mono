@@ -202,7 +202,7 @@ describe('owner report (JSON)', () => {
     expect(within(screen.getByTestId('category-mechanical')).getByText('Not checked')).toBeTruthy();
     paid.unmount();
     const free = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...FREE, categories }) }])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    expect(within(await screen.findByTestId('category-visual')).getByText('90')).toBeTruthy();
+    expect(within(await screen.findByTestId('category-visual')).getByText('90.0')).toBeTruthy();
     free.unmount();
     render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT }) }, FRAMES])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     await screen.findByRole('heading', { name: '1 serious issue' });

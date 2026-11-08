@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_REPORT } from '../sample/sample';
-import { formatIndex, formatTime, isSerious, lowestZone, notChecked, orderFindings, scoredZones, verdict, type PaidFinding } from './model';
+import { findingTitle, formatIndex, formatTime, isSerious, lowestZone, notChecked, orderFindings, scoredZones, verdict, type PaidFinding } from './model';
 
 const base = SAMPLE_REPORT.findings[0]!;
 const finding = (over: Partial<PaidFinding>): PaidFinding => ({ ...base, ...over });
@@ -35,5 +35,14 @@ describe('report model', () => {
     expect(formatTime(41000)).toBe('0:41');
     expect(formatTime(125000)).toBe('2:05');
     expect(formatTime(null)).toBeNull();
+  });
+
+  it('titles findings from a known component id, the sample ids, and falls back to the zone for unknown ids', () => {
+    expect(findingTitle(finding({ concept: 'dent', component_id: 'hood' }))).toBe('Dent, hood');
+    expect(findingTitle(finding({ concept: 'dent', component_id: 'passenger_sliding_door' as never }))).toBe('Dent, passenger sliding door');
+    expect(findingTitle(finding({ concept: 'tire_wear', component_id: 'front_left_tire' as never }))).toBe('Tire wear, front left tire');
+    const unknown = findingTitle(finding({ concept: 'scratch', zone: 'driver_side', component_id: 'not_a_real_part' as never }));
+    expect(unknown).toBe('Scratch, driver side');
+    for (const f of SAMPLE_REPORT.findings) expect(findingTitle(f)).not.toContain('undefined');
   });
 });

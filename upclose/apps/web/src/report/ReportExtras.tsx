@@ -5,6 +5,23 @@ export type MediaResolver = (which: ReportMedia, signal: AbortSignal) => Promise
 const words = (text: string): string => text.replaceAll('_', ' ');
 const provenance = (value: string): string => value === 'synthetic' || value === 'fixture' ? 'Synthetic sample data' : value === 'cached' ? 'Cached recording' : 'Live';
 const prov = (value: string): string => value === 'synthetic' || value === 'fixture' ? 'badge badge-sim' : 'badge';
+/** Plain words for an advisory citation such as "obd_snapshot:mil_on"; the part before the colon names the source. Unknown sources return null and are never shown raw. */
+const CITE_SOURCE: Record<string, string> = {
+  rig_telemetry: 'From the sensor pod', obd_snapshot: 'From the OBD snapshot', engine_audio: 'From the engine audio',
+  dashboard: 'From the dashboard', video: 'From the video',
+};
+export function citeLabels(cites: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const cite of cites) {
+    const label = CITE_SOURCE[cite.split(':')[0]];
+    if (label && !out.includes(label)) out.push(label);
+  }
+  return out;
+}
+const Cites = ({ cites }: { cites: readonly string[] }): ReactElement | null => {
+  const labels = citeLabels(cites);
+  return labels.length ? <span className="muted">({labels.join(', ')})</span> : null;
+};
 const LABELS = { rig_telemetry: 'Sensor pod', obd_snapshot: 'OBD snapshot', engine_audio: 'Engine audio' };
 
 function Media({ which, label, resolve }: { which: ReportMedia; label: string; resolve?: MediaResolver }): ReactElement {
@@ -123,11 +140,11 @@ export function ReportAdvice({ report, resolveMedia }: { report: PaidReport; res
       <h2 id="advisory-h">Advisory</h2>
       <p><strong>{advisory.label}</strong> · {provenance(advisory.provenance)}</p>
       {advisory.status === 'available' ? <>
+        {advisory.summary && <p data-testid="advisory-summary">{advisory.summary}</p>}
         <h3>Questions for the seller</h3>
-        <ul>{advisory.questions_for_seller.map((q, i) => <li key={i}>{q.text} <span className="muted">({q.cites.join(', ')})</span></li>)}</ul>
+        <ul>{advisory.questions_for_seller.map((q, i) => <li key={i}>{q.text} <Cites cites={q.cites} /></li>)}</ul>
         <h3>Checks for a mechanic</h3>
-        <ul>{advisory.mechanic_checks.map((q, i) => <li key={i}>{q.text} <span className="muted">({q.cites.join(', ')})</span></li>)}</ul>
-        <p>{advisory.summary}</p>
+        <ul>{advisory.mechanic_checks.map((q, i) => <li key={i}>{q.text} <Cites cites={q.cites} /></li>)}</ul>
       </> : <p>Advisory unavailable. {advisory.reason && words(advisory.reason)}</p>}
       <p className="muted">This is generated advice, not a finding, and it does not affect any score.</p>
     </section>}

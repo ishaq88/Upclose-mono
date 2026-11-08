@@ -346,7 +346,11 @@ def build_parser() -> argparse.ArgumentParser:
     dr.add_argument("--seconds", type=float, default=60.0)
     dr.add_argument("--baseline-s", type=float, default=20.0, help="healthy baseline length (min 20)")
     dr.add_argument("--misfire-at", default="35", metavar="SEC|none", help="sim only: misfire onset (default 35)")
-    dr.add_argument("--obd", default="clean", metavar="clean|cleared|dtc:P0301", help="emulated OBD state")
+    dr.add_argument("--obd", metavar="from-pod|clean|cleared|dtc:P0301",
+                    help="emulated OBD state; from-pod: the pod's button injects P0301 and the knob sets RPM "
+                         "(default with a COM port; the simulator defaults to clean)")
+    dr.add_argument("--real-vehicle", action="store_true",
+                    help="label the rig data 'live' (a real vehicle streaming now); bench runs are 'synthetic'")
     dr.add_argument("--audio", metavar="synth|PATH", help="engine audio: synthetic, or an existing WAV/MP3/M4A (default: skip)")
     dr.add_argument("--audio-provenance", choices=PROVENANCES, default="synthetic", help="provenance for a PATH clip")
     dr.add_argument("--tiger", action="store_true", help="also push the run to the Tiger Data store (run id = session id)")

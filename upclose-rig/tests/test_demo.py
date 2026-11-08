@@ -56,7 +56,7 @@ class FakeApi:
 def args(tmp_path, **kw):
     ns = dict(session=SID, api="http://api.test", port="sim", baud=250000, seconds=40.0, baseline_s=20.0,
               misfire_at="25", obd="clean", audio=None, audio_provenance="synthetic", tiger=False,
-              speed=0.0, seed=100, out=str(tmp_path / "run"))
+              speed=0.0, seed=100, out=str(tmp_path / "run"), real_vehicle=False)
     ns.update(kw)
     return type("A", (), ns)()
 
@@ -188,3 +188,107 @@ def test_tiger_step_uses_session_as_run_id(tmp_path, monkeypatch):
     code, lines, _ = run(tmp_path, monkeypatch, tiger=True)
     assert code == 0 and lines[-1]["step"] == "tiger" and lines[-1]["run_id"] == SID
     assert seen["prov"] == "synthetic" and seen["run_id"] == SID
+
+
+# --- pod-driven OBD, provenance, terminal output ----------------------------
+
+def _pod_records(press=True):
+    from upclose_rig.live import scripted_simulation
+    from upclose_rig.protocol import Record
+
+    recs = scripted_simulation(40.0, misfire_at=25.0)
+    extra = [Record("K", 5000, (512,))] + ([Record("B", 26000, (1,))] if press else [])
+    return sorted(recs + extra, key=lambda r: r.t_ms)
+
+
+def _fake_pod(monkeypatch, press=True):
+    import contextlib
+
+    from upclose_rig import demo, serial_io
+    from upclose_rig.live import SimPort
+
+    recs = _pod_records(press)
+
+    @contextlib.contextmanager
+    def fake_open(port, baud):
+        yield SimPort(recs, speed=0)
+
+    monkeypatch.setattr(serial_io, "open_port", fake_open)
+
+
+def test_from_pod_button_injects_dtc_and_knob_sets_rpm(tmp_path, monkeypatch, capsys):
+    _fake_pod(monkeypatch)
+    code, lines, api = run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0)
+    assert code == 0, lines
+    d = api.sources[1]["data"]
+    assert d["mil_on"] is True and [x["code"] for x in d["dtcs"]] == ["P0301"]
+    assert {s["step"]: s for s in lines}["obd_snapshot"]["obd"] == "dtc:P0301"
+    assert any(abs(v - 1800.0) < 5 for v in d["pids"].values())  # knob 512 -> about 1800 rpm
+    err = capsys.readouterr().err
+    assert "BUTTON PRESSED   P0301 will be reported" in err and err.count("BUTTON PRESSED") == 1
+
+
+def test_from_pod_without_press_is_clean(tmp_path, monkeypatch):
+    _fake_pod(monkeypatch, press=False)
+    code, lines, api = run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0)
+    d = api.sources[1]["data"]
+    assert code == 0 and d["mil_on"] is False and d["dtcs"] == []
+
+
+def test_explicit_obd_overrides_pod(tmp_path, monkeypatch):
+    _fake_pod(monkeypatch, press=True)
+    code, lines, api = run(tmp_path, monkeypatch, port="COM9", obd="clean", seconds=40.0)
+    assert code == 0 and api.sources[1]["data"]["dtcs"] == []
+
+
+def test_bench_pod_is_synthetic_and_real_vehicle_is_live(tmp_path, monkeypatch):
+    _fake_pod(monkeypatch)
+    code, lines, api = run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0)
+    assert code == 0 and lines[0]["provenance"] == "synthetic"
+    assert [s["provenance"] for s in api.sources] == ["synthetic", "synthetic"]
+    _fake_pod(monkeypatch)
+    code, lines, api = run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0, real_vehicle=True)
+    assert code == 0 and lines[0]["provenance"] == "live"
+    assert [s["provenance"] for s in api.sources] == ["live", "synthetic"]  # the emulated ECU never says live
+
+
+def test_real_vehicle_needs_a_real_pod(tmp_path, monkeypatch):
+    code, lines, api = run(tmp_path, monkeypatch, real_vehicle=True)
+    assert code == 2 and "real-vehicle" in lines[0]["error"] and not api.calls
+
+
+def test_tiger_provenance_follows_real_vehicle(tmp_path, monkeypatch):
+    from upclose_rig import tiger
+
+    seen = []
+    monkeypatch.setattr(tiger, "push", lambda rec, v, prov, run_id=None, notes="": seen.append(prov) or {"run_id": run_id, "samples": 1})
+    _fake_pod(monkeypatch)
+    run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0, tiger=True)
+    _fake_pod(monkeypatch)
+    run(tmp_path, monkeypatch, port="COM9", obd=None, seconds=40.0, tiger=True, real_vehicle=True)
+    assert seen == ["synthetic", "real"]
+
+
+def test_narrator_one_line_per_phase():
+    from upclose_rig.demo import Narrator
+
+    out = []
+    n = Narrator(out.append)
+    for m in ["  -> pod: !S,L20", "  -> pod: !S,L19", "  -> pod: !S,L15", "  -> pod: !S,L14", "  -> pod: !S,L10",
+              "[   20.00s] baseline_ready x=1", "  -> pod: !S,N", "  -> pod: !S,N", "  -> pod: !S,A", "  -> pod: !S,A",
+              "  -> pod: !S,N", "wrote x.upr: 5 records", "no verdict: boom"]:
+        n(m)
+    assert out[0].startswith("LEARNING") and "20 s" in out[0]
+    assert [o.split()[0] for o in out] == ["LEARNING", "LEARNING", "LEARNING", "NORMAL", "MISFIRE", "NORMAL", "no"]
+
+
+def test_status_lines_on_stderr_without_token(tmp_path, monkeypatch, capsys):
+    code, lines, _ = run(tmp_path, monkeypatch, audio="synth")
+    err = capsys.readouterr().err
+    assert code == 0 and "[ OK ] rig_telemetry HTTP 201" in err and "[ OK ] engine_audio" in err
+    assert "LEARNING" in err and "MISFIRE SUSPECTED" in err and TOKEN not in err
+
+
+def test_failure_prints_fail_line(tmp_path, monkeypatch, capsys):
+    run(tmp_path, monkeypatch, api=FakeApi(fail_on="/sources"))
+    assert "[FAIL] rig_telemetry" in capsys.readouterr().err

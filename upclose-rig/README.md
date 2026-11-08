@@ -171,7 +171,9 @@ set UPCLOSE_OWNER_TOKEN=...   # environment only, never on the command line
 python -m upclose_rig demo-run --session <uuid> --api http://localhost:8000 --port sim --audio synth --speed 4
 ```
 
-Steps (one JSON line each on stdout, progress on stderr; exits non-zero at the first failure): `live` (anomaly model, verdict written), `rig_telemetry` (with `model_verdict`), `obd_snapshot` (emulated adapter: `--obd clean|cleared|dtc:P0301`), `audio_upload` and `engine_audio` (`--audio synth` or a WAV/MP3/M4A path), and `tiger` (`--tiger`, run id = session id). Output goes to `recordings/<session>` unless `--out` is given. `--speed 4` runs a 60 s simulation in about 15 s; `--speed 0` runs as fast as possible; the default is real time. `--misfire-at none` gives a healthy run.
+Steps (one JSON line each on stdout, progress on stderr; exits non-zero at the first failure): `live` (anomaly model, verdict written), `rig_telemetry` (with `model_verdict`), `obd_snapshot` (emulated adapter: `--obd clean|cleared|dtc:P0301`), `audio_upload` and `engine_audio` (`--audio synth` or a WAV/MP3/M4A path), and `tiger` (`--tiger`, run id = session id). With a COM port, `--obd from-pod` is the default: a button press on the pod during the run injects P0301 (and lights the MIL) in the emulated ECU, and the last knob value sets its RPM (600-3000). The terminal shows one status line per phase (LEARNING countdown, NORMAL, MISFIRE SUSPECTED, BUTTON PRESSED, then `[ OK ]` or `[FAIL]` per upload step). Rig data from the bench pod is labeled `synthetic`; `--real-vehicle` is the only way to label it `live`, for a recording from a real car. The OBD snapshot always comes from the emulated ECU and is always `synthetic`.
+
+Output goes to `recordings/<session>` unless `--out` is given. `--speed 4` runs a 60 s simulation in about 15 s; `--speed 0` runs as fast as possible; the default is real time. `--misfire-at none` gives a healthy run.
 
 Real engine clips with their licenses are listed in `samples/README.md`.
 

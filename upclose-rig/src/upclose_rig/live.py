@@ -157,7 +157,8 @@ def build_verdict(scorer: StreamScorer, records: list[Record], source: str) -> d
 def run_live(
     port: Any, *, baseline_s: float = 20.0, record_path: str | Path | None = None,
     verdict_path: str | Path | None = None, mute: bool = False, max_wall_s: float | None = None,
-    source: str = "board", out: Callable[[str], None] = print, clock: Callable[[], float] = time.monotonic,
+    source: str = "board", on_record: Callable[[Record], None] | None = None,
+    out: Callable[[str], None] = print, clock: Callable[[], float] = time.monotonic,
 ) -> LiveResult:
     res = LiveResult()
     scorer = StreamScorer(baseline_s=baseline_s)
@@ -214,6 +215,8 @@ def run_live(
             if rec is None:
                 continue
             res.records.append(rec)
+            if on_record is not None:
+                on_record(rec)
             batch.append(rec)
             if rec.kind != "A":
                 continue

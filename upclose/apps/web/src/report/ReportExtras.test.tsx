@@ -12,6 +12,21 @@ describe('advisory citations', () => {
       .toEqual(['From the sensor pod', 'From the OBD snapshot']);
     expect(citeLabels(['engine_audio', 'dashboard', 'video'])).toEqual(['From the engine audio', 'From the dashboard', 'From the video']);
     expect(citeLabels(['unknown'])).toEqual([]);
+    expect(citeLabels(['finding:2', 'finding:2', 'finding:10', 'coverage:underbody', 'coverage:tires', 'obd_snapshot:mil_on']))
+      .toEqual(['From finding 2', 'From finding 10', 'From what wasn’t checked', 'From the OBD snapshot']);
+    expect(citeLabels(['finding', 'finding:x', 'finding:0', 'finding:<b>'])).toEqual([]);
+  });
+
+  it('shows a finding or coverage citation as plain words, never the raw key', () => {
+    const report = { ...SAMPLE_REPORT, advisory: {
+      label: 'Advisory', provenance: 'live', status: 'available', summary: 'Ask first.', reason: null,
+      questions_for_seller: [{ text: 'Ask about the rust.', cites: ['finding:1'] }],
+      mechanic_checks: [{ text: 'Look under the car.', cites: ['coverage:underbody'] }] } } as never;
+    render(<ReportAdvice report={report} />);
+    const text = screen.getByTestId('advisory').textContent ?? '';
+    expect(text).toContain('(From finding 1)');
+    expect(text).toContain('(From what wasn’t checked)');
+    expect(text).not.toMatch(/finding:|coverage:/);
   });
 
   const advisory = (summary: string) => ({

@@ -17,7 +17,7 @@ from app.adapters.advisor.config import AdvisorConfigError
 from app.briefing.dispatch import DispatchError, DispatchGrant, UsageRecorder
 from app.contracts.base import ContractModel
 from app.contracts.sources import SourceSummary
-from app.domain.advisory import AdvisoryError, citable_keys, plain_text, redact_vins
+from app.domain.advisory import PROMPT_VERSION, AdvisoryError, citable_keys, plain_text, redact_vins
 
 if TYPE_CHECKING:  # the adapter package imports contracts, which import this module
     from app.adapters.advisor import AdvisorAdapter
@@ -95,10 +95,10 @@ def _not_available(reason: str, provider: str, model: str, version: str, vehicle
 def _from_result(result: object, vehicle: str | None, fallback_provider: str) -> AdvisoryBlock:
     if not isinstance(result, dict):
         return _not_available("advisor returned an unexpected result", fallback_provider, "unknown",
-                              "advisory-v1", vehicle)
+                              PROMPT_VERSION, vehicle)
     provider = str(result.get("provider") or fallback_provider)
     model = str(result.get("model") or "unknown")
-    version = str(result.get("prompt_version") or "advisory-v1")
+    version = str(result.get("prompt_version") or PROMPT_VERSION)
     if result.get("status") == "not_available":
         return _not_available(plain_text(result.get("reason")) or "advisory not available",
                               provider, model, version, vehicle)
@@ -132,27 +132,27 @@ def build_advisory_block(source_summaries: Sequence[SourceSummary], vin_info: Ma
     vehicle = _vehicle_label(vin_info)
     summaries = tuple(source_summaries)
     if not summaries or not citable_keys(summaries):
-        return _not_available("no evidence available to advise on", "fixture", "none", "advisory-v1", vehicle)
+        return _not_available("no evidence available to advise on", "fixture", "none", PROMPT_VERSION, vehicle)
     if getattr(settings, "model_mode", "fixture") == "replay" and adapter is None:
         return _not_available("advisory is not generated in replay mode", "fixture", "none",
-                              "advisory-v1", vehicle)
+                              PROMPT_VERSION, vehicle)
     provider = "unknown"
     try:
         chosen = adapter or get_advisor_adapter(environ)
         provider = type(chosen).__name__.removesuffix("Advisor").lower()
         if provider != "fixture":
             if budget_ok is not None and not budget_ok():
-                return _not_available("advisory budget is exhausted", provider, "unknown", "advisory-v1", vehicle)
+                return _not_available("advisory budget is exhausted", provider, "unknown", PROMPT_VERSION, vehicle)
             if grant is None:
                 return _not_available("advisory is not funded; no dispatch grant", provider, "unknown",
-                                      "advisory-v1", vehicle)
+                                      PROMPT_VERSION, vehicle)
             result = chosen.advise(summaries, grant=grant, record=record,
                                    deadline_seconds=max(0.1, deadline_seconds))
         else:
             result = chosen.advise(summaries)
     except (AdvisorProviderError, DispatchError, AdvisorConfigError, AdvisoryError) as exc:
-        return _not_available(str(exc) or "advisor unavailable", provider, "unknown", "advisory-v1", vehicle)
+        return _not_available(str(exc) or "advisor unavailable", provider, "unknown", PROMPT_VERSION, vehicle)
     except Exception as exc:  # a report must never break on the advisory
         return _not_available(f"advisor failed ({type(exc).__name__})", provider, "unknown",
-                              "advisory-v1", vehicle)
+                              PROMPT_VERSION, vehicle)
     return _from_result(result, vehicle, provider)

@@ -51,8 +51,8 @@ from app.jobs.worker import Publication, StageFailure
 from app.contracts.briefing import NarrationAudioMeta, StoredBriefing
 from app.contracts.reports import PaidReport
 from app.contracts.sources import RigTelemetryData
-from app.models import Claim, ClaimEvidence, EvidenceSource, Report, ReportRevision
-from app.pipeline.briefing import build_briefing
+from app.models import Claim, ClaimEvidence, EvidenceSource, Report, ReportRevision, Session as OwnerSession
+from app.pipeline.briefing import build_briefing, report_context
 from app.pipeline.orchestration import canonical_hash
 from app.report import render_report
 from app.services.snapshots import (ClaimsMeta, Provenance, ReportConfig, ReportManifest,
@@ -264,6 +264,8 @@ class ReportStages:
     def _briefing(self, manifest: ReportManifest, lease: Lease | None = None) -> StoredBriefing:
         """Advisory, VIN check and vibration series. Provider calls happen here, outside any transaction."""
         rig = None
+        with self.factory() as db:  # read-only: the owner-entered vehicle label
+            owner_label = db.scalar(select(OwnerSession.vehicle_label).where(OwnerSession.id == manifest.session_id))
         if any(row.kind == "rig_telemetry" for row in manifest.sources):
             with self.factory() as db:
                 row = db.scalar(select(EvidenceSource).where(EvidenceSource.session_id == manifest.session_id,
@@ -275,7 +277,8 @@ class ReportStages:
                         rig = None
         from app.services.auxiliary_budget import AuxiliaryDispatcher
         return build_briefing(manifest.sources, rig, str(manifest.session_id), self.settings,
-                              dispatcher=AuxiliaryDispatcher(self.budget, lease), storage=self.storage)
+                              dispatcher=AuxiliaryDispatcher(self.budget, lease), storage=self.storage,
+                              context=report_context(manifest, owner_label))
 
     def _narration_audio(self, snapshot: RevisionSnapshot, lease: Lease | None = None) -> NarrationAudioMeta | None:
         from app.services.auxiliary_budget import AuxiliaryDispatcher

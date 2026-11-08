@@ -1,5 +1,5 @@
 {
-  "version": "advisory-v1",
+  "version": "advisory-v2",
   "max_items_per_list": 5,
   "max_item_chars": 240,
   "max_summary_chars": 600,

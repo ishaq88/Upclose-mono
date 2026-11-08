@@ -126,7 +126,7 @@ def test_fixture_deterministic_template_output():
     second = FixtureAdvisor(CONFIG).advise(summaries())
     assert first == second
     assert first["provider"] == "fixture" and first["model"] == FIXTURE_MODEL
-    assert first["prompt_version"] == "advisory-v1"
+    assert first["prompt_version"] == "advisory-v2"
     assert first["questions_for_seller"] and first["mechanic_checks"]
     assert len(first["summary"]) <= 600
     for group in (first["questions_for_seller"], first["mechanic_checks"]):

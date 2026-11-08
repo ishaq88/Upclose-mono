@@ -57,7 +57,7 @@ def payload(**overrides):
 
 
 def test_config_version_and_limits():
-    assert CONFIG.prompt_version == PROMPT_VERSION == "advisory-v1"
+    assert CONFIG.prompt_version == PROMPT_VERSION == "advisory-v2"
     assert (CONFIG.max_items_per_list, CONFIG.max_item_chars, CONFIG.max_summary_chars) == (5, 240, 600)
     assert CONFIG.timeout_seconds <= 30.0 and CONFIG.max_attempts == 2
     with pytest.raises(AdvisoryError):
@@ -89,7 +89,7 @@ def test_valid_response_accepted_with_wire_shape():
     wire = result.to_dict()
     assert set(wire) == {"questions_for_seller", "mechanic_checks", "summary",
                          "provider", "model", "prompt_version"}
-    assert wire["prompt_version"] == "advisory-v1" and wire["provider"] == "fixture"
+    assert wire["prompt_version"] == "advisory-v2" and wire["provider"] == "fixture"
     assert [item["cites"] for item in wire["questions_for_seller"]] == [
         ["obd_snapshot:dtc:P0301"], ["rig_telemetry:irregular_windows"]]
 

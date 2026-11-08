@@ -14,7 +14,9 @@ const CITE_SOURCE: Record<string, string> = {
 export function citeLabels(cites: readonly string[]): string[] {
   const out: string[] = [];
   for (const cite of cites) {
-    const label = CITE_SOURCE[cite.split(':')[0]];
+    const [prefix, rest] = cite.split(':');
+    const label = prefix === 'finding' ? (/^[1-9]\d{0,2}$/.test(rest ?? '') ? `From finding ${rest}` : undefined)
+      : prefix === 'coverage' ? 'From what wasn’t checked' : CITE_SOURCE[prefix];
     if (label && !out.includes(label)) out.push(label);
   }
   return out;

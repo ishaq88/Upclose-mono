@@ -12,6 +12,7 @@ import logging
 import os
 import tempfile
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from app.contracts.briefing import (FrozenSeriesPoint, FrozenVibration, FrozenVin, FrozenVinDecode, StoredBriefing)
@@ -19,7 +20,9 @@ from app.contracts.sources import ObdSummary, RigTelemetryData, RigTelemetrySumm
 from app.adapters.storage import ObjectStorage, StorageError
 from app.briefing.advisory_block import AdvisoryBlock, build_advisory_block
 from app.services.auxiliary_providers import LIVE_BUDGET_UNAVAILABLE, live_auxiliary_requested
+from app.contracts.enums import PART_ZONES
 from app.domain import vin as vin_domain
+from app.domain.advisory import PROMPT_VERSION, ContextFinding, ContextGap, ReportContext
 from app.domain.vibration_series import VibrationSeries, vibration_series as computed_series
 
 
@@ -75,8 +78,52 @@ def build_vin(obd: ObdSummary | None, entered_vin: str | None = None, environ: M
                      match=vin_domain.compare_vins(entered_vin, facts.vin))
 
 
+# Flags the backend sets for its own de-duplication; they never make a finding serious (as in the web report).
+_INTERNAL_FLAGS = frozenset({"duplicate_review", "dedup_merged"})
+
+
+def _words(value: object) -> str:
+    return str(getattr(value, "value", value)).replace("_", " ")
+
+
+def report_context(manifest, owner_label: str | None = None) -> ReportContext:  # type: ignore[no-untyped-def]
+    """Confirmed findings and unchecked zones of a frozen manifest, for the advisory.
+
+    Finding numbers follow the web report's order (serious first, then severity, zone order, id), so
+    `finding:<n>` is the number the reader sees. No frames, URLs or confidence values are carried.
+    """
+    verified = [row for part in manifest.parts for row in part.verified]
+    verified.sort(key=lambda f: (not any(flag not in _INTERNAL_FLAGS for flag in f.flags), -(f.severity or 0),
+                                 PART_ZONES.index(f.zone), str(f.id)))
+    findings = tuple(ContextFinding(
+        number=number, concept=_words(f.concept), place=_words(f.component_id or f.subzone or f.zone),
+        severity=int(f.severity or 0), serious=any(flag not in _INTERNAL_FLAGS for flag in f.flags),
+        note=f.evidence_note) for number, f in enumerate(verified, start=1))
+    gaps: list[ContextGap] = []
+    for part in manifest.parts:
+        rows = [row for row in part.coverage if row.state.value != "assessed"]
+        if rows:
+            state = "not_assessed" if any(row.state.value == "not_assessed" for row in rows) else "partial"
+            reasons = list(dict.fromkeys(row.reason for row in rows if row.reason))
+            gaps.append(ContextGap(zone=part.zone.value, state=state, reason="; ".join(reasons)[:240] or "no reason recorded"))
+        elif not part.coverage and part.assess_run_id is None:
+            gaps.append(ContextGap(zone=part.zone.value, state="not_assessed",
+                                   reason=(part.failure_reason or f"area {part.state.value}")[:240]))
+    return ReportContext(findings=findings, gaps=tuple(gaps), owner_label=(owner_label or "").strip() or None)
+
+
+def _decoded_identity(vin: FrozenVin | None) -> dict[str, object]:
+    if vin is None or vin.decode is None:
+        return {}
+    d = vin.decode
+    fields = {"year": d.model_year, "make": d.make, "model": d.model, "cylinders": d.cylinders,
+              "displacement_l": d.displacement_l, "fuel_type": d.fuel_type, "body_class": d.body_class}
+    return {key: value for key, value in fields.items() if value is not None}
+
+
 def _advisory_key(session_id: str, summaries, vin_info, env: Mapping[str, str]) -> str:
-    material = json.dumps([[row.model_dump(mode="json") for row in summaries], vin_info,
+    material = json.dumps([[row.to_json() if isinstance(row, ReportContext) else row.model_dump(mode="json")
+                            for row in summaries], vin_info, PROMPT_VERSION,
                            env.get("ADVISOR_PROVIDER"), env.get("ADVISOR_META_MODEL"), env.get("ADVISOR_GEMINI_MODEL")],
                           sort_keys=True, separators=(",", ":"), default=str)
     return f"media/{session_id}/advisory/{hashlib.sha256(material.encode()).hexdigest()}.json"
@@ -113,7 +160,7 @@ def _live_advisory(summaries, vin_info, session_id: str, settings, environ, disp
     env = os.environ if environ is None else environ
     provider = (env.get("ADVISOR_PROVIDER") or "unknown").strip().lower()
     provider = provider if provider in ("meta", "gemini") else "unknown"
-    unavailable = AdvisoryBlock(status="not_available", provider=provider, model="unavailable", prompt_version="advisory-v1",
+    unavailable = AdvisoryBlock(status="not_available", provider=provider, model="unavailable", prompt_version=PROMPT_VERSION,
                                 provenance="live", reason=LIVE_BUDGET_UNAVAILABLE)
     if dispatcher is None or not dispatcher.available:
         return unavailable
@@ -133,13 +180,18 @@ def _live_advisory(summaries, vin_info, session_id: str, settings, environ, disp
 
 def build_briefing(sources: Sequence[SourceRecord], rig_data: RigTelemetryData | None, session_id: str, settings,
                    environ: Mapping[str, str] | None = None, *, dispatcher=None,  # type: ignore[no-untyped-def]
-                   storage: ObjectStorage | None = None) -> StoredBriefing:
+                   storage: ObjectStorage | None = None, context: ReportContext | None = None) -> StoredBriefing:
     obd = next((row.summary for row in sources if isinstance(row.summary, ObdSummary) and row.summary.state == "assessed"), None)
     vin = build_vin(obd, None, environ)
     vin_info = None
     if vin is not None and vin.decode is not None:
         vin_info = {"year": vin.decode.model_year, "make": vin.decode.make, "model": vin.decode.model}
     summaries = tuple(row.summary for row in sources if row.summary.state == "assessed")
+    if context is not None:
+        context = replace(context, decoded=_decoded_identity(vin))
+        if context.has_evidence:  # identity alone never starts an advisory
+            summaries = (*summaries, context)
+    # With no assessed source, finding or coverage gap, build_advisory_block returns not_available before any provider call.
     if live_auxiliary_requested("ADVISOR_PROVIDER", environ):
         advisory = _live_advisory(summaries, vin_info, session_id, settings, environ, dispatcher, storage)
     else:

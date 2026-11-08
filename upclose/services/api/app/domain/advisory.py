@@ -5,22 +5,27 @@ Given the derived summaries of an inspection's evidence sources (see the contrac
 untrusted model output into a short advisory: questions for the seller, checks for a
 mechanic, and a plain-text summary.
 
+Besides the source summaries, the input may carry a ``ReportContext``: the report's confirmed
+visual findings, the zones that were not (fully) checked, and the vehicle identity when it is
+actually known (owner-entered label, or decoded from a VIN). The context travels inside the same
+sequence as the summaries, so adapters need no new parameter.
+
 Every advisory item must cite at least one evidence key that exists in the input
-summaries (for example ``obd_snapshot:dtc:P0301`` or ``rig_telemetry:irregular_windows``).
-Items with missing or foreign citations are dropped. When nothing valid survives, the
+(for example ``obd_snapshot:dtc:P0301``, ``rig_telemetry:irregular_windows``, ``finding:2`` or
+``coverage:underbody``). Items with missing or foreign citations are dropped. When nothing valid survives, the
 result is ``not_available`` with a reason -- never an empty "all clear".
 """
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from app.contracts.sources import ObdSummary, RigTelemetrySummary, SourceSummary
 
-PROMPT_VERSION = "advisory-v1"
+PROMPT_VERSION = "advisory-v2"
 
 FALLBACK_SUMMARY = ("Ask the seller the questions above and have a mechanic perform "
                     "the checks above; the underlying readings are uncalibrated estimates.")
@@ -111,14 +116,63 @@ class NotAvailable:
                 "model": self.model, "prompt_version": self.prompt_version}
 
 
+# ---- report context (visual findings, gaps, vehicle identity) ---------------------------------------
+
+
+@dataclass(frozen=True)
+class ContextFinding:
+    """A confirmed finding. ``number`` is its display number in report order (serious first, then
+    severity, zone order, finding id), so ``finding:<number>`` matches the number the report shows."""
+    number: int
+    concept: str
+    place: str
+    severity: int
+    serious: bool
+    note: str
+
+
+@dataclass(frozen=True)
+class ContextGap:
+    """A zone that was not assessed or only partly checked, with the recorded reason."""
+    zone: str
+    state: str
+    reason: str
+
+
+@dataclass(frozen=True)
+class ReportContext:
+    findings: tuple[ContextFinding, ...] = ()
+    gaps: tuple[ContextGap, ...] = ()
+    owner_label: str | None = None  # owner-entered, unverified
+    decoded: Mapping[str, object] = field(default_factory=dict)  # decoded from a VIN (year, make, model, ...)
+
+    @property
+    def has_evidence(self) -> bool:
+        return bool(self.findings or self.gaps)
+
+    def to_json(self) -> dict:
+        return {"findings": [[f.number, f.concept, f.place, f.severity, f.serious, f.note] for f in self.findings],
+                "gaps": [[g.zone, g.state, g.reason] for g in self.gaps],
+                "owner_label": self.owner_label, "decoded": dict(self.decoded)}
+
+
+def split_context(items: Sequence[object]) -> tuple[tuple[SourceSummary, ...], ReportContext | None]:
+    """Separate the source summaries from the (at most one) report context carried with them."""
+    context = next((row for row in items if isinstance(row, ReportContext)), None)
+    return tuple(row for row in items if not isinstance(row, ReportContext)), context  # type: ignore[arg-type]
+
+
 # ---- evidence keys --------------------------------------------------------------------------------
 
 
-def citable_keys(summaries: Sequence[SourceSummary]) -> frozenset[str]:
-    """Every evidence key the input summaries support as an advisory citation."""
+def citable_keys(summaries: Sequence[SourceSummary | ReportContext]) -> frozenset[str]:
+    """Every evidence key the input supports as an advisory citation."""
     keys: set[str] = set()
     for summary in summaries:
-        if isinstance(summary, RigTelemetrySummary):
+        if isinstance(summary, ReportContext):
+            keys.update(f"finding:{row.number}" for row in summary.findings)
+            keys.update(f"coverage:{row.zone}" for row in summary.gaps)
+        elif isinstance(summary, RigTelemetrySummary):
             if summary.state == "not_assessed":
                 keys.add("rig_telemetry:not_assessed")
                 continue
@@ -201,15 +255,50 @@ def _evidence_lines(summaries: Sequence[SourceSummary]) -> list[str]:
     return lines
 
 
-def build_prompt(summaries: Sequence[SourceSummary], config: AdvisoryConfig) -> str:
+def _clean(value: object, limit: int) -> str:
+    """Untrusted text for the prompt: markup and VIN-like tokens removed, one line, bounded."""
+    return redact_vins(plain_text(str(value)))[:limit]
+
+
+def _quoted(value: object, limit: int) -> str:
+    return json.dumps(_clean(value, limit), ensure_ascii=True)
+
+
+def _context_lines(context: ReportContext) -> tuple[list[str], list[str], list[str]]:
+    findings = [f"- finding:{row.number}: {_clean(row.concept.replace("_", " "), 40)} at {_clean(row.place.replace("_", " "), 60)}; "
+                f"severity {row.severity} of 5 (uncalibrated); serious={'true' if row.serious else 'false'}; "
+                f"note {_quoted(row.note, 240)}" for row in context.findings]
+    gaps = [f"- coverage:{row.zone}: {_clean(row.state.replace("_", " "), 20)}; reason {_quoted(row.reason, 240)}"
+            for row in context.gaps]
+    identity: list[str] = []
+    if context.owner_label:
+        identity.append(f"- owner-provided, unverified: {_quoted(context.owner_label, 80)}")
+    decoded = ", ".join(f"{key}={_clean(value, 64)}" for key, value in context.decoded.items()
+                        if value not in (None, ""))
+    if decoded:
+        identity.append(f"- decoded from the VIN by a public decoder: {decoded}")
+    return findings, gaps, identity
+
+
+def build_prompt(summaries: Sequence[SourceSummary | ReportContext], config: AdvisoryConfig) -> str:
     """Render the validated prompt for the advisory model. Never contains a raw VIN."""
-    evidence = "\n".join(_evidence_lines(summaries)) or "- (no evidence sources attached)"
+    sources, context = split_context(summaries)
+    findings, gaps, identity = _context_lines(context) if context is not None else ([], [], [])
+    evidence = "\n".join(_evidence_lines(sources)) or "- (no evidence sources attached)"
+    nl = "\n"
+    vehicle = (nl.join(identity) if identity else
+               "- not known. Do not guess the make, model or year; do not infer them from anything below")
     return (
         "You are helping a used-car buyer. The evidence below may be simulated bench data, "
         "and every value is an uncalibrated estimate, not a measurement. "
         "Do not diagnose with certainty; phrase everything as questions for the seller "
         "and checks for a qualified mechanic.\n"
         f"Evidence:\n{evidence}\n"
+        "Confirmed visual findings (from the inspection video; numbered as in the report):\n"
+        f"{nl.join(findings) or '- (none)'}\n"
+        f"What was not checked or only partly checked:\n{nl.join(gaps) or '- (none)'}\n"
+        "Vehicle identity (use it only to make questions and checks specific to this vehicle; "
+        f"owner-provided identity is unverified):\n{vehicle}\n"
         "Respond with ONLY a JSON object of this shape:\n"
         '{"questions_for_seller": [{"text": "...", "cites": ["<evidence key>"]}], '
         '"mechanic_checks": [{"text": "...", "cites": ["<evidence key>"]}], '
@@ -217,8 +306,11 @@ def build_prompt(summaries: Sequence[SourceSummary], config: AdvisoryConfig) -> 
         f"Rules: at most {config.max_items_per_list} items per list; "
         f"each item at most {config.max_item_chars} characters; "
         f"summary at most {config.max_summary_chars} characters of plain text. "
+        "Write specific questions for the seller and specific checks for a mechanic, each tied to a "
+        "cited finding or to a zone that was not checked, and to the vehicle when its identity is given. "
         "Every item must cite at least one evidence key naming a fact above "
-        "(for example obd_snapshot:dtc:P0301 or rig_telemetry:irregular_windows). "
+        "(for example obd_snapshot:dtc:P0301, rig_telemetry:irregular_windows, finding:2 or "
+        "coverage:underbody). "
         "Cite only facts shown above. Plain text only: no markup, no links, no HTML. "
         "Never claim the vehicle is problem-free."
     )

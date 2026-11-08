@@ -197,13 +197,8 @@ function PaidBody({ report, slug, api, resolveFrame, label, rename }: PaidBodyPr
         {issued && <span>{issued}</span>}
       </>
     ),
-    actions: (
-      <>
-        <ShareControl api={api} slug={slug} />
-        {report.narration_audio && <Button variant="secondary" size="sm" href="#r-advice">Listen</Button>}
-        {rename}
-      </>
-    ),
+    share: <ShareControl api={api} slug={slug} />,
+    rename,
   };
   return (
     <>

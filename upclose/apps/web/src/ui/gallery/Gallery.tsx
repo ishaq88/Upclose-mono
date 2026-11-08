@@ -90,7 +90,8 @@ const PAID_HEADER = {
   crumbs: [{ label: 'My reports', href: '/reports' }, { label: SAMPLE_REPORT.vehicle_label ?? 'Report' }],
   title: SAMPLE_REPORT.vehicle_label ?? 'Your report',
   meta: <><Pill tone="synthetic">Synthetic test result. No real inference was performed.</Pill><span>Issued Nov 4, 2026</span></>,
-  actions: <><Button variant="secondary" size="sm">Share with mechanic</Button><Button variant="secondary" size="sm" href="#r-advice">Listen</Button><Button variant="secondary" size="sm">Rename</Button></>,
+  share: <Button variant="secondary" size="sm">Share</Button>,
+  rename: <Button variant="secondary" size="sm">Rename</Button>,
 };
 
 function FreeResult(): ReactElement {

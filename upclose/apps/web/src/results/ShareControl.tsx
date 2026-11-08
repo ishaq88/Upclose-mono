@@ -65,7 +65,7 @@ export function ShareControl({ api, slug }: { api: Api; slug: string }): ReactEl
     <div className={link === null ? 'share-bar' : 'share-bar share-bar-open'} data-testid="share-control">
       {link === null ? (
         <Button variant="secondary" size="sm" disabled={busy} onClick={() => { void enable(); }}>
-          {busy ? 'Turning on…' : 'Share with mechanic'}
+          {busy ? 'Turning on…' : 'Share'}
         </Button>
       ) : (
         <>
@@ -74,10 +74,12 @@ export function ShareControl({ api, slug }: { api: Api; slug: string }): ReactEl
           <Button variant="secondary" size="sm" disabled={busy} onClick={() => { void disable(); }}>Stop sharing</Button>
         </>
       )}
-      <p className="res-note share-note" role="status">
-        {link !== null && !active ? 'The link is saved, but public sharing is switched off right now, so it will not open yet. ' : ''}
-        {note ?? (link === null ? 'Gives your mechanic a read-only link. You can turn it off any time.' : 'Anyone with this link can read the report.')}
-      </p>
+      {(link !== null || note) && (
+        <p className="res-note share-note" role="status">
+          {link !== null && !active ? 'The link is saved, but public sharing is switched off right now, so it will not open yet. ' : ''}
+          {note ?? 'Anyone with this link can read the report. Your mechanic gets a read-only link; you can turn it off any time.'}
+        </p>
+      )}
       {error && <ResultError error={error} />}
     </div>
   );

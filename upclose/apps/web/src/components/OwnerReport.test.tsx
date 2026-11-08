@@ -8,7 +8,6 @@ import { FakeBackend } from '../testing/fakeBackend';
 import { OwnerReport } from './OwnerReport';
 import { ProgressPanel } from './ProgressPanel';
 
-vi.mock('../report/TopDownMap', () => ({ default: () => <div data-testid="map" /> }));
 
 class FakeObserver { observe(): void {} disconnect(): void {} }
 beforeAll(() => { vi.stubGlobal('IntersectionObserver', FakeObserver); });
@@ -83,15 +82,20 @@ describe('paid report kit integration', () => {
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke }));
     const calls: Call[] = [];
     const view = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(WITH_KITS) }, FRAMES, { match: /\/(narration|audio|spectrogram)$/, respond: image }], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    expect(await screen.findByRole('heading', { name: 'Mechanical checks' })).toBeTruthy();
-    expect(within(screen.getByTestId('check-obd_snapshot')).getByText('Not checked')).toBeTruthy();
-    expect(screen.getByTestId('advisory').textContent).toContain('AI advisory, not a finding');
+    expect(await screen.findByRole('heading', { name: 'Advice' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Engine' })).toBeTruthy();
+    expect(screen.getByTestId('check-rig_telemetry').textContent).toContain('rough idle');
+    expect(document.querySelector('.cov')!.textContent).toContain('OBD not recorded');
+    expect(screen.getByTestId('advisory').textContent).toContain('AI advisory · not a finding');
     expect(screen.getByTestId('advisory').textContent).toContain('Synthetic');
     expect(screen.getByTestId('dashboard-check').textContent).toContain('check engine');
     expect(screen.getByTestId('mechanical-breakdown').textContent).toContain('5 points deducted');
     expect(screen.getByTestId('vibration-chart').querySelector('svg')).toBeTruthy();
     expect(screen.getByTestId('vibration-chart').querySelectorAll('path')[1]!.getAttribute('d')).not.toContain('L');
     await screen.findByAltText(/Spectrogram of/);
+    expect(screen.queryByTestId('narration-audio')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Listen' }));
+    await screen.findByTestId('narration-audio');
     expect(screen.getByTestId('narration-audio').getAttribute('src')).toMatch(/^blob:/);
     const media = calls.filter((c) => /\/(narration|audio|spectrogram)$/.test(c.url));
     expect(media).toHaveLength(3);
@@ -110,11 +114,14 @@ describe('paid report kit integration', () => {
     const audio = WITH_KITS.additional_checks.find((check) => check.kind === 'engine_audio')!;
     const report = { ...WITH_KITS, additional_checks: [{ ...audio, source: { ...audio.source!, summary: { ...audio.source!.summary, state: 'not_assessed', reason: 'clip_too_short' } } }], vibration: null, narration_audio: null, advisory: { ...WITH_KITS.advisory!, status: 'not_available', reason: 'provider_unavailable' } };
     render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json(report) }, FRAMES], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    await screen.findByRole('heading', { name: 'Mechanical checks' });
-    for (const kind of ['rig_telemetry', 'obd_snapshot', 'engine_audio']) expect(within(screen.getByTestId(`check-${kind}`)).getByText('Not checked')).toBeTruthy();
-    expect(screen.getByText(/Vibration chart: Not checked/)).toBeTruthy();
-    expect(screen.getByTestId('advisory').textContent).toContain('Advisory unavailable');
-    expect(screen.getByTestId('check-engine_audio').textContent).toContain('clip too short');
+    await screen.findByRole('heading', { name: 'Coverage and what wasn\'t recorded' });
+    for (const kind of ['rig_telemetry', 'obd_snapshot', 'engine_audio']) expect(screen.queryByTestId(`check-${kind}`)).toBeNull();
+    expect(screen.queryByTestId('vibration-chart')).toBeNull();
+    expect(screen.queryByTestId('advisory')).toBeNull();
+    const list = document.querySelector('.cov')!.textContent!;
+    expect(list).toContain('Engine audio not recorded: clip too short');
+    expect(list).toContain('Sensor pod not recorded');
+    expect(list).toContain('AI advice not available: provider unavailable');
     expect(calls.some((c) => /\/(narration|audio|spectrogram)$/.test(c.url))).toBe(false);
   });
 
@@ -123,7 +130,7 @@ describe('paid report kit integration', () => {
     render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...FREE, dashboard: { checked: true, flag_count: 2 } }) }], calls)} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     expect((await screen.findByTestId('dashboard-summary')).textContent).toContain('Checked · 2 flags');
     expect(screen.queryByTestId('advisory')).toBeNull();
-    expect(screen.queryByRole('heading', { name: 'Mechanical checks' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Engine' })).toBeNull();
     expect(calls).toHaveLength(1);
   });
 
@@ -145,7 +152,7 @@ describe('paid report kit integration', () => {
       return new Promise((resolve) => { pending.push(resolve); });
     });
     const view = render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    await waitFor(() => expect(pending).toHaveLength(3));
+    await waitFor(() => expect(pending).toHaveLength(2));
     view.unmount();
     await act(async () => { pending.forEach((resolve) => resolve(new Blob(['synthetic']))); });
     expect(signals.every((signal) => signal.aborted)).toBe(true);
@@ -188,7 +195,7 @@ describe('owner report (JSON)', () => {
     expect(document.querySelector('iframe')).toBeNull();
     expect(document.documentElement.outerHTML).not.toContain(TOKEN);
     expect(sessionStorage.length + localStorage.length).toBe(0);
-    expect(screen.getByRole('button', { name: 'Share with mechanic' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Share' })).toBeTruthy();
   });
 
   it('shows category scores on the paid and the free report when the API sends them, and none otherwise', async () => {
@@ -198,8 +205,8 @@ describe('owner report (JSON)', () => {
       overall: { state: 'not_checked', score: null, basis: 'visual_only', note: 'Visual only: mechanical not checked.' },
     };
     const paid = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...SAMPLE_REPORT, categories }) }, FRAMES])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    expect(within(await screen.findByTestId('category-overall')).getByText('Visual only')).toBeTruthy();
-    expect(within(screen.getByTestId('category-mechanical')).getByText('Not checked')).toBeTruthy();
+    expect(within(await screen.findByTestId('category-overall')).getByText('visual only')).toBeTruthy();
+    expect(within(screen.getByTestId('category-mechanical')).getByText('not recorded')).toBeTruthy();
     paid.unmount();
     const free = render(<OwnerReport api={apiFor([{ match: REPORT_URL, respond: () => json({ ...FREE, categories }) }])} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
     expect(within(await screen.findByTestId('category-visual')).getByText('90.0')).toBeTruthy();
@@ -237,7 +244,7 @@ describe('owner report (JSON)', () => {
     expect(screen.getByTestId('part1-score').textContent).toContain('94.9');
     expect(screen.getByTestId('part1-score').textContent).not.toContain('95');
     expect(screen.getByTestId('locked-tires').textContent).toContain('2 findings');
-    expect(screen.queryByRole('button', { name: 'Share with mechanic' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Share' })).toBeNull();
     expect(document.querySelector('img')).toBeNull();
     expect(calls.some((c) => /frames|\/r\//.test(c.url))).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Unlock full report · $19' }));
@@ -339,7 +346,7 @@ describe('share with mechanic', () => {
     const api = setup([{ match: /\/share$/, respond: () => json({ public_access_active: true, share_enabled: true, url: '/r/owner-slug' }) }]);
     const disable = vi.spyOn(api, 'disableShare').mockResolvedValue();
     render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Share with mechanic' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
     const input = (await screen.findByLabelText('Share link')) as HTMLInputElement;
     expect(input.value).toBe(`${window.location.origin}/r/owner-slug`);
     expect(input.value).not.toContain(TOKEN);
@@ -348,7 +355,7 @@ describe('share with mechanic', () => {
     expect(await screen.findByText('Link copied.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Stop sharing' }));
     await waitFor(() => expect(disable).toHaveBeenCalledWith('owner-slug'));
-    expect(await screen.findByRole('button', { name: 'Share with mechanic' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Share' })).toBeTruthy();
   });
 
   it('falls back to selecting the link when the clipboard is unavailable', async () => {
@@ -356,7 +363,7 @@ describe('share with mechanic', () => {
     document.execCommand = vi.fn(() => true);
     const api = setup([{ match: /\/share$/, respond: () => json({ public_access_active: false, share_enabled: true, url: '/r/owner-slug' }) }]);
     render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Share with mechanic' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Copy link' }));
     await waitFor(() => expect(document.execCommand).toHaveBeenCalledWith('copy'));
     expect(screen.getByText(/public sharing is switched off/)).toBeTruthy();
@@ -365,7 +372,7 @@ describe('share with mechanic', () => {
   it('names a refusal for a non-owner and offers recovery', async () => {
     const api = setup([{ match: /\/share$/, respond: () => problem(403, 'TOKEN_INVALID') }]);
     render(<OwnerReport api={api} slug="owner-slug" onUnauthorized={noop} onRefresh={noop} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Share with mechanic' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Share' }));
     expect((await screen.findByRole('alert')).textContent).toContain('Only the owner can share');
   });
 });

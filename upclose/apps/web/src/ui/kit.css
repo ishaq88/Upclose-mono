@@ -177,3 +177,10 @@
 .stack-md { display: flex; flex-direction: column; gap: 16px; }
 .row-wrap { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .page-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+
+/* ScoreLine */
+.score-line { display: flex; flex-wrap: wrap; gap: 6px 24px; margin: 0; padding: 12px 0; border-block: 1px solid var(--line); }
+.score-cell { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.score-cell dt { font-size: var(--fs-label); text-transform: uppercase; letter-spacing: var(--ls-label); font-weight: 700; color: var(--ink-2); }
+.score-cell dd { margin: 0; font-size: var(--fs-small); }
+.score-cell b { font: 800 var(--fs-h3)/1 var(--display); }

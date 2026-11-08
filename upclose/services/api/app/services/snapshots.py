@@ -61,7 +61,7 @@ from app.domain.dedup import INTERNAL_FLAGS
 from app.domain.mechanical import MechanicalConfig, category_scores, load_mechanical_config, score_mechanical
 from app.domain.narration import NarrationConfig, NarrationOutcome, load_narration_config, part1_summary_text, narration_hash, resolve_part1_narration, resolve_full_narration
 from app.domain.repairs import estimate_repairs
-from app.domain.scoring import score_assessment
+from app.domain.scoring import score_assessment, visual_reason
 from app.models import (Artifact, Claim, ClaimEvidence, Coverage as CoverageRow, ConceptRun as ConceptRunRow,
                         Finding as FindingRow, EvidenceSource, Part, Report, ReportRevision, RevisionFinding, Session, VideoUpload)
 from app.pipeline.orchestration import (CONFIG_DIR, FIXTURE_PROVIDERS, MASKED_FIXTURE_PROVIDERS, REPORT_CHAIN_VERSION, TERMINAL_PART_STATES,
@@ -644,7 +644,8 @@ def compute_score(manifest: ReportManifest, manifest_hash: str, config: ReportCo
     categories = breakdown = None
     if manifest.config_content.mechanical is not None:
         mechanical = score_mechanical(manifest.sources, manifest.dash, manifest.config_content.mechanical)
-        categories = category_scores(scores.headline, mechanical, manifest.config_content.mechanical)
+        categories = category_scores(scores.headline, mechanical, manifest.config_content.mechanical,
+                                     visual_reason(scores, config.scoring))
         breakdown = mechanical.breakdown
     return StoredScore(manifest_hash=manifest_hash, scoring_config_hash=config.scoring.content_hash,
                        cost_config_hash=config.costs.content_hash, scores=scores,

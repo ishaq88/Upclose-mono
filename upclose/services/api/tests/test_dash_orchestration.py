@@ -52,7 +52,8 @@ def test_dash_waits_then_freezes_once_and_unblocks_report(make, media_dir, scrat
     assert paid.dashboard.assessment.state == "assessed" and not paid.dashboard.evidence_available
     for leak in ("crop_sha256", "dash_cluster", "lit", "config_hash"):
         assert leak not in free.dashboard.model_dump_json()
-    assert free.categories.mechanical.state == "not_checked"  # dash alone cannot imply a mechanical pass
+    # a dash reading alone is no mechanical pass: the missing OBD snapshot and engine pod cost 25 + 20
+    assert free.categories.mechanical.state == "assessed" and float(free.categories.mechanical.score) == 100 - 25 - 20
     slug = rows(h, Report)[0].share_slug
     assert h.http.get(f"/api/v1/reports/{slug}/dashboard", headers=h.headers).status_code == 404
 

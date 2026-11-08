@@ -1,7 +1,8 @@
 {
-  "version": "scoring-v1-uncalibrated",
+  "version": "scoring-v2-uncalibrated",
   "deduction_cap": "75",
   "minimum_headline_zones": 3,
+  "unassessed_zone_score": "50",
   "zones": [
     {"zone": "driver_side", "weight": "1.5", "required_concepts": ["rust", "paint_bubbling", "dent", "scratch"]},
     {"zone": "passenger_side", "weight": "1.5", "required_concepts": ["rust", "paint_bubbling", "dent", "scratch"]},

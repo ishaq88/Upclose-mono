@@ -52,12 +52,16 @@ class ScoreResult(ContractModel):
     zones: tuple[ZoneScore, ...]
     config_hash: Annotated[str, Field(pattern="^[0-9a-f]{64}$")]
     label: str = "Provisional visual-condition index"
+    # Set only when the headline counted unassessed scorable zones at this value. Absent on results written
+    # before it existed, which therefore serialise to exactly the same bytes.
+    unassessed_zone_score: Score | None = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def unique_zones_and_headline(self) -> Self:
         if len({zone.zone for zone in self.zones}) != len(self.zones):
             raise ValueError("duplicate score zone")
-        if self.headline is not None and sum(zone.score is not None for zone in self.zones) < 3:
+        if (self.headline is not None and self.unassessed_zone_score is None
+                and sum(zone.score is not None for zone in self.zones) < 3):
             raise ValueError("headline requires at least three assessed zones")
         return self
 

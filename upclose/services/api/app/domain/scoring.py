@@ -45,7 +45,28 @@ def score_assessment(inputs: ScoringInput, config: ScoringConfig) -> ScoreResult
             zones.append(ZoneScore(zone=zone, state=state, score=score, reason=reason))
         assessed = [row for row in zones if row.score is not None]
         headline = None
+        fill = config.unassessed_zone_score
+        if fill is not None:
+            # Missing-input mode: every scorable zone counts, an unseen one at the configured value.
+            scorable = [row for row in zones if by_zone[row.zone].required_concepts]
+            denominator = sum((by_zone[row.zone].weight for row in scorable), Decimal(0))
+            headline = sum(((row.score if row.score is not None else fill) * by_zone[row.zone].weight
+                            for row in scorable), Decimal(0)) / denominator
+            return ScoreResult(headline=headline, zones=tuple(zones), config_hash=config.content_hash,
+                               unassessed_zone_score=fill)
         if len(assessed) >= config.minimum_headline_zones:
             denominator = sum((by_zone[row.zone].weight for row in assessed), Decimal(0))
             headline = sum((row.score * by_zone[row.zone].weight for row in assessed), Decimal(0)) / denominator
         return ScoreResult(headline=headline, zones=tuple(zones), config_hash=config.content_hash)
+
+
+def visual_reason(result: ScoreResult, config: ScoringConfig) -> str | None:
+    """Says how many scorable zones were not seen and counted at the fill value; None in the original mode."""
+    fill = config.unassessed_zone_score
+    if fill is None:
+        return None
+    scorable = [row for row in result.zones if next(z for z in config.zones if z.zone == row.zone).required_concepts]
+    unseen = sum(row.score is None for row in scorable)
+    if unseen == 0:
+        return None
+    return f"{unseen} of {len(scorable)} zones not seen; each counted as {fill.normalize():f}."

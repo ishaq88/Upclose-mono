@@ -9,7 +9,11 @@
 <div class="score-box">
 {%- if headline is not none %}
 <div class="score-value">{{ headline }}</div>
+{%- if unseen_fill %}
+<div class="score-label">{{ score_label }} (0–100), weighted across the scorable zones; a zone that was not seen counts as {{ unseen_fill }}. {{ assessed_count }} zones assessed.</div>
+{%- else %}
 <div class="score-label">{{ score_label }} (0–100), weighted across {{ assessed_count }} assessed zones</div>
+{%- endif %}
 {%- else %}
 <div class="score-value">No overall index</div>
 <div class="score-label">No overall index — fewer than 3 zones assessed. {{ score_label }}.</div>

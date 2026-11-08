@@ -1925,6 +1925,11 @@ export interface components {
              * @default Provisional visual-condition index
              */
             label: string;
+            /**
+             * Unassessed Zone Score
+             * @default null
+             */
+            unassessed_zone_score: number | null;
             /** Zones */
             zones: components["schemas"]["ZoneScore"][];
         };

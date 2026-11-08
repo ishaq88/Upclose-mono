@@ -444,8 +444,10 @@ def test_free_dto_from_snapshot_has_no_other_zone_or_paid_content(make, media_di
     assert not {"scores", "repairs", "claims", "narration", "headline"} & set(json.loads(blob))
     # category scores are public (visual, mechanical, overall); the breakdown, advisory and VIN facts are paid-only
     assert set(json.loads(blob)["categories"]) == {"visual", "mechanical", "overall", "config_hash", "label"}
-    assert free.categories.mechanical.state == "not_checked" and free.categories.overall.score is None
-    assert free.categories.overall.basis in ("visual_only", "none")  # never a blend without a Mechanical score
+    # no kit inputs: each missing input is penalised, so both categories and the blend are always numbers
+    assert free.categories.mechanical.state == "assessed" and float(free.categories.mechanical.score) == 100 - 25 - 20 - 10
+    assert free.categories.visual.state == "assessed" and free.categories.visual.reason
+    assert free.categories.overall.basis == "blend" and free.categories.overall.score is not None
     assert not {"mechanical_breakdown", "advisory", "vibration", "narration_audio"} & set(json.loads(blob))
     assert [c.zone.value for c in free.coverage] == ["driver_side"]
     for text in (free.part1_summary, snap.free_narration.outcome.model_dump_json()):

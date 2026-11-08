@@ -42,7 +42,7 @@ def test_unclassified_video_finishes_with_unassessed_report_and_frozen_source(ma
     assert snap.manifest.source_video.reason == "VIDEO_MAPPING_UNAVAILABLE"
     assert snap.manifest.source_video.source_sha256 == h.row(VideoUpload, source_id).raw_sha256
     free, paid = build_free_report(snap), build_paid_report(snap)
-    assert free.part1_score is None and paid.scores.headline is None
+    assert free.part1_score is None and paid.scores.headline == 50  # nothing assessed: every zone counts as 50
     assert not free.findings and not paid.findings
     assert all(item.state == CoverageState.NOT_ASSESSED and item.reason == "video_zone_unconfirmed"
                for item in paid.coverage)
@@ -71,7 +71,7 @@ def test_marked_video_scopes_timestamps_freezes_provenance_and_purges_all_media(
     snap = snapshot(h)
     free, paid = build_free_report(snap), build_paid_report(snap)
     assert free.findings and any(row.zone.value == "passenger_side" for row in paid.findings)
-    assert free.part1_score is None and paid.scores.headline is None
+    assert free.part1_score is None and sum(zone.score is not None for zone in paid.scores.zones) < 3
     for row in paid.findings:
         assert row.mapping_basis == "user_declared"
         assert (1000 <= row.source_timestamp_ms < 3000) if row.zone.value == "driver_side" else (3000 <= row.source_timestamp_ms < 5000)

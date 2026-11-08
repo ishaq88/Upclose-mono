@@ -22,7 +22,7 @@ from app.domain.narration import (
 
 ROOT = Path(__file__).resolve().parents[1]
 NARRATION = load_narration_config(ROOT / "config/narration.v1.json")
-SCORING = load_scoring_config(ROOT / "config/scoring.v1.json")
+SCORING = load_scoring_config(ROOT / "tests/fixtures/legacy_config/scoring.v1.json")  # original behaviour
 COSTS = load_cost_config(ROOT / "config/costs.v1.json")
 CLAIMS = load_claims_config(ROOT / "config/claims.v1.json")
 SESSION = UUID(int=1)

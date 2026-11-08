@@ -35,6 +35,13 @@ class Blend(ContractModel):
     label: Literal["unvalidated"]
 
 
+class MissingInputs(ContractModel):
+    """Points lost when an input is missing. Present only in configs that penalise missing inputs."""
+    obd: Weight
+    engine_pod: Weight
+    dash: Weight
+
+
 class MechanicalConfig(HashedConfig):
     note: str
     validated: Literal[False]
@@ -42,6 +49,8 @@ class MechanicalConfig(HashedConfig):
     weights: dict[str, Weight]
     use_dash_deduction: bool
     blend: Blend
+    # Absent (None) keeps the original behaviour and stays out of the dump, so earlier configs keep their hash.
+    missing_inputs: MissingInputs | None = Field(default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def complete(self) -> "MechanicalConfig":
@@ -81,7 +90,8 @@ def score_mechanical(sources: Sequence[SourceRecord], dash: FrozenDash | None, c
     if rig is not None and isinstance(rig.summary, RigTelemetrySummary) and rig.summary.model_verdict is not None:
         if rig.summary.model_verdict.verdict != "not_assessed":
             verdict = rig.summary.model_verdict
-    if obd is None and verdict is None:
+    missing = config.missing_inputs
+    if obd is None and verdict is None and missing is None:
         return MechanicalResult(None, "Needs an OBD snapshot or an assessed engine-pod verdict.")
     deductions: list[MechanicalDeduction] = []
     flags: list[str] = []
@@ -110,16 +120,33 @@ def score_mechanical(sources: Sequence[SourceRecord], dash: FrozenDash | None, c
             extra = config.weights.get(f"dash_{flag}")
             if extra is not None and extra.points > 0:
                 deductions.append(MechanicalDeduction(code=flag, label=flag.replace("_", " ").capitalize(), points=extra.points))
+    reason = None
+    if missing is not None:
+        absent: list[str] = []
+        if obd is None:
+            deductions.append(MechanicalDeduction(code="missing_obd", label="OBD snapshot not provided", points=missing.obd.points))
+            absent.append("OBD snapshot")
+        if verdict is None:
+            deductions.append(MechanicalDeduction(code="missing_engine_pod", label="Engine pod not used",
+                                                  points=missing.engine_pod.points))
+            absent.append("engine pod")
+        if config.use_dash_deduction and (dash is None or dash.state != "assessed"):
+            deductions.append(MechanicalDeduction(code="missing_dash", label="Dashboard lights not readable",
+                                                  points=missing.dash.points))
+            absent.append("dashboard lights")
+        if absent:
+            reason = "Not provided: " + ", ".join(absent) + ". Each missing input costs points; it is not damage."
     total = sum((row.points for row in deductions), Decimal(0))
-    return MechanicalResult(max(config.start - total, Decimal(0)), None, tuple(deductions), tuple(flags))
+    return MechanicalResult(max(config.start - total, Decimal(0)), reason, tuple(deductions), tuple(flags))
 
 
-def category_scores(visual: Decimal | None, mechanical: MechanicalResult, config: MechanicalConfig) -> CategoryScores:
+def category_scores(visual: Decimal | None, mechanical: MechanicalResult, config: MechanicalConfig,
+                    visual_reason: str | None = None) -> CategoryScores:
     """Overall is a blend only when both categories are assessed; otherwise it says which one is missing."""
     mech = mechanical.score
-    visual_card = (CategoryScore(state="assessed", score=visual) if visual is not None else
+    visual_card = (CategoryScore(state="assessed", score=visual, reason=visual_reason) if visual is not None else
                    CategoryScore(state="not_checked", reason="Not enough visual footage was assessed."))
-    mech_card = (CategoryScore(state="assessed", score=mech) if mech is not None else
+    mech_card = (CategoryScore(state="assessed", score=mech, reason=mechanical.reason) if mech is not None else
                  CategoryScore(state="not_checked", reason=mechanical.reason))
     if visual is not None and mech is not None:
         blend = config.blend

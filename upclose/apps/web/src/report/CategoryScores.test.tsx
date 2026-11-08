@@ -48,4 +48,13 @@ describe('category scores', () => {
     expect(cell('visual').getByText('Not checked')).toBeTruthy();
     expect(screen.queryByText('Visual only')).toBeNull();
   });
+
+  it('shows the reason under a scored category when the server gives one', () => {
+    render(<CategoryScores categories={make({ state: 'assessed', score: 89.1, reason: '1 of 6 zones not seen; each counted as 50.' },
+      { state: 'assessed', score: 55, reason: 'Not provided: engine pod. Each missing input costs points; it is not damage.' },
+      { state: 'assessed', score: 68.6, basis: 'blend', note: '' })} />);
+    expect(cell('visual').getByText('1 of 6 zones not seen; each counted as 50.')).toBeTruthy();
+    expect(cell('mechanical').getByText(/Not provided: engine pod/)).toBeTruthy();
+    expect(cell('overall').getByText('68.6')).toBeTruthy();
+  });
 });

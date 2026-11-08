@@ -58,7 +58,7 @@ def rig(make, media_dir, scratch_root):  # noqa: F811
 def test_free_view_shows_categories_and_make_but_nothing_paid(rig):
     free = build_free_report(rig.snapshot())
     assert free.categories.mechanical.state == "assessed"
-    assert float(free.categories.mechanical.score) == 100 - 25 - 15 - 10 - 10  # anomaly, stored code, MIL, cleared codes
+    assert float(free.categories.mechanical.score) == 100 - 25 - 15 - 10 - 10 - 10  # anomaly, stored code, MIL, cleared codes, dashboard not read
     assert free.categories.overall.basis == "blend" and free.categories.overall.score is not None
     html, dumped = render_report(free), free.model_dump_json()
     for leak in ("P0301", "1HGCM82633A004352", "anomaly", "mechanical_breakdown", "advisory", "Questions for the seller",

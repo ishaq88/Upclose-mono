@@ -1,5 +1,5 @@
 {
-  "version": "narration-v1-templates",
+  "version": "narration-v2-templates",
   "free_zone": "driver_side",
   "max_statements": 80,
   "gaps_unrecorded_text": "coverage records are incomplete",
@@ -31,6 +31,7 @@
     {"key": "free_unscored", "text": "{zone_label} could not be fully assessed from the footage, so no score is given. Coverage gaps: {gaps}."},
     {"key": "free_partial_note", "text": "Verified findings found here are still listed; the absence of other findings cannot be concluded."},
     {"key": "paid_headline", "text": "Overall provisional visual-condition index: {headline} of 100, a weighted mean over {assessed_count} assessed zones."},
+    {"key": "paid_headline_unseen", "text": "Overall provisional visual-condition index: {headline} of 100, a weighted mean over {scorable_count} zones; {unseen_count} not seen, each counted as {unseen_score}."},
     {"key": "paid_headline_none", "text": "No overall index is given because too few zones were assessed ({assessed_count} assessed)."},
     {"key": "paid_flagged", "text": "{count} verified {finding_noun} flagged as high risk and listed first."},
     {"key": "paid_zone_scored", "text": "{zone_label}: visual-condition index {score} of 100 (provisional)."},

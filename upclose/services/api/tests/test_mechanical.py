@@ -16,7 +16,7 @@ from app.domain.sources import load_sources_config, summarize_obd, summarize_rig
 from tests.test_sources_domain import obd_data, rig_data
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = load_mechanical_config()
+CONFIG = load_mechanical_config(ROOT / "tests/fixtures/legacy_config/mechanical.v1.json")  # original behaviour; the live config is covered in test_missing_inputs.py
 SOURCES = load_sources_config(ROOT / "config/sources.v1.json")
 VERDICTS = ROOT / "tests/fixtures/verdicts"
 D = Decimal

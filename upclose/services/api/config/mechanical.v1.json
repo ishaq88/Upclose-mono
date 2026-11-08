@@ -1,5 +1,5 @@
 {
-  "version": "mechanical-v1-unvalidated",
+  "version": "mechanical-v2-unvalidated",
   "note": "Uncalibrated design defaults: every weight below is unvalidated and has not been checked against labeled vehicles. The Mechanical score is a provisional index, not a diagnosis.",
   "validated": false,
   "start": "100",
@@ -14,5 +14,10 @@
     "dash_mil_not_visible": {"points": "0", "label": "unvalidated"}
   },
   "use_dash_deduction": true,
-  "blend": {"visual": "0.4", "mechanical": "0.6", "label": "unvalidated"}
+  "blend": {"visual": "0.4", "mechanical": "0.6", "label": "unvalidated"},
+  "missing_inputs": {
+    "obd": {"points": "25", "label": "unvalidated"},
+    "engine_pod": {"points": "20", "label": "unvalidated"},
+    "dash": {"points": "10", "label": "unvalidated"}
+  }
 }

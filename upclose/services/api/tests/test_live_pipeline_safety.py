@@ -43,7 +43,7 @@ def test_pending_live_empty_result_cannot_be_assessed(make, media_dir, scratch_r
     assert all("verification_unavailable" in row.reason for row in coverage(h).values())
     free, paid = frozen_reports(h, pipe)
     assert free.part1_score is None and free.findings == ()
-    assert paid.scores.headline is None
+    assert paid.scores.headline == 50  # nothing was seen, so every scorable zone counts as 50
     assert all(zone.score is None for zone in paid.scores.zones)
 
 

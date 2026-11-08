@@ -14,7 +14,8 @@ from app.contracts.scoring import ScoringInput
 from app.domain import estimate_repairs, load_cost_config, load_scoring_config, score_assessment
 
 ROOT = Path(__file__).resolve().parents[1]
-SCORING = load_scoring_config(ROOT / "config/scoring.v1.json")
+LEGACY = ROOT / "tests/fixtures/legacy_config"
+SCORING = load_scoring_config(LEGACY / "scoring.v1.json")  # original behaviour; the live config is covered in test_missing_inputs.py
 COSTS = load_cost_config(ROOT / "config/costs.v1.json")
 SESSION = UUID(int=1)
 
@@ -155,7 +156,7 @@ def test_known_plus_unknown_is_only_subtotal() -> None:
 
 
 def test_deterministic_config_hash_and_input_order(tmp_path: Path) -> None:
-    payload = json.loads((ROOT / "config/scoring.v1.json").read_text())
+    payload = json.loads((LEGACY / "scoring.v1.json").read_text())
     path = tmp_path / "scoring.json"
     path.write_text(json.dumps(dict(reversed(list(payload.items()))), indent=4))
     assert load_scoring_config(path).content_hash == SCORING.content_hash

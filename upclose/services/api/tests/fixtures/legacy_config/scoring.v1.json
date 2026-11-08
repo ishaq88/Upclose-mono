@@ -1,0 +1,21 @@
+{
+  "version": "scoring-v1-uncalibrated",
+  "deduction_cap": "75",
+  "minimum_headline_zones": 3,
+  "zones": [
+    {"zone": "driver_side", "weight": "1.5", "required_concepts": ["rust", "paint_bubbling", "dent", "scratch"]},
+    {"zone": "passenger_side", "weight": "1.5", "required_concepts": ["rust", "paint_bubbling", "dent", "scratch"]},
+    {"zone": "front_rear_body", "weight": "1", "required_concepts": ["rust", "paint_bubbling", "dent", "scratch", "glass_crack"]},
+    {"zone": "tires", "weight": "1.25", "required_concepts": ["tire_wear"]},
+    {"zone": "dash_electrical", "weight": "1", "required_concepts": []},
+    {"zone": "engine_bay", "weight": "1.25", "required_concepts": ["fluid_leak"]},
+    {"zone": "underbody", "weight": "1.5", "required_concepts": ["rust", "fluid_leak"]},
+    {"zone": "interior", "weight": "0.75", "required_concepts": []}
+  ],
+  "concepts": [
+    {"concept": "rust", "weight": "3"}, {"concept": "fluid_leak", "weight": "3"},
+    {"concept": "tire_wear", "weight": "2.5"}, {"concept": "glass_crack", "weight": "2.5"},
+    {"concept": "paint_bubbling", "weight": "2"}, {"concept": "dent", "weight": "2"},
+    {"concept": "scratch", "weight": "1"}
+  ]
+}

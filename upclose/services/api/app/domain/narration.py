@@ -37,6 +37,14 @@ from .dedup import INTERNAL_FLAGS
 Pattern = Annotated[str, Field(min_length=1, max_length=300)]
 
 
+# Templates a config may omit: configs frozen before they existed keep their exact content and hash.
+_OPTIONAL_KEYS: frozenset[str] = frozenset({"paid_headline_unseen"})
+
+
+# Zones the scoring config gives no concepts: they never enter the headline, seen or not.
+_UNSCORED_ZONES: frozenset[Zone] = frozenset({Zone.DASH_ELECTRICAL, Zone.INTERIOR})
+
+
 class NarrationScope(StrEnum):
     FREE = "free"
     PAID = "paid"
@@ -53,6 +61,7 @@ _ALLOWED_SLOTS: dict[str, frozenset[str]] = {
     "free_partial_note": _NO_SLOTS,
     "paid_headline": frozenset({"headline", "assessed_count"}),
     "paid_headline_none": frozenset({"assessed_count"}),
+    "paid_headline_unseen": frozenset({"headline", "scorable_count", "unseen_count", "unseen_score"}),
     "paid_flagged": frozenset({"count", "finding_noun"}),
     "paid_zone_scored": frozenset({"zone_label", "score"}),
     "paid_zone_zero": frozenset({"zone_label"}),
@@ -106,7 +115,8 @@ class NarrationConfig(HashedConfig):
         if {row.concept for row in self.concept_labels} != set(Concept) or len(self.concept_labels) != len(Concept):
             raise ValueError("config requires one label per canonical concept")
         keys = [row.key for row in self.templates]
-        if len(set(keys)) != len(keys) or set(keys) != _ALLOWED_SLOTS.keys():
+        if (len(set(keys)) != len(keys) or not set(keys) <= _ALLOWED_SLOTS.keys()
+                or not (_ALLOWED_SLOTS.keys() - _OPTIONAL_KEYS) <= set(keys)):
             raise ValueError("templates must define each known key exactly once")
         for row in self.templates:
             slots = {field for _, field, _, _ in Formatter().parse(row.text) if field is not None}
@@ -265,6 +275,12 @@ def _headline(score: ScoreResult, config: NarrationConfig) -> list[NarratedState
     assessed = sum(row.score is not None for row in score.zones)
     if score.headline is None:
         return [_statement(config, "paid_headline_none", assessed_count=assessed)]
+    fill = score.unassessed_zone_score
+    if fill is not None and any(row.key == "paid_headline_unseen" for row in config.templates):
+        scorable = [row for row in score.zones if row.zone not in _UNSCORED_ZONES]
+        unseen = sum(row.score is None for row in scorable)
+        return [_statement(config, "paid_headline_unseen", headline=_score_text(score.headline),
+                           scorable_count=len(scorable), unseen_count=unseen, unseen_score=_score_text(fill))]
     return [_statement(config, "paid_headline", headline=_score_text(score.headline), assessed_count=assessed)]
 
 

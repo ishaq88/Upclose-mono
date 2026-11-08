@@ -39,6 +39,10 @@ class ScoringConfig(HashedConfig):
     concepts: tuple[ConceptWeight, ...]
     deduction_cap: Annotated[Decimal, Field(gt=0, le=100)]
     minimum_headline_zones: Annotated[int, Field(strict=True, ge=3, le=8)]
+    # Absent (None) keeps the original behaviour and stays out of the dump, so the content hash of configs written
+    # before this field existed is unchanged. When set, a scorable zone that was not assessed counts at this value.
+    unassessed_zone_score: Annotated[Decimal, Field(ge=0, le=100, allow_inf_nan=False)] | None = Field(
+        default=None, exclude_if=lambda v: v is None)
 
     @model_validator(mode="after")
     def complete_config(self) -> Self:

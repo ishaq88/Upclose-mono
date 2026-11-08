@@ -4737,6 +4737,18 @@
             "title": "Label",
             "type": "string"
           },
+          "unassessed_zone_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Unassessed Zone Score"
+          },
           "zones": {
             "items": {
               "$ref": "#/components/schemas/ZoneScore"

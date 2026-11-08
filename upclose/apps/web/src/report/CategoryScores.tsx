@@ -22,10 +22,12 @@ export function CategoryScores({ categories }: { categories: Categories }): Reac
         <div className="category" data-testid="category-visual">
           <dt>Visual</dt>
           <dd className={show(visual) === NOT_CHECKED ? 'category-none' : 'category-score num'}>{show(visual)}</dd>
+          {visual.reason && <dd className="hint" data-testid="category-visual-reason">{visual.reason}</dd>}
         </div>
         <div className="category" data-testid="category-mechanical">
           <dt>Mechanical</dt>
           <dd className={show(mechanical) === NOT_CHECKED ? 'category-none' : 'category-score num'}>{show(mechanical)}</dd>
+          {mechanical.reason && <dd className="hint" data-testid="category-mechanical-reason">{mechanical.reason}</dd>}
         </div>
         <div className="category" data-testid="category-overall">
           <dt>Overall</dt>

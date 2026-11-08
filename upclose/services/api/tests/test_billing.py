@@ -860,6 +860,45 @@ def test_demo_free_unlock_grants_labeled_entitlement_without_provider(factory):
     assert again.status_code == 409  # already entitled: no second demo purchase
 
 
+def _account_token(client: TestClient) -> str:
+    response = client.post("/api/v1/accounts/register",
+                           json={"email": f"dealer-{uuid4().hex[:16]}@example.com", "password": "synthetic-pass-1234"})
+    assert response.status_code == 201, response.text
+    return response.json()["token"]
+
+
+def test_account_the_inspection_is_saved_to_can_unlock_its_report(factory):
+    # Same authority rule as reading the report: owner token, or the account the inspection is saved to.
+    env = make_env(factory)
+    client = _demo_client(factory, env, demo_free_unlock=True)
+    account = _account_token(client)
+    claim = client.post("/api/v1/accounts/claim", json={"session_id": str(env.session_id), "owner_token": env.token},
+                        headers={"Authorization": "Bearer " + account})
+    assert claim.status_code == 200, claim.text
+    response = client.post(f"/api/v1/reports/{env.slug}/checkout", json={"product": "report_unlock"},
+                           headers={"Authorization": "Bearer " + account})
+    assert response.status_code == 201, response.text
+    assert response.json() == {"checkout_url": None, "unlocked": True}
+    with factory() as db:
+        purchase = db.scalar(select(Purchase).where(Purchase.report_id == env.report_id))
+        assert purchase.session_id == env.session_id and purchase.state == "paid"
+        assert has_active_entitlement(db, env.report_id)
+
+
+def test_unlinked_account_and_unknown_token_cannot_unlock(factory):
+    env = make_env(factory)
+    client = _demo_client(factory, env, demo_free_unlock=True)
+    stranger = _account_token(client)  # valid account, but the inspection is not saved to it
+    response = client.post(f"/api/v1/reports/{env.slug}/checkout", json={"product": "report_unlock"},
+                           headers={"Authorization": "Bearer " + stranger})
+    assert response.status_code == 404, response.text
+    unknown = client.post(f"/api/v1/reports/{env.slug}/checkout", json={"product": "report_unlock"},
+                          headers={"Authorization": "Bearer " + secrets.token_urlsafe(32)})
+    assert unknown.status_code == 401, unknown.text
+    with factory() as db:
+        assert db.scalar(select(Purchase).where(Purchase.report_id == env.report_id)) is None
+
+
 def test_demo_free_unlock_refused_outside_fixture_mode(factory):
     env = make_env(factory)
     client = _demo_client(factory, env, demo_free_unlock=True, payments_mode="test")

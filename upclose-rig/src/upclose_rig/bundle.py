@@ -107,9 +107,18 @@ def load_verdict(path: str | Path) -> dict[str, object]:
 
 def to_json(envelope: object) -> str:
     """Compact JSON. None fields are dropped except inside model_verdict, where
-    nulls are meaningful (a not_assessed verdict carries null counts)."""
+    nulls are meaningful (a not_assessed verdict carries null counts). A feature's
+    optional `z` is the one exception: the server accepts it only on run-level
+    features, so a missing z is omitted rather than sent as null."""
     d = envelope.model_dump(mode="json", exclude_none=True, by_alias=True)  # type: ignore[attr-defined]
     mv = getattr(getattr(envelope, "data", None), "model_verdict", None)
     if mv is not None:
-        d["data"]["model_verdict"] = mv.model_dump(mode="json", by_alias=True)
+        verdict = mv.model_dump(mode="json", by_alias=True)
+        features = list(verdict.get("top_features") or [])
+        for run in verdict.get("anomalous_runs") or []:
+            features.extend(run.get("top_features") or [])
+        for feature in features:
+            if feature.get("z") is None:
+                feature.pop("z", None)
+        d["data"]["model_verdict"] = verdict
     return json.dumps(d, separators=(",", ":"))

@@ -127,3 +127,20 @@ def test_obd_model_validation():
     ):
         with pytest.raises(ValidationError):
             ObdSnapshotEnvelope.model_validate(obd(**bad))
+
+
+def test_verdict_feature_without_z_is_omitted_not_null():
+    """The server accepts `z` only on run-level features; a verdict-level feature
+    has none, and sending `"z": null` is rejected as an unknown field."""
+    from upclose_rig.anomaly.model import assess_records, fit_from_records
+
+    healthy = simulate(SimConfig(seconds=30, seed=3))
+    misfire = simulate(SimConfig(seconds=30, seed=4, misfire_every=4))
+    verdict = assess_records(fit_from_records(healthy, source="simulator"), misfire, source="simulator")
+    assert verdict["verdict"] == "anomaly_suspected"
+    text = to_json(build_rig_bundle(rec_of(misfire), "synthetic", verdict=verdict))
+    assert '"z":null' not in text
+    mv = json.loads(text)["data"]["model_verdict"]
+    assert mv["top_features"] and all("z" not in f for f in mv["top_features"])
+    run_features = [f for run in mv["anomalous_runs"] for f in run["top_features"]]
+    assert run_features and all(isinstance(f["z"], float) for f in run_features)

@@ -4,7 +4,7 @@ import { defineConfig, loadEnv } from "vite";
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 
-const DEFAULT_REPO_URL = "https://github.com/ishaq88/UpClose";
+const DEFAULT_REPO_URL = "https://github.com/ishaq88/Upclose-mono";
 
 /** The public source link shown while the app is not live: HTTPS GitHub only. */
 function repoUrl(raw: string | undefined): string {
